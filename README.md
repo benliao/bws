@@ -1,18 +1,9 @@
 # BWS (Ben's Web Server)
 
-[![CI](https://github.com/benliao/bws/workflows/CI/badge.s4. **Test your setup**:
-
-```bash
-# Test main site
-curl http://localhost:8080
-
-# Test API site  
-curl http://localhost:8081
-
-# Health check
-curl http://localhost:8080/api/health
-```/github.com/benliao/bws/actions)
+[![CI](https://github.com/benliao/bws/workflows/CI/badge.svg)](https://github.com/benliao/bws/actions)
 [![Security](https://github.com/benliao/bws/workflows/Security/badge.svg)](https://github.com/benliao/bws/actions)
+[![Crates.io](https://img.shields.io/crates/v/bws-web-server.svg)](https://crates.io/crates/bws-web-server)
+[![Downloads](https://img.shields.io/crates/d/bws-web-server.svg)](https://crates.io/crates/bws-web-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A high-performance, multi-site web server built with [Pingora](https://github.com/cloudflare/pingora), Cloudflare's battle-tested proxy framework.
@@ -612,3 +603,49 @@ The project uses automated security scanning via GitHub Actions. The current sec
 **Monitoring Script**: Run `./scripts/monitor-deps.sh` to check for dependency updates and security status.
 
 **Security Workflow**: The CI pipeline automatically scans for new vulnerabilities while ignoring documented accepted risks.
+
+## 📦 Publishing & Releases
+
+BWS uses automated publishing to multiple platforms:
+
+### Automated Release Process
+
+When you create a new version tag (e.g., `v0.1.3`), GitHub Actions automatically:
+
+1. **📦 Publishes to crates.io** - Available via `cargo install bws-web-server`
+2. **🏗️ Builds cross-platform binaries** - Linux, macOS, Windows
+3. **🐳 Publishes Docker images** - To GitHub Container Registry 
+4. **📝 Creates GitHub Release** - With downloadable assets
+
+### Publishing to crates.io
+
+**Setup Required** (one-time):
+1. Get API token from [crates.io](https://crates.io/) → Account Settings → API Tokens
+2. Add token as repository secret: `CARGO_REGISTRY_TOKEN`
+
+**To publish a new version**:
+```bash
+# 1. Update version in Cargo.toml
+sed -i 's/version = "0.1.2"/version = "0.1.3"/' Cargo.toml
+
+# 2. Commit and tag
+git add Cargo.toml
+git commit -m "Bump version to 0.1.3"
+git tag v0.1.3
+git push origin main --tags
+```
+
+**Manual Publishing** (if needed):
+- Go to **Actions** → **Publish to crates.io** workflow
+- Click **Run workflow** and choose dry-run option for testing
+
+### Release Artifacts
+
+Each release includes:
+- 📦 **crates.io package** - `cargo install bws-web-server`
+- 🐧 **Linux binaries** - x86_64 (glibc + musl)
+- 🍎 **macOS binaries** - x86_64 + ARM64 (Apple Silicon)
+- 🪟 **Windows binaries** - x86_64 (no daemon support)
+- 🐳 **Docker images** - Multi-arch (amd64/arm64)
+
+For detailed setup instructions, see `PUBLISHING.md`.
