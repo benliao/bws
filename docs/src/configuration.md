@@ -20,6 +20,7 @@ Each site can be configured as a reverse proxy with load balancing:
 | `proxy.routes.path` | String | Path pattern to match | Required |
 | `proxy.routes.upstream` | String | Upstream group to proxy to | Required |
 | `proxy.routes.strip_prefix` | Boolean | Remove path prefix when forwarding | `false` |
+| `proxy.routes.websocket` | Boolean | Enable WebSocket proxying for this route | `false` |
 | `proxy.load_balancing.method` | String | Load balancing algorithm | `"round_robin"` |
 | `proxy.timeout.read` | Integer | Read timeout in seconds | `30` |
 | `proxy.timeout.write` | Integer | Write timeout in seconds | `30` |

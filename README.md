@@ -644,6 +644,7 @@ static_dir = "static-dev"
 - **sites.proxy.routes.path**: Path pattern to match for proxying
 - **sites.proxy.routes.upstream**: Upstream group name to proxy to
 - **sites.proxy.routes.strip_prefix**: Remove matched path when forwarding
+- **sites.proxy.routes.websocket**: Enable WebSocket proxying for this route
 - **sites.proxy.load_balancing**: Load balancing configuration
 - **sites.proxy.load_balancing.method**: Algorithm (`round_robin`, `weighted`, `least_connections`)
 - **sites.proxy.timeout**: Request timeout settings

@@ -1,6 +1,6 @@
 [package]
 name = "bws-web-server"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2021"
 license = "MIT"
 description = "BWS (Ben's Web Server) - A high-performance multi-site web server built with Pingora"
@@ -53,6 +53,10 @@ notify = "6.0"
 fastrand = "2.0"
 # URL parsing for proxy upstream configuration
 url = "2.4"
+# WebSocket support for proxy
+tokio-tungstenite = { version = "0.23", features = ["rustls-tls-webpki-roots"] }
+tungstenite = "0.24"
+futures-util = "0.3"
 
 [target.'cfg(unix)'.dependencies]
 daemonize = "0.5"

@@ -1,4 +1,5 @@
 use crate::config::site::{ProxyConfig, ProxyRoute, SiteConfig, UpstreamConfig};
+use crate::handlers::websocket_proxy::WebSocketProxyHandler;
 use chrono;
 use log::{debug, error, info};
 use pingora::http::{RequestHeader, ResponseHeader};
@@ -14,6 +15,7 @@ pub struct ProxyHandler {
     upstreams: HashMap<String, Vec<UpstreamConfig>>,
     round_robin_counters: HashMap<String, Arc<AtomicUsize>>,
     connection_counts: HashMap<String, Arc<AtomicUsize>>,
+    websocket_handler: WebSocketProxyHandler,
 }
 
 impl ProxyHandler {
@@ -35,10 +37,11 @@ impl ProxyHandler {
         }
 
         Self {
-            proxy_config,
+            proxy_config: proxy_config.clone(),
             upstreams,
             round_robin_counters,
             connection_counts,
+            websocket_handler: WebSocketProxyHandler::new(proxy_config),
         }
     }
 
@@ -231,7 +234,13 @@ impl ProxyHandler {
         _site: &SiteConfig,
         path: &str,
     ) -> Result<bool> {
-        // Find matching route
+        // Check if this is a WebSocket upgrade request
+        if WebSocketProxyHandler::is_websocket_upgrade_request(session.req_header()) {
+            info!("Detected WebSocket upgrade request for path: {}", path);
+            return self.websocket_handler.handle_websocket_proxy(session, path).await;
+        }
+
+        // Find matching route for regular HTTP proxy
         if let Some(route) = self.find_proxy_route(path) {
             info!("Proxying request {} to upstream '{}'", path, route.upstream);
 

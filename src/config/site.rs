@@ -96,6 +96,8 @@ pub struct ProxyRoute {
     pub strip_prefix: bool,
     #[serde(default)]
     pub rewrite_target: Option<String>,
+    #[serde(default)]
+    pub websocket: bool, // Enable WebSocket proxying for this route
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]

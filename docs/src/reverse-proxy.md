@@ -1,6 +1,12 @@
 # Reverse Proxy Configuration
 
-BWS now supports comprehensive Caddy-style reverse proxy functionality on a per-site basis. Each site can be configured to proxy specific routes to upstream servers with flexible routing, load balancing, and header management.
+BWS now supports comprehensive Caddy-style reverse proxy functionality on a per-site basis. Each site can be configured to proxy specific routes to upstream servers with flexible routing, load balancing, and head🚀 **Future Enhancements:**
+- Health check system with automatic failover
+- Connection pooling optimization
+- Circuit breaker pattern for failing upstreams
+- ✅ **WebSocket proxy support** - Real-time bidirectional communication proxying
+- Request body streaming for large payloads
+- Detailed metrics and monitoringgement.
 
 ## Configuration Structure
 
@@ -248,6 +254,91 @@ When a request comes in, BWS checks routes in this order:
 - WebSocket proxy support
 - Request body streaming for large payloads
 - Detailed metrics and monitoring
+
+## WebSocket Proxy Support
+
+BWS supports proxying WebSocket connections to upstream servers with the same load balancing capabilities as HTTP requests.
+
+### WebSocket Configuration
+
+To enable WebSocket proxying for a route, set the `websocket` flag to `true`:
+
+```toml
+[[sites.proxy.routes]]
+path = "/ws"
+upstream = "websocket_backend"
+strip_prefix = true
+websocket = true  # Enable WebSocket proxying
+```
+
+### WebSocket Features
+
+- **Automatic Detection**: BWS automatically detects WebSocket upgrade requests
+- **Load Balancing**: WebSocket connections are distributed using the same algorithms as HTTP requests
+- **Bidirectional Communication**: Full support for real-time message forwarding
+- **Protocol Upgrade**: Automatic handling of HTTP to WebSocket protocol upgrade
+- **Header Forwarding**: Proper forwarding of WebSocket-specific headers
+
+### Example WebSocket Configuration
+
+```toml
+[[sites]]
+name = "websocket-app"
+hostname = "ws.example.com" 
+port = 8080
+static_dir = "./static"
+
+[sites.proxy]
+enabled = true
+
+# WebSocket upstream servers
+[[sites.proxy.upstreams]]
+name = "chat_servers"
+url = "http://localhost:3001"  # Will be converted to ws://localhost:3001
+weight = 1
+
+[[sites.proxy.upstreams]]
+name = "chat_servers"
+url = "http://localhost:3002"  # Will be converted to ws://localhost:3002
+weight = 1
+
+# WebSocket routes
+[[sites.proxy.routes]]
+path = "/ws/chat"
+upstream = "chat_servers"
+strip_prefix = true
+websocket = true
+
+[[sites.proxy.routes]]
+path = "/ws/notifications"
+upstream = "chat_servers"
+strip_prefix = false
+websocket = true
+
+# Load balancing for WebSocket connections
+[sites.proxy.load_balancing]
+method = "round_robin"  # or "weighted", "least_connections"
+```
+
+### WebSocket URL Transformation
+
+BWS automatically converts HTTP upstream URLs to WebSocket URLs:
+- `http://localhost:3001` → `ws://localhost:3001`
+- `https://localhost:3001` → `wss://localhost:3001`
+
+### Testing WebSocket Proxy
+
+Use the included test script to verify WebSocket proxy functionality:
+
+```bash
+./test_websocket_proxy.sh
+```
+
+This will:
+1. Start multiple WebSocket test servers
+2. Configure BWS with WebSocket proxy routes
+3. Provide a web interface for testing connections
+4. Demonstrate load balancing between upstream servers
 
 ## Testing
 
