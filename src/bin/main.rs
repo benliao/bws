@@ -1,21 +1,53 @@
 use bws_web_server::{ServerConfig, WebServerService};
 use pingora::prelude::*;
+use clap::Parser;
+
+#[derive(Parser)]
+#[command(name = "bws-web-server")]
+#[command(about = "BWS (Ben's Web Server) - A high-performance multi-site web server built with Pingora")]
+#[command(version)]
+#[command(long_about = "BWS is a high-performance, multi-site web server that can host multiple websites \
+on different ports with individual configurations. It supports configurable headers, static file serving, \
+and health monitoring endpoints.")]
+struct Cli {
+    /// Configuration file path
+    #[arg(short, long, default_value = "config.toml")]
+    config: String,
+    
+    /// Enable verbose logging
+    #[arg(short, long)]
+    verbose: bool,
+}
 
 fn main() {
-    env_logger::init();
+    let cli = Cli::parse();
 
-    // Load configuration
-    let config = ServerConfig::load_from_file("config.toml").unwrap_or_else(|e| {
-        eprintln!("Failed to load config.toml: {}", e);
+    // Initialize logging based on verbosity
+    if cli.verbose {
+        env_logger::Builder::from_default_env()
+            .filter_level(log::LevelFilter::Debug)
+            .init();
+    } else {
+        env_logger::init();
+    }
+
+    // Load configuration from specified file
+    let config = ServerConfig::load_from_file(&cli.config).unwrap_or_else(|e| {
+        eprintln!("Failed to load config file '{}': {}", cli.config, e);
+        eprintln!("Make sure the config file exists and is properly formatted.");
+        eprintln!("Use --help for more information.");
         std::process::exit(1);
     });
 
-    println!("Loaded configuration for {} sites:", config.sites.len());
+    println!("Loaded configuration from '{}' for {} sites:", cli.config, config.sites.len());
     for site in &config.sites {
         println!(
             "  - {} ({}:{}) -> {}",
             site.name, site.hostname, site.port, site.static_dir
         );
+        if cli.verbose && !site.headers.is_empty() {
+            println!("    Headers: {:?}", site.headers);
+        }
     }
 
     let mut my_server = Server::new(None).unwrap();
@@ -38,5 +70,36 @@ fn main() {
 
     log::info!("Starting BWS multi-site server...");
     my_server.bootstrap();
+    
+    // Display clickable URLs for each site after server starts
+    println!("\n🚀 BWS Multi-Site Server is running!");
+    println!("📋 Available websites:");
+    
+    for site in &config.sites {
+        let url = format!("http://{}:{}", 
+            if site.hostname == "localhost" || site.hostname.ends_with(".localhost") {
+                site.hostname.clone()
+            } else {
+                "localhost".to_string()
+            }, 
+            site.port
+        );
+        
+        // Display clickable URL with site description
+        println!("  • {} - {}", site.name, url);
+        
+        // Show common endpoints for each site
+        if cli.verbose {
+            println!("    └─ Health: {}/api/health", url);
+            println!("    └─ Sites: {}/api/sites", url);
+        }
+    }
+    
+    println!("\n💡 Tip: Use Ctrl+C to stop the server");
+    if !cli.verbose {
+        println!("💡 Use --verbose to see health check URLs");
+    }
+    println!();
+    
     my_server.run_forever();
 }

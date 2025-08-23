@@ -90,7 +90,20 @@ echo "<h1>API Documentation</h1>" > static-api/index.html
 3. **Run the server**:
 
 ```bash
+# Run with default config.toml
 bws-web-server
+
+# Specify a custom config file
+bws-web-server --config my-config.toml
+
+# Enable verbose logging
+bws-web-server --verbose
+
+# Show help
+bws-web-server --help
+
+# Show version
+bws-web-server --version
 ```
 
 4. **Test your setup**:
@@ -104,6 +117,31 @@ curl -I http://localhost:8081
 
 # Health check
 curl http://localhost:8080/api/health
+```
+
+## 💻 Command Line Options
+
+BWS supports the following command line options:
+
+- `-c, --config <FILE>`: Specify configuration file path (default: `config.toml`)
+- `-v, --verbose`: Enable verbose logging with debug information
+- `-h, --help`: Show help information
+- `-V, --version`: Show version information
+
+### Examples
+
+```bash
+# Use default config.toml
+bws-web-server
+
+# Use custom configuration file
+bws-web-server --config /path/to/my-sites.toml
+
+# Enable verbose logging to see headers and debug info
+bws-web-server --verbose
+
+# Combine options
+bws-web-server --config prod.toml --verbose
 ```
 
 ```toml
