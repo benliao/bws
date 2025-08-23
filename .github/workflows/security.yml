@@ -45,8 +45,9 @@ jobs:
         echo "::notice::Security audit complete. Known vulnerability RUSTSEC-2024-0437 is accepted and documented in SECURITY.md"
       
     - name: Run cargo deny
-      uses: EmbarkStudios/cargo-deny-action@v1
+      uses: EmbarkStudios/cargo-deny-action@v2
       with:
+        rust-version: "1.89.0"
         log-level: warn
         command: check
         arguments: --all-features
