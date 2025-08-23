@@ -301,7 +301,7 @@ server {
 
 1. **Start BWS:**
 ```bash
-bws-web-server --config config.toml
+bws --config config.toml
 ```
 
 2. **Test each site:**

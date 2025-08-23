@@ -95,7 +95,7 @@ Start BWS with your configuration:
 
 ```bash
 # Using cargo install
-bws-web-server --config config.toml
+bws --config config.toml
 
 # Using Docker
 docker run -d \
@@ -241,16 +241,16 @@ BWS supports several command line options:
 
 ```bash
 # Specify config file
-bws-web-server --config /path/to/config.toml
+bws --config /path/to/config.toml
 
 # Enable verbose logging
-bws-web-server --verbose
+bws --verbose
 
 # Run as daemon (Unix only)
-bws-web-server --daemon
+bws --daemon
 
 # Custom PID and log files for daemon mode
-bws-web-server --daemon \
+bws --daemon \
   --pid-file /var/run/bws.pid \
   --log-file /var/log/bws.log
 ```

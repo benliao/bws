@@ -10,7 +10,7 @@ The easiest way to install BWS is using Cargo:
 cargo install bws-web-server
 ```
 
-This will install the latest stable version from [crates.io](https://crates.io/crates/bws-web-server).
+This will install the latest stable version from [crates.io](https://crates.io/crates/bws-web-server). The package name is `bws-web-server`, but the installed binary is named `bws`.
 
 ### Prerequisites
 
@@ -54,7 +54,7 @@ cargo build
 # Build optimized release
 cargo build --release
 
-# The binary will be in target/release/bws-web-server
+# The binary will be in target/release/bws
 ```
 
 ## Pre-built Binaries
@@ -63,29 +63,29 @@ Download pre-built binaries from [GitHub Releases](https://github.com/benliao/bw
 
 ### Linux (x86_64)
 ```bash
-wget https://github.com/benliao/bws/releases/latest/download/bws-web-server-linux-x86_64.tar.gz
-tar -xzf bws-web-server-linux-x86_64.tar.gz
-chmod +x bws-web-server
+wget https://github.com/benliao/bws/releases/latest/download/bws-linux-x86_64.tar.gz
+tar -xzf bws-linux-x86_64.tar.gz
+chmod +x bws
 ```
 
 ### macOS (x86_64)
 ```bash
-wget https://github.com/benliao/bws/releases/latest/download/bws-web-server-macos-x86_64.tar.gz
-tar -xzf bws-web-server-macos-x86_64.tar.gz
-chmod +x bws-web-server
+wget https://github.com/benliao/bws/releases/latest/download/bws-macos-x86_64.tar.gz
+tar -xzf bws-macos-x86_64.tar.gz
+chmod +x bws
 ```
 
 ### macOS (ARM64/Apple Silicon)
 ```bash
-wget https://github.com/benliao/bws/releases/latest/download/bws-web-server-macos-aarch64.tar.gz
-tar -xzf bws-web-server-macos-aarch64.tar.gz
-chmod +x bws-web-server
+wget https://github.com/benliao/bws/releases/latest/download/bws-macos-aarch64.tar.gz
+tar -xzf bws-macos-aarch64.tar.gz
+chmod +x bws
 ```
 
 ### Windows (x86_64)
 ```bash
-wget https://github.com/benliao/bws/releases/latest/download/bws-web-server-windows-x86_64.zip
-unzip bws-web-server-windows-x86_64.zip
+wget https://github.com/benliao/bws/releases/latest/download/bws-windows-x86_64.exe
+# Note: Windows executable is directly usable
 ```
 
 ## Verification
@@ -94,10 +94,10 @@ After installation, verify BWS is working:
 
 ```bash
 # Check version
-bws-web-server --version
+bws --version
 
 # Display help
-bws-web-server --help
+bws --help
 ```
 
 ## Next Steps

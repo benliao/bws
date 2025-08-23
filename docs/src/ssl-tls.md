@@ -397,7 +397,7 @@ openssl rsa -noout -modulus -in key.pem | openssl md5
 sudo lsof -i :443
 
 # Ensure BWS has permission to bind to privileged ports
-sudo setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/bws-web-server
+sudo setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/bws
 ```
 
 ### Debug Mode
@@ -406,7 +406,7 @@ Enable verbose logging for SSL debugging:
 
 ```bash
 # Start BWS with verbose logging
-RUST_LOG=debug bws-web-server --config config.toml --verbose
+RUST_LOG=debug bws --config config.toml --verbose
 ```
 
 ### Validation

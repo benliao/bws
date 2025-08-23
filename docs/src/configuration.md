@@ -83,7 +83,7 @@ key_file = "./certs/manual.key"ation
 By default, BWS looks for `config.toml` in the current directory. You can specify a different location:
 
 ```bash
-bws-web-server --config /path/to/your/config.toml
+bws --config /path/to/your/config.toml
 ```
 
 ## Basic Configuration Structure
