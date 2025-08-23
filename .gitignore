@@ -1,6 +1,6 @@
 # Rust build artifacts
 /target/
-Cargo.lock
+# Note: Cargo.lock is committed for reproducible builds in applications
 
 # Server logs and runtime files
 server.log
