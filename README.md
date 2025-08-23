@@ -132,11 +132,13 @@ BWS supports the following command line options:
 
 - `-c, --config <FILE>`: Specify configuration file path (default: `config.toml`)
 - `-v, --verbose`: Enable verbose logging with debug information
-- `-d, --daemon`: Run as daemon (background process)
-- `--pid-file <FILE>`: PID file path when running as daemon (default: `/tmp/bws-web-server.pid`)
-- `--log-file <FILE>`: Log file path when running as daemon (default: `/tmp/bws-web-server.log`)
+- `-d, --daemon`: Run as daemon (background process) - **Unix only**
+- `--pid-file <FILE>`: PID file path when running as daemon (default: `/tmp/bws-web-server.pid`) - **Unix only**
+- `--log-file <FILE>`: Log file path when running as daemon (default: `/tmp/bws-web-server.log`) - **Unix only**
 - `-h, --help`: Show help information
 - `-V, --version`: Show version information
+
+> **Note**: Daemon functionality is only available on Unix-like systems (Linux, macOS, etc.). On Windows, the server runs in foreground mode only.
 
 ### Examples
 
@@ -160,9 +162,11 @@ bws-web-server --daemon
 bws-web-server --daemon --log-file /var/log/bws.log --pid-file /var/run/bws.pid
 ```
 
-## 🔧 Daemon Management
+## 🔧 Daemon Management (Unix Only)
 
-BWS can run as a daemon (background process) for production deployments. A management script is provided for easy daemon control:
+BWS can run as a daemon (background process) for production deployments on Unix-like systems (Linux, macOS, etc.). A management script is provided for easy daemon control:
+
+> **Windows Note**: Daemon functionality is not supported on Windows. Use your system's service manager or run in the foreground with a process manager like PM2 or NSSM.
 
 ```bash
 # Start the daemon

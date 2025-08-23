@@ -1,7 +1,9 @@
 use bws_web_server::{ServerConfig, WebServerService};
 use clap::Parser;
+#[cfg(unix)]
 use daemonize::Daemonize;
 use pingora::prelude::*;
+#[cfg(unix)]
 use std::fs::File;
 
 #[derive(Parser)]
@@ -24,15 +26,18 @@ struct Cli {
     #[arg(short, long)]
     verbose: bool,
 
-    /// Run as daemon (background process)
+    /// Run as daemon (background process) - Unix only
+    #[cfg(unix)]
     #[arg(short, long)]
     daemon: bool,
 
-    /// PID file path when running as daemon
+    /// PID file path when running as daemon - Unix only
+    #[cfg(unix)]
     #[arg(long, default_value = "/tmp/bws-web-server.pid")]
     pid_file: String,
 
-    /// Log file path when running as daemon
+    /// Log file path when running as daemon - Unix only
+    #[cfg(unix)]
     #[arg(long, default_value = "/tmp/bws-web-server.log")]
     log_file: String,
 }
@@ -40,7 +45,8 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
 
-    // Handle daemon mode
+    // Handle daemon mode (Unix only)
+    #[cfg(unix)]
     if cli.daemon {
         println!("Starting BWS server as daemon...");
         println!("PID file: {}", cli.pid_file);
@@ -125,7 +131,12 @@ fn main() {
     my_server.bootstrap();
 
     // Display clickable URLs for each site after server starts (only in foreground mode)
-    if !cli.daemon {
+    #[cfg(unix)]
+    let is_daemon = cli.daemon;
+    #[cfg(not(unix))]
+    let is_daemon = false;
+
+    if !is_daemon {
         println!("\n🚀 BWS Multi-Site Server is running!");
         println!("📋 Available websites:");
 
