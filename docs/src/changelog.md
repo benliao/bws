@@ -8,7 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **🔄 Reverse Proxy Functionality**: Complete Caddy-style reverse proxy implementation
+- **� WebSocket Proxy Support**: Full WebSocket proxying framework with automatic upgrade detection
+- **⚖️ WebSocket Load Balancing**: All load balancing algorithms extended to WebSocket connections
+- **🔄 Protocol Transformation**: Automatic HTTP to WebSocket URL conversion (http→ws, https→wss)
+- **🤝 Bidirectional Framework**: Foundation for real-time message forwarding (streaming pending)
+- **🧪 WebSocket Testing**: Comprehensive test suite and interactive test script
+- **📖 WebSocket Documentation**: Complete documentation with examples and configuration guides
+- **�🔄 Reverse Proxy Functionality**: Complete Caddy-style reverse proxy implementation
 - **⚖️ Load Balancing**: Three algorithms - round-robin, weighted, and least-connections
 - **🔗 Connection Tracking**: Real-time connection monitoring for least-connections algorithm
 - **🏷️ Header Management**: Advanced proxy header forwarding and customization

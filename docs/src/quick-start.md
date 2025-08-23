@@ -152,7 +152,55 @@ You should see:
 - Site configuration at `http://localhost:8080/api/sites`
 - SSL-secured content at `https://secure.localhost:8443/` (if configured)
 
-## 5. Add More Sites (Optional)
+## 5. Add WebSocket Proxy (Optional)
+
+BWS can also proxy WebSocket connections with load balancing. Here's a simple example:
+
+```toml
+# Add to your existing configuration
+[[sites]]
+name = "websocket-proxy"
+hostname = "ws.localhost"
+port = 8090
+static_dir = "static"
+
+[sites.proxy]
+enabled = true
+
+# WebSocket upstream servers
+[[sites.proxy.upstreams]]
+name = "websocket_backend"
+url = "http://localhost:3001"  # Will be converted to ws://localhost:3001
+weight = 1
+
+[[sites.proxy.upstreams]]
+name = "websocket_backend"
+url = "http://localhost:3002"  # Will be converted to ws://localhost:3002
+weight = 1
+
+# WebSocket routes
+[[sites.proxy.routes]]
+path = "/ws"
+upstream = "websocket_backend"
+strip_prefix = true
+websocket = true  # Enable WebSocket proxying
+
+# Load balancing for WebSocket connections
+[sites.proxy.load_balancing]
+method = "round_robin"
+```
+
+Test WebSocket proxying:
+```bash
+# Start simple WebSocket test servers (if you have Node.js)
+npx ws ws://localhost:3001 &
+npx ws ws://localhost:3002 &
+
+# Connect through BWS proxy
+# WebSocket connections to ws://ws.localhost:8090/ws will be load-balanced
+```
+
+## 7. Add More Sites (Optional)
 
 Extend your configuration to host multiple sites with different SSL configurations:
 

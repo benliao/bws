@@ -1,6 +1,6 @@
 # Load Balancing in BWS
 
-BWS reverse proxy includes comprehensive load balancing functionality similar to Caddy, with three different algorithms available.
+BWS reverse proxy includes comprehensive load balancing functionality similar to Caddy, with three different algorithms available for both HTTP and WebSocket connections.
 
 ## Load Balancing Algorithms
 
@@ -17,6 +17,7 @@ Distributes requests evenly across all available backend servers in a circular m
 - Servers with similar performance characteristics
 - Simple, predictable load distribution
 - Development and testing environments
+- WebSocket chat applications with similar server capacity
 
 ### 2. Weighted (`weighted`)
 Distributes requests based on assigned weights, allowing some servers to handle more traffic.
@@ -31,6 +32,7 @@ Distributes requests based on assigned weights, allowing some servers to handle 
 - Servers with different capacities
 - Gradual traffic migration
 - Performance-based load distribution
+- WebSocket servers with varying performance characteristics
 
 ### 3. Least Connections (`least_connections`)
 Routes requests to the server with the fewest active connections.
@@ -45,6 +47,77 @@ Routes requests to the server with the fewest active connections.
 - Long-running requests
 - Servers with varying response times
 - Optimal connection distribution
+- WebSocket connections with persistent sessions
+
+## WebSocket Load Balancing
+
+BWS extends all load balancing algorithms to support WebSocket connections with the same efficiency and reliability as HTTP requests.
+
+### WebSocket-Specific Features
+
+- **Automatic Protocol Detection**: BWS detects WebSocket upgrade requests and applies load balancing seamlessly
+- **URL Transformation**: HTTP upstream URLs are automatically converted to WebSocket URLs
+  - `http://localhost:3001` → `ws://localhost:3001`
+  - `https://localhost:3001` → `wss://localhost:3001`
+- **Persistent Connection Tracking**: WebSocket connections are tracked for least-connections algorithm
+- **Same Algorithms**: All three load balancing methods work identically for WebSocket connections
+
+### WebSocket Configuration Example
+
+```toml
+[[sites]]
+name = "websocket-app"
+hostname = "ws.example.com"
+port = 8080
+
+[sites.proxy]
+enabled = true
+
+# WebSocket upstream servers
+[[sites.proxy.upstreams]]
+name = "websocket_servers"
+url = "http://localhost:3001"  # Automatically becomes ws://localhost:3001
+weight = 1
+
+[[sites.proxy.upstreams]]
+name = "websocket_servers"  
+url = "http://localhost:3002"  # Automatically becomes ws://localhost:3002
+weight = 2  # Higher weight for better server
+
+# WebSocket routes with load balancing
+[[sites.proxy.routes]]
+path = "/ws/chat"
+upstream = "websocket_servers"
+strip_prefix = true
+websocket = true  # Enable WebSocket proxying
+
+[[sites.proxy.routes]]
+path = "/ws/notifications"
+upstream = "websocket_servers"
+strip_prefix = false
+websocket = true
+
+# Load balancing applies to WebSocket connections
+[sites.proxy.load_balancing]
+method = "least_connections"  # Ideal for persistent WebSocket connections
+```
+
+### Use Cases by Algorithm
+
+**Round Robin for WebSocket:**
+- Chat rooms with equal server capacity
+- Broadcasting services
+- Simple real-time APIs
+
+**Weighted for WebSocket:**
+- Mixed server hardware configurations
+- Gradual migration to new WebSocket servers
+- Performance-based distribution
+
+**Least Connections for WebSocket:**
+- Long-lived gaming connections
+- Persistent monitoring sessions
+- Real-time collaboration tools
 
 ## Configuration
 

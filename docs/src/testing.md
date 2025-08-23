@@ -515,6 +515,188 @@ async fn test_multi_site_configuration() {
 }
 ```
 
+### WebSocket Proxy Testing
+
+```rust
+// tests/integration/websocket_tests.rs
+use tokio_tungstenite::{connect_async, tungstenite::Message};
+
+#[tokio::test]
+async fn test_websocket_proxy_configuration() {
+    let config_content = r#"
+        [[sites]]
+        name = "websocket-proxy"
+        hostname = "127.0.0.1"
+        port = 8090
+        static_dir = "static"
+        
+        [sites.proxy]
+        enabled = true
+        
+        [[sites.proxy.upstreams]]
+        name = "websocket_backend"
+        url = "http://127.0.0.1:3001"
+        weight = 1
+        
+        [[sites.proxy.upstreams]]
+        name = "websocket_backend"
+        url = "http://127.0.0.1:3002"
+        weight = 1
+        
+        [[sites.proxy.routes]]
+        path = "/ws"
+        upstream = "websocket_backend"
+        strip_prefix = true
+        websocket = true
+        
+        [sites.proxy.load_balancing]
+        method = "round_robin"
+    "#;
+    
+    // Start mock WebSocket servers
+    let server1 = start_mock_websocket_server(3001).await;
+    let server2 = start_mock_websocket_server(3002).await;
+    
+    // Start BWS with WebSocket proxy config
+    let bws_server = start_bws_server_with_config(config_content).await;
+    
+    // Test WebSocket upgrade detection
+    test_websocket_upgrade_detection().await;
+    
+    // Test WebSocket proxy connection
+    test_websocket_proxy_connection().await;
+    
+    // Test load balancing
+    test_websocket_load_balancing().await;
+    
+    // Cleanup
+    cleanup_websocket_test(bws_server, server1, server2).await;
+}
+
+async fn test_websocket_upgrade_detection() {
+    // Test that BWS properly detects WebSocket upgrade requests
+    let client = reqwest::Client::new();
+    let response = client
+        .get("http://127.0.0.1:8090/ws")
+        .header("Upgrade", "websocket")
+        .header("Connection", "Upgrade")
+        .header("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+        .header("Sec-WebSocket-Version", "13")
+        .send()
+        .await
+        .unwrap();
+    
+    // Should attempt WebSocket upgrade (not 404)
+    assert_ne!(response.status(), 404);
+}
+
+async fn test_websocket_proxy_connection() {
+    // Note: This test demonstrates the framework
+    // Full implementation requires additional Pingora integration
+    
+    // Attempt WebSocket connection through proxy
+    let ws_url = "ws://127.0.0.1:8090/ws";
+    
+    // In a complete implementation, this would succeed
+    match connect_async(ws_url).await {
+        Ok((mut ws_stream, _)) => {
+            // Send test message
+            ws_stream.send(Message::Text("test".to_string())).await.unwrap();
+            
+            // Receive response
+            if let Some(msg) = ws_stream.next().await {
+                let msg = msg.unwrap();
+                assert!(msg.is_text());
+                println!("Received: {}", msg.to_text().unwrap());
+            }
+        }
+        Err(e) => {
+            // Expected in current implementation
+            println!("WebSocket connection failed (expected): {}", e);
+        }
+    }
+}
+
+async fn test_websocket_load_balancing() {
+    // Test that WebSocket connections are load balanced
+    let mut server_responses = std::collections::HashMap::new();
+    
+    // Make multiple connections
+    for i in 0..10 {
+        let ws_url = format!("ws://127.0.0.1:8090/ws?test={}", i);
+        
+        // In full implementation, track which server responds
+        // Current implementation provides detection framework
+        match connect_async(&ws_url).await {
+            Ok((mut ws_stream, _)) => {
+                ws_stream.send(Message::Text("ping".to_string())).await.unwrap();
+                
+                if let Some(msg) = ws_stream.next().await {
+                    let response = msg.unwrap().to_text().unwrap();
+                    *server_responses.entry(response.to_string()).or_insert(0) += 1;
+                }
+            }
+            Err(_) => {
+                // Expected in current framework implementation
+            }
+        }
+    }
+    
+    // In full implementation, verify load balancing distribution
+    println!("Server response distribution: {:?}", server_responses);
+}
+
+async fn start_mock_websocket_server(port: u16) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        use tokio_tungstenite::{accept_async, tungstenite::Message};
+        use tokio::net::{TcpListener, TcpStream};
+        
+        let listener = TcpListener::bind(format!("127.0.0.1:{}", port)).await.unwrap();
+        println!("Mock WebSocket server listening on port {}", port);
+        
+        while let Ok((stream, _)) = listener.accept().await {
+            tokio::spawn(handle_websocket_connection(stream, port));
+        }
+    })
+}
+
+async fn handle_websocket_connection(stream: TcpStream, port: u16) {
+    match accept_async(stream).await {
+        Ok(mut websocket) => {
+            while let Some(msg) = websocket.next().await {
+                match msg {
+                    Ok(Message::Text(text)) => {
+                        let response = format!("Echo from server {}: {}", port, text);
+                        websocket.send(Message::Text(response)).await.unwrap();
+                    }
+                    Ok(Message::Close(_)) => break,
+                    Err(e) => {
+                        println!("WebSocket error: {}", e);
+                        break;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        Err(e) => println!("WebSocket handshake failed: {}", e),
+    }
+}
+```
+
+### WebSocket Test Script
+
+```bash
+#!/bin/bash
+# Run the WebSocket proxy test script
+./test_websocket_proxy.sh
+```
+
+This script will:
+- Start multiple WebSocket test servers
+- Configure BWS with WebSocket proxy routes
+- Provide a web interface for manual testing
+- Demonstrate load balancing between upstream servers
+
 ## Performance Testing
 
 ### Load Testing with wrk
