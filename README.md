@@ -1,6 +1,17 @@
 # BWS (Ben's Web Server)
 
-[![CI](https://github.com/benliao/bws/workflows/CI/badge.svg)](https://github.com/benliao/bws/actions)
+[![CI](https://github.com/benliao/bws/workflows/CI/badge.s4. **Test your setup**:
+
+```bash
+# Test main site
+curl http://localhost:8080
+
+# Test API site  
+curl http://localhost:8081
+
+# Health check
+curl http://localhost:8080/api/health
+```/github.com/benliao/bws/actions)
 [![Security](https://github.com/benliao/bws/workflows/Security/badge.svg)](https://github.com/benliao/bws/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
@@ -36,32 +47,53 @@ cargo build --release
 1. **Create a configuration file** (`bws_config.toml`):
 
 ```toml
+[server]
+name = "BWS Multi-Site Server"
+
 [[sites]]
 name = "main"
+hostname = "localhost"
 port = 8080
-upstream = "http://localhost:3000"
+static_dir = "static"
+default = true
 
 [sites.headers]
-"X-Server" = "BWS"
-"X-Site" = "main"
+"X-Site-Name" = "BWS Main Site"
+"X-Powered-By" = "BWS/1.0"
+"X-Site-Type" = "main"
 
 [[sites]]
 name = "api"
+hostname = "api.localhost"
 port = 8081
-upstream = "http://localhost:4000"
+static_dir = "static-api"
+api_only = true
 
 [sites.headers]
 "X-API-Version" = "v1"
 "X-Service" = "api"
 ```
 
-2. **Run the server**:
+2. **Create static directories and files**:
+
+```bash
+# Create directories for each site
+mkdir -p static static-api
+
+# Add content to main site
+echo "<h1>Welcome to BWS Main Site</h1>" > static/index.html
+
+# Add content to API site
+echo "<h1>API Documentation</h1>" > static-api/index.html
+```
+
+3. **Run the server**:
 
 ```bash
 bws-web-server
 ```
 
-3. **Test your setup**:
+4. **Test your setup**:
 
 ```bash
 # Test main site
