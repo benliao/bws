@@ -15,11 +15,10 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  create_release:
-    name: Create Release
+  get_version:
+    name: Get Version
     runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
       version: ${{ steps.get_version.outputs.version }}
     
     steps:
@@ -31,41 +30,10 @@ jobs:
         else
           echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
         fi
-        
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ steps.get_version.outputs.version }}
-        release_name: BWS ${{ steps.get_version.outputs.version }}
-        body: |
-          ## BWS Multi-Site Web Server ${{ steps.get_version.outputs.version }}
-          
-          ### Features
-          - 🌐 Multi-site hosting with configurable headers
-          - 📁 Static file serving with MIME type detection
-          - 🚀 High-performance Pingora framework
-          - 📊 REST API endpoints
-          - 🔧 TOML configuration
-          
-          ### Downloads
-          Download the appropriate binary for your platform below.
-          
-          ### Usage
-          1. Download the binary for your platform
-          2. Create a `config.toml` file (see README for examples)
-          3. Create static directories for your sites
-          4. Run: `./bws` (Linux/macOS) or `bws.exe` (Windows)
-          
-          For detailed documentation, see the [README](https://github.com/${{ github.repository }}/blob/main/README.md).
-        draft: false
-        prerelease: false
 
   build:
     name: Build ${{ matrix.target }}
-    needs: create_release
+    needs: get_version
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -148,31 +116,18 @@ jobs:
           tar -czf ${{ matrix.asset_name }}.tar.gz -C release .
         fi
         
-    - name: Upload Release Asset (ZIP)
-      if: matrix.target == 'x86_64-pc-windows-gnu'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
       with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: ./${{ matrix.asset_name }}.zip
-        asset_name: ${{ matrix.asset_name }}.zip
-        asset_content_type: application/zip
-        
-    - name: Upload Release Asset (TAR.GZ)
-      if: matrix.target != 'x86_64-pc-windows-gnu'
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: ./${{ matrix.asset_name }}.tar.gz
-        asset_name: ${{ matrix.asset_name }}.tar.gz
-        asset_content_type: application/gzip
+        name: ${{ matrix.asset_name }}
+        path: |
+          ${{ matrix.asset_name }}.zip
+          ${{ matrix.asset_name }}.tar.gz
+        if-no-files-found: ignore
 
   docker:
     name: Build Docker Image
-    needs: create_release
+    needs: get_version
     runs-on: ubuntu-latest
     
     steps:
@@ -214,7 +169,7 @@ jobs:
 
   publish_crates:
     name: Publish to crates.io
-    needs: create_release
+    needs: get_version
     runs-on: ubuntu-latest
     
     steps:
@@ -245,3 +200,62 @@ jobs:
       run: cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
       env:
         CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  create_release:
+    name: Create GitHub Release
+    needs: [get_version, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ needs.get_version.outputs.version }}
+        name: BWS ${{ needs.get_version.outputs.version }}
+        body: |
+          ## BWS Multi-Site Web Server ${{ needs.get_version.outputs.version }}
+          
+          ### Features
+          - 🌐 Multi-site hosting with configurable headers
+          - 📁 Static file serving with MIME type detection
+          - 🚀 High-performance Pingora framework
+          - 📊 REST API endpoints
+          - 🔧 TOML configuration
+          - 🐳 Docker images available at `ghcr.io/benliao/bws:${{ needs.get_version.outputs.version }}`
+          
+          ### Installation Options
+          
+          **From crates.io:**
+          ```bash
+          cargo install bws-web-server --version ${{ needs.get_version.outputs.version }}
+          ```
+          
+          **From Docker:**
+          ```bash
+          docker run -p 8080:8080 ghcr.io/benliao/bws:${{ needs.get_version.outputs.version }}
+          ```
+          
+          **From Binary:**
+          Download the appropriate binary for your platform below.
+          
+          ### Usage
+          1. Download the binary for your platform
+          2. Create a `config.toml` file (see README for examples)
+          3. Create static directories for your sites
+          4. Run: `./bws-web-server` (Linux/macOS) or `bws-web-server.exe` (Windows)
+          
+          ### Platform Support
+          - **Linux**: x86_64 (glibc and musl)
+          - **macOS**: x86_64 and ARM64 (Apple Silicon)
+          - **Windows**: x86_64 (foreground mode only - no daemon support)
+          
+          For detailed documentation, see the [README](https://github.com/${{ github.repository }}/blob/main/README.md).
+        files: |
+          **/*
+        draft: false
+        prerelease: false
