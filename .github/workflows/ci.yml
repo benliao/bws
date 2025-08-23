@@ -49,7 +49,7 @@ jobs:
     - name: Check if binary runs
       run: |
         # Build the binary
-        cargo build --bin bws-web-server
+        cargo build --bin bws
         
         # Create test static files
         mkdir -p static static-blog static-api static-dev
@@ -59,7 +59,7 @@ jobs:
         echo "<html><body><h1>Test Dev Site</h1></body></html>" > static-dev/index.html
         
         # Start server in background and test basic functionality
-        timeout 30s ./target/debug/bws-web-server &
+        timeout 30s ./target/debug/bws &
         SERVER_PID=$!
         
         # Wait for server to start

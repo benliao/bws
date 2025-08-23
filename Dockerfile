@@ -17,14 +17,14 @@ COPY Cargo.toml Cargo.lock ./
 
 # Create a dummy main.rs to build dependencies
 RUN mkdir -p src/bin && echo "fn main() {}" > src/bin/main.rs
-RUN cargo build --release --bin bws-web-server
+RUN cargo build --release --bin bws
 RUN rm -rf src
 
 # Copy actual source code
 COPY src ./src
 
 # Build the application
-RUN cargo build --release --bin bws-web-server
+RUN cargo build --release --bin bws
 
 # Runtime stage
 FROM debian:bookworm-slim
@@ -44,11 +44,11 @@ RUN mkdir -p /app/static /app/static-blog /app/static-api /app/static-dev \
     && chown -R appuser:appuser /app
 
 # Copy binary from builder stage
-COPY --from=builder /app/target/release/bws-web-server /app/bws-web-server
+COPY --from=builder /app/target/release/bws /app/bws
 
 # Copy daemon management script
 COPY bws-daemon.sh /app/bws-daemon.sh
-RUN chmod +x /app/bws-daemon.sh /app/bws-web-server
+RUN chmod +x /app/bws-daemon.sh /app/bws
 
 # Copy configuration template
 COPY config.toml /app/config.example.toml
@@ -93,10 +93,10 @@ RUN echo '#!/bin/bash' > /app/start.sh && \
     echo '# Start the server' >> /app/start.sh && \
     echo 'if [ "$1" = "--daemon" ]; then' >> /app/start.sh && \
     echo '    echo "Starting BWS in daemon mode..."' >> /app/start.sh && \
-    echo '    exec ./bws-web-server --config "$BWS_CONFIG" --daemon --log-file "$BWS_LOG_FILE" --pid-file "$BWS_PID_FILE"' >> /app/start.sh && \
+    echo '    exec ./bws --config "$BWS_CONFIG" --daemon --log-file "$BWS_LOG_FILE" --pid-file "$BWS_PID_FILE"' >> /app/start.sh && \
     echo 'else' >> /app/start.sh && \
     echo '    echo "Starting BWS in foreground mode..."' >> /app/start.sh && \
-    echo '    exec ./bws-web-server --config "$BWS_CONFIG" "$@"' >> /app/start.sh && \
+    echo '    exec ./bws --config "$BWS_CONFIG" "$@"' >> /app/start.sh && \
     echo 'fi' >> /app/start.sh && \
     chmod +x /app/start.sh
 

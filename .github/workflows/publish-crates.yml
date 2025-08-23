@@ -44,8 +44,9 @@ jobs:
         
     - name: Check if version already exists on crates.io
       run: |
-        PACKAGE_VERSION=$(cargo pkgid | cut -d'#' -f2 | cut -d'@' -f2)
-        echo "Checking if version $PACKAGE_VERSION already exists..."
+        PACKAGE_VERSION=$(cargo metadata --format-version 1 | jq -r '.packages[] | select(.name == "bws-web-server") | .version')
+        echo "PACKAGE_VERSION=$PACKAGE_VERSION" >> $GITHUB_ENV
+        
         if cargo search bws-web-server --limit 1 | grep -q "$PACKAGE_VERSION"; then
           echo "::error::Version $PACKAGE_VERSION already exists on crates.io"
           echo "Please update the version in Cargo.toml before publishing"

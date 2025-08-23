@@ -300,19 +300,19 @@ echo "<h1>Welcome to BWS Secure Site (HTTPS)</h1>" > static/secure.html
 
 ```bash
 # Run with default config.toml
-bws-web-server
+bws
 
 # Specify a custom config file
-bws-web-server --config my-config.toml
+bws --config my-config.toml
 
 # Enable verbose logging
-bws-web-server --verbose
+bws --verbose
 
 # Show help
-bws-web-server --help
+bws --help
 
 # Show version
-bws-web-server --version
+bws --version
 ```
 
 4. **Test your setup**:
