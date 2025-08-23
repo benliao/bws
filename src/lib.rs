@@ -58,10 +58,6 @@ impl ServerConfig {
     }
 }
 
-pub fn read_file_content(file_path: &str) -> std::io::Result<String> {
-    fs::read_to_string(file_path)
-}
-
 pub fn read_file_bytes(file_path: &str) -> std::io::Result<Vec<u8>> {
     fs::read(file_path)
 }
@@ -181,10 +177,6 @@ impl ProxyHttp for WebServerService {
         match path.as_str() {
             "/api/health" => {
                 self.handle_health(session, ctx.as_ref()).await?;
-                Ok(true)
-            }
-            "/api/file" => {
-                self.handle_file_content(session, ctx.as_ref()).await?;
                 Ok(true)
             }
             "/api/sites" => {
@@ -436,95 +428,6 @@ impl WebServerService {
         Ok(())
     }
 
-    async fn handle_file_content(
-        &self,
-        session: &mut Session,
-        site_config: Option<&SiteConfig>,
-    ) -> Result<()> {
-        // Extract file path from query parameters
-        let query = session.req_header().uri.query().unwrap_or("");
-        let file_path = query
-            .split('&')
-            .find(|param| param.starts_with("path="))
-            .and_then(|param| param.split('=').nth(1))
-            .unwrap_or("");
-
-        if file_path.is_empty() {
-            let error_response = serde_json::json!({
-                "error": "Missing 'path' query parameter",
-                "example": "/api/file?path=Cargo.toml"
-            });
-
-            let response_body = error_response.to_string();
-            let response_bytes = response_body.into_bytes();
-            let mut header = ResponseHeader::build(400, Some(4))?;
-            header.insert_header("Content-Type", "application/json")?;
-            header.insert_header("Content-Length", response_bytes.len().to_string())?;
-
-            // Apply site-specific headers
-            self.apply_site_headers(&mut header, site_config)?;
-
-            session
-                .write_response_header(Box::new(header), false)
-                .await?;
-            session
-                .write_response_body(Some(response_bytes.into()), true)
-                .await?;
-
-            return Ok(());
-        }
-
-        match read_file_content(file_path) {
-            Ok(content) => {
-                let response = serde_json::json!({
-                    "file_path": file_path,
-                    "content": content,
-                    "size": content.len()
-                });
-
-                let response_body = response.to_string();
-                let response_bytes = response_body.into_bytes();
-                let mut header = ResponseHeader::build(200, Some(4))?;
-                header.insert_header("Content-Type", "application/json")?;
-                header.insert_header("Content-Length", response_bytes.len().to_string())?;
-
-                // Apply site-specific headers
-                self.apply_site_headers(&mut header, site_config)?;
-
-                session
-                    .write_response_header(Box::new(header), false)
-                    .await?;
-                session
-                    .write_response_body(Some(response_bytes.into()), true)
-                    .await?;
-            }
-            Err(e) => {
-                let error_response = serde_json::json!({
-                    "error": format!("Failed to read file: {}", e),
-                    "file_path": file_path
-                });
-
-                let response_body = error_response.to_string();
-                let response_bytes = response_body.into_bytes();
-                let mut header = ResponseHeader::build(404, Some(4))?;
-                header.insert_header("Content-Type", "application/json")?;
-                header.insert_header("Content-Length", response_bytes.len().to_string())?;
-
-                // Apply site-specific headers
-                self.apply_site_headers(&mut header, site_config)?;
-
-                session
-                    .write_response_header(Box::new(header), false)
-                    .await?;
-                session
-                    .write_response_body(Some(response_bytes.into()), true)
-                    .await?;
-            }
-        }
-
-        Ok(())
-    }
-
     async fn handle_404(
         &self,
         session: &mut Session,
@@ -533,7 +436,7 @@ impl WebServerService {
         let error_response = serde_json::json!({
             "error": "Not Found",
             "message": "The requested endpoint does not exist",
-            "available_endpoints": ["/", "/api/health", "/api/file"]
+            "available_endpoints": ["/", "/api/health", "/api/sites"]
         });
 
         let response_body = error_response.to_string();
