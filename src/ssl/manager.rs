@@ -477,9 +477,11 @@ mod tests {
 
     #[test]
     fn test_manual_cert_validation() {
-        let mut config = SslConfig::default();
-        config.enabled = true;
-        config.auto_cert = false;
+        let mut config = SslConfig {
+            enabled: true,
+            auto_cert: false,
+            ..Default::default()
+        };
 
         // Add invalid domain
         config.manual_certs.insert(

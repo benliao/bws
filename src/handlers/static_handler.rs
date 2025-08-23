@@ -302,27 +302,6 @@ impl Default for StaticFileHandler {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
-
-    fn create_test_site() -> SiteConfig {
-        SiteConfig {
-            name: "test".to_string(),
-            hostname: "localhost".to_string(),
-            port: 8080,
-            static_dir: "/tmp/test".to_string(),
-            default: true,
-            api_only: false,
-            headers: HashMap::new(),
-            ssl: Default::default(),
-            proxy: Default::default(),
-            redirect_to_https: false,
-            index_files: vec!["index.html".to_string()],
-            error_pages: HashMap::new(),
-            compression: Default::default(),
-            cache: Default::default(),
-            access_control: Default::default(),
-        }
-    }
 
     #[test]
     fn test_mime_type_detection() {
