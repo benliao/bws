@@ -137,18 +137,19 @@ The full documentation includes:
 - 🐳 **Docker Guide** - Container deployment options
 - 💡 **Examples** - Real-world use cases and configurations
 
-## 🚀 Features
+## ✨ Features
 
-- **Multi-Site Support**: Host multiple websites on different ports with individual configurations
-- **Reverse Proxy & Load Balancing**: Full reverse proxy functionality with three load balancing algorithms (round-robin, weighted, least-connections)
-- **Per-Site SSL/TLS**: Each site can have its own SSL certificates and HTTPS configuration
-- **Auto SSL Certificates**: Automatic SSL certificate generation via ACME (Let's Encrypt)
-- **Manual SSL Support**: Use your own SSL certificates per site
-- **Configurable Headers**: Set custom HTTP headers per site via TOML configuration
-- **High Performance**: Built on Pingora for enterprise-grade performance and reliability
-- **Health Monitoring**: Built-in health check endpoints for monitoring
-- **Security Focused**: Comprehensive security auditing and dependency management
-- **Easy Configuration**: Simple TOML-based configuration system
+- **🚀 High Performance**: Built on Pingora, CloudFlare's high-performance proxy framework
+- **🌐 Multi-Site Hosting**: Host multiple websites on different ports with individual configurations
+- **🔄 Reverse Proxy**: Comprehensive proxy functionality with load balancing (round-robin, weighted, least-connections)
+- **🔌 WebSocket Proxy**: Full WebSocket proxying support with load balancing
+- **📋 Configurable Headers**: Site-specific HTTP headers (CORS, security, custom headers)
+- **🔒 SSL/TLS Support**: ACME (Let's Encrypt) integration and manual certificate management
+- **🛡️ Security Features**: Security headers, request filtering, and access control
+- **💨 Compression**: Built-in gzip compression for static and dynamic content
+- **📊 Health Monitoring**: Built-in health check endpoints with detailed system information
+- **⚡ Hot Reload**: Configuration changes without server restart
+- **🔧 Cross-Platform**: Linux, macOS, and Windows support with static linking options
 
 ## 📦 Installation
 
