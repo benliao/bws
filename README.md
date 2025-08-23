@@ -353,3 +353,17 @@ Example:
 - No authentication/authorization implemented
 - Consider rate limiting for production use
 - HTTPS support can be added through Pingora configuration
+
+### Security Status
+
+The project uses automated security scanning via GitHub Actions. The current security status:
+
+- **✅ Active Monitoring**: Weekly security audits via `cargo audit`
+- **✅ Dependency Review**: Automated dependency review on pull requests
+- **⚠️ Known Issue**: One accepted vulnerability (RUSTSEC-2024-0437) - see `SECURITY.md`
+
+**Security Documentation**: See `SECURITY.md` for detailed security status and known issues.
+
+**Monitoring Script**: Run `./scripts/monitor-deps.sh` to check for dependency updates and security status.
+
+**Security Workflow**: The CI pipeline automatically scans for new vulnerabilities while ignoring documented accepted risks.
