@@ -91,7 +91,16 @@ jobs:
       run: cargo install cargo-audit
       
     - name: Run security audit
-      run: cargo audit
+      run: |
+        # Run cargo audit and check for new vulnerabilities
+        # Known accepted vulnerability: RUSTSEC-2024-0437 (protobuf via pingora)
+        if ! cargo audit --ignore RUSTSEC-2024-0437; then
+          echo "::error::New security vulnerabilities found beyond accepted ones"
+          exit 1
+        fi
+        
+        # Report on the known vulnerability status
+        echo "::notice::Security audit complete. Known vulnerability RUSTSEC-2024-0437 is accepted and documented in SECURITY.md"
 
   build_matrix:
     name: Build Matrix
