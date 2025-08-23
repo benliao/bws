@@ -62,7 +62,7 @@ jobs:
       
     - name: Package verification
       run: |
-        cargo package --list
+        cargo package --list --allow-dirty
         cargo package --allow-dirty
         
     - name: Dry run publish
