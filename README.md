@@ -1,7 +1,9 @@
 # BWS (Ben's Web Server)
 
 [![CI](https://github.com/benliao/bws/workflows/CI/badge.svg)](https://github.com/benliao/bws/actions)
-[![Security](https://github.com/benliao/bws/workflows/Security/badge.svg)](https://github## 🔄 Reverse Proxy & Load Balancing
+[![Security](https://github.com/benliao/bws/workflows/Security/badge.svg)](https://github.com/benliao/bws/actions)
+
+## 🔄 Reverse Proxy & Load Balancing
 
 BWS includes comprehensive reverse proxy functionality similar to Caddy, with support for multiple load balancing algorithms:
 
@@ -114,7 +116,10 @@ cp test_load_balancing.toml config.toml
 
 For detailed information, see: **[Load Balancing Documentation →](docs/load-balancing.md)**
 
-## 🔒 SSL/TLS Configurationcom/benliao/bws/actions)
+## 🔒 SSL/TLS Configuration
+
+BWS provides comprehensive SSL/TLS support with automatic certificate management through Let's Encrypt (ACME), plus support for custom certificates.
+
 [![Crates.io](https://img.shields.io/crates/v/bws-web-server.svg)](https://crates.io/crates/bws-web-server)
 [![Downloads](https://img.shields.io/crates/d/bws-web-server.svg)](https://crates.io/crates/bws-web-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
