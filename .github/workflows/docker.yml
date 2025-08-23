@@ -55,6 +55,7 @@ jobs:
           org.opencontainers.image.licenses=MIT
 
     - name: Build and push Docker image
+      id: build
       uses: docker/build-push-action@v5
       with:
         context: .
