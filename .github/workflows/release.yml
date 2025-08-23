@@ -72,31 +72,31 @@ jobs:
         include:
           - target: x86_64-unknown-linux-gnu
             os: ubuntu-latest
-            artifact_name: bws
-            asset_name: bws-linux-x86_64
+            artifact_name: bws-web-server
+            asset_name: bws-web-server-linux-x86_64
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
-            artifact_name: bws
-            asset_name: bws-linux-x86_64-musl
+            artifact_name: bws-web-server
+            asset_name: bws-web-server-linux-x86_64-musl
           - target: x86_64-pc-windows-gnu
             os: ubuntu-latest
-            artifact_name: bws.exe
-            asset_name: bws-windows-x86_64.exe
+            artifact_name: bws-web-server.exe
+            asset_name: bws-web-server-windows-x86_64.exe
           - target: x86_64-apple-darwin
             os: macos-latest
-            artifact_name: bws
-            asset_name: bws-macos-x86_64
+            artifact_name: bws-web-server
+            asset_name: bws-web-server-macos-x86_64
           - target: aarch64-apple-darwin
             os: macos-latest
-            artifact_name: bws
-            asset_name: bws-macos-aarch64
+            artifact_name: bws-web-server
+            asset_name: bws-web-server-macos-aarch64
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
     - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
+      uses: dtolnay/rust-toolchain@1.89.0
       with:
         targets: ${{ matrix.target }}
         
@@ -129,7 +129,7 @@ jobs:
           export CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc
           export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
         fi
-        cargo build --release --target ${{ matrix.target }} --bin main
+        cargo build --release --target ${{ matrix.target }} --bin bws-web-server
         
     - name: Strip binary (Linux and macOS)
       if: matrix.os != 'windows-latest' && matrix.target != 'x86_64-pc-windows-gnu'

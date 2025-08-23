@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.75 as builder
+FROM rust:1.89 as builder
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ COPY Cargo.toml Cargo.lock ./
 COPY src ./src
 
 # Build the application
-RUN cargo build --release --bin main
+RUN cargo build --release --bin bws-web-server
 
 # Runtime stage
 FROM debian:bookworm-slim
@@ -27,7 +27,7 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 RUN mkdir -p /app/static /app/static-blog /app/static-api /app/static-dev
 
 # Copy binary from builder stage
-COPY --from=builder /app/target/release/main /app/bws
+COPY --from=builder /app/target/release/bws-web-server /app/bws-web-server
 
 # Copy configuration template
 COPY config.toml /app/config.example.toml
@@ -54,4 +54,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/api/health || exit 1
 
 # Default command
-CMD ["./bws"]
+CMD ["./bws-web-server"]
