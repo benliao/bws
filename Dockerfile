@@ -1,13 +1,22 @@
 # Build stage
 FROM rust:1.89 AS builder
 
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    cmake \
+    gcc \
+    g++ \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 # Copy dependency files first for better layer caching
 COPY Cargo.toml Cargo.lock ./
 
 # Create a dummy main.rs to build dependencies
-RUN mkdir src && echo "fn main() {}" > src/main.rs
+RUN mkdir -p src/bin && echo "fn main() {}" > src/bin/main.rs
 RUN cargo build --release --bin bws-web-server
 RUN rm -rf src
 
