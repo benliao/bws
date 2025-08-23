@@ -1,59 +1,102 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BWS Static Site</title>
-    <link rel="stylesheet" href="/static/styles.css">
+    <title>BWS WebSocket Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .warning { background: #fff3cd; color: #856404; }
+        .error { background: #f8d7da; color: #721c24; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>Welcome to BWS Static Website</h1>
-            <nav>
-                <a href="/">Home</a>
-                <a href="/about.html">About</a>
-                <a href="/contact.html">Contact</a>
-                <a href="/docs/">Documentation</a>
-                <a href="/api/health">API Health</a>
-            </nav>
-        </header>
+        <h1>🔌 BWS WebSocket Proxy Test</h1>
         
-        <main>
-            <section class="hero">
-                <h2>High-Performance Rust Web Server</h2>
-                <p>This static website is served by a Rust web server built with Pingora framework.</p>
-                <div class="features">
-                    <div class="feature">
-                        <h3>🚀 Fast</h3>
-                        <p>Built on Pingora for maximum performance</p>
-                    </div>
-                    <div class="feature">
-                        <h3>🛡️ Reliable</h3>
-                        <p>Rust's memory safety guarantees</p>
-                    </div>
-                    <div class="feature">
-                        <h3>📁 Subdirectory Support</h3>
-                        <p>Serves files from nested directories</p>
-                    </div>
-                </div>
-                
-                <div class="test-links">
-                    <h3>🧪 Test Subdirectory Serving:</h3>
-                    <ul>
-                        <li><a href="/docs/">Documentation (subdirectory index)</a></li>
-                        <li><a href="/assets/css/main.css">CSS from /assets/css/</a></li>
-                        <li><a href="/assets/js/app.js">JavaScript from /assets/js/</a></li>
-                    </ul>
-                </div>
-            </section>
-        </main>
+        <div class="status" id="status">
+            Click "Test WebSocket" to test the proxy functionality
+        </div>
         
-        <footer>
-            <p>&copy; 2025 BWS Web Server. Built with Rust and Pingora.</p>
-        </footer>
+        <button onclick="testWebSocket()">Test WebSocket</button>
+        <button onclick="testHttp()">Test HTTP</button>
+        
+        <h2>Test Results:</h2>
+        <div id="results"></div>
     </div>
-    
-    <script src="/static/script.js"></script>
+
+    <script>
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const timestamp = new Date().toLocaleTimeString();
+            results.innerHTML += `<div class="${type}">[${timestamp}] ${message}</div>`;
+        }
+        
+        function updateStatus(message, type = 'warning') {
+            const status = document.getElementById('status');
+            status.className = `status ${type}`;
+            status.textContent = message;
+        }
+        
+        function testWebSocket() {
+            updateStatus('Testing WebSocket proxy...', 'warning');
+            log('Starting WebSocket test...', 'info');
+            
+            try {
+                const ws = new WebSocket('ws://localhost:8080/ws');
+                
+                ws.onopen = function() {
+                    log('WebSocket connection opened', 'success');
+                    updateStatus('WebSocket proxy working!', 'success');
+                    ws.send('Hello from BWS WebSocket proxy test');
+                };
+                
+                ws.onmessage = function(event) {
+                    log(`Received: ${event.data}`, 'success');
+                };
+                
+                ws.onerror = function(error) {
+                    log(`WebSocket error: ${error}`, 'error');
+                    updateStatus('WebSocket proxy error (expected in current implementation)', 'warning');
+                };
+                
+                ws.onclose = function(event) {
+                    log(`WebSocket closed: ${event.code} - ${event.reason}`, 'warning');
+                    if (event.code === 1006) {
+                        updateStatus('Connection failed - WebSocket streaming not yet fully implemented', 'warning');
+                    }
+                };
+                
+                // Close after 5 seconds
+                setTimeout(() => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.close();
+                    }
+                }, 5000);
+                
+            } catch (error) {
+                log(`JavaScript error: ${error}`, 'error');
+                updateStatus('WebSocket test failed', 'error');
+            }
+        }
+        
+        function testHttp() {
+            updateStatus('Testing HTTP endpoints...', 'warning');
+            log('Testing HTTP endpoints...', 'info');
+            
+            fetch('/api/sites')
+                .then(response => response.json())
+                .then(data => {
+                    log(`Sites API: ${JSON.stringify(data)}`, 'success');
+                    updateStatus('HTTP endpoints working', 'success');
+                })
+                .catch(error => {
+                    log(`HTTP error: ${error}`, 'error');
+                    updateStatus('HTTP test failed', 'error');
+                });
+        }
+    </script>
 </body>
 </html>

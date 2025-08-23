@@ -205,11 +205,14 @@ async def handle_client(websocket, path):
     except websockets.exceptions.ConnectionClosed:
         print("Client disconnected from server 1")
 
-if __name__ == "__main__":
+async def main():
     print("Starting WebSocket server 1 on port 3001...")
     start_server = websockets.serve(handle_client, "localhost", 3001)
-    asyncio.get_event_loop().run_until_complete(start_server)
-    asyncio.get_event_loop().run_forever()
+    await start_server
+    await asyncio.Future()  # run forever
+
+if __name__ == "__main__":
+    asyncio.run(main())
 EOF
 
     # Python WebSocket server 2
@@ -231,11 +234,14 @@ async def handle_client(websocket, path):
     except websockets.exceptions.ConnectionClosed:
         print("Client disconnected from server 2")
 
-if __name__ == "__main__":
+async def main():
     print("Starting WebSocket server 2 on port 3002...")
     start_server = websockets.serve(handle_client, "localhost", 3002)
-    asyncio.get_event_loop().run_until_complete(start_server)
-    asyncio.get_event_loop().run_forever()
+    await start_server
+    await asyncio.Future()  # run forever
+
+if __name__ == "__main__":
+    asyncio.run(main())
 EOF
 
 else
