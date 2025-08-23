@@ -5,8 +5,20 @@
 [![Crates.io](https://img.shields.io/crates/v/bws-web-server.svg)](https://crates.io/crates/bws-web-server)
 [![Downloads](https://img.shields.io/crates/d/bws-web-server.svg)](https://crates.io/crates/bws-web-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Documentation](https://img.shields.io/badge/docs-mdbook-blue.svg)](https://benliao.github.io/bws/)
 
 A high-performance, multi-site web server built with [Pingora](https://github.com/cloudflare/pingora), Cloudflare's battle-tested proxy framework.
+
+## 📖 Documentation
+
+**[Complete Documentation →](https://benliao.github.io/bws/)**
+
+The full documentation includes:
+- 📚 **User Guide** - Installation, configuration, and deployment
+- 🚀 **Quick Start** - Get running in minutes
+- 🔧 **API Reference** - Complete REST API documentation
+- 🐳 **Docker Guide** - Container deployment options
+- 💡 **Examples** - Real-world use cases and configurations
 
 ## 🚀 Features
 
@@ -42,7 +54,7 @@ cargo build --release
 
 ## 🔧 Quick Start
 
-1. **Create a configuration file** (`bws_config.toml`):
+1. **Create a configuration file** (`config.toml`):
 
 ```toml
 [server]

@@ -1,0 +1,100 @@
+/* Custom styles for BWS documentation */
+
+:root {
+    --bws-primary: #2563eb;
+    --bws-secondary: #1e40af;
+    --bws-accent: #3b82f6;
+}
+
+/* Logo and branding */
+.menu-title {
+    color: var(--bws-primary) !important;
+    font-weight: bold;
+}
+
+/* Code blocks */
+.hljs {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+}
+
+/* Links */
+a {
+    color: var(--bws-primary);
+}
+
+a:hover {
+    color: var(--bws-secondary);
+}
+
+/* Headers */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--bws-secondary);
+}
+
+/* Inline code */
+code {
+    background: #f1f5f9;
+    color: var(--bws-secondary);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+/* Blockquotes */
+blockquote {
+    border-left: 4px solid var(--bws-primary);
+    background: #f8fafc;
+    margin: 1em 0;
+    padding: 1em 1.5em;
+}
+
+/* Tables */
+table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1em 0;
+}
+
+th, td {
+    border: 1px solid #e2e8f0;
+    padding: 8px 12px;
+    text-align: left;
+}
+
+th {
+    background: #f8fafc;
+    font-weight: 600;
+    color: var(--bws-secondary);
+}
+
+/* Navigation */
+.chapter li.part-title {
+    color: var(--bws-primary);
+    margin-top: 1em;
+    font-weight: bold;
+}
+
+/* Custom admonitions */
+.admonition {
+    margin: 1.5em 0;
+    padding: 1em;
+    border-radius: 6px;
+    border-left: 4px solid;
+}
+
+.admonition.note {
+    background: #eff6ff;
+    border-color: var(--bws-primary);
+}
+
+.admonition.warning {
+    background: #fffbeb;
+    border-color: #f59e0b;
+}
+
+.admonition.tip {
+    background: #f0fdf4;
+    border-color: #10b981;
+}

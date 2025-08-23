@@ -46,6 +46,9 @@ bws_config.toml
 test_output/
 *.test
 
+# mdBook generated documentation
+/docs/book/
+
 # Static content directories (if user-generated)
 /static-*-user/
 /user-static/
