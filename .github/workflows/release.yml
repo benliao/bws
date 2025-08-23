@@ -1,0 +1,213 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  create_release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    
+    steps:
+    - name: Get version
+      id: get_version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+        else
+          echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_version.outputs.version }}
+        release_name: BWS ${{ steps.get_version.outputs.version }}
+        body: |
+          ## BWS Multi-Site Web Server ${{ steps.get_version.outputs.version }}
+          
+          ### Features
+          - 🌐 Multi-site hosting with configurable headers
+          - 📁 Static file serving with MIME type detection
+          - 🚀 High-performance Pingora framework
+          - 📊 REST API endpoints
+          - 🔧 TOML configuration
+          
+          ### Downloads
+          Download the appropriate binary for your platform below.
+          
+          ### Usage
+          1. Download the binary for your platform
+          2. Create a `config.toml` file (see README for examples)
+          3. Create static directories for your sites
+          4. Run: `./bws` (Linux/macOS) or `bws.exe` (Windows)
+          
+          For detailed documentation, see the [README](https://github.com/${{ github.repository }}/blob/main/README.md).
+        draft: false
+        prerelease: false
+
+  build:
+    name: Build ${{ matrix.target }}
+    needs: create_release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact_name: bws
+            asset_name: bws-linux-x86_64
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+            artifact_name: bws
+            asset_name: bws-linux-x86_64-musl
+          - target: x86_64-pc-windows-gnu
+            os: ubuntu-latest
+            artifact_name: bws.exe
+            asset_name: bws-windows-x86_64.exe
+          - target: x86_64-apple-darwin
+            os: macos-latest
+            artifact_name: bws
+            asset_name: bws-macos-x86_64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            artifact_name: bws
+            asset_name: bws-macos-aarch64
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+        
+    - name: Install cross-compilation tools
+      if: matrix.target == 'x86_64-unknown-linux-musl'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y musl-tools
+        
+    - name: Install cross-compilation tools for Windows
+      if: matrix.target == 'x86_64-pc-windows-gnu'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-mingw-w64-x86-64
+        
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ matrix.target }}-cargo-
+          
+    - name: Build binary
+      run: |
+        if [ "${{ matrix.target }}" = "x86_64-pc-windows-gnu" ]; then
+          export CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc
+          export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
+        fi
+        cargo build --release --target ${{ matrix.target }} --bin main
+        
+    - name: Strip binary (Linux and macOS)
+      if: matrix.os != 'windows-latest' && matrix.target != 'x86_64-pc-windows-gnu'
+      run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+      
+    - name: Create archive
+      run: |
+        mkdir -p release
+        cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} release/
+        cp README.md release/
+        cp config.toml release/config.example.toml
+        
+        if [ "${{ matrix.target }}" = "x86_64-pc-windows-gnu" ]; then
+          cd release && zip -r ../${{ matrix.asset_name }}.zip .
+        else
+          tar -czf ${{ matrix.asset_name }}.tar.gz -C release .
+        fi
+        
+    - name: Upload Release Asset (ZIP)
+      if: matrix.target == 'x86_64-pc-windows-gnu'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create_release.outputs.upload_url }}
+        asset_path: ./${{ matrix.asset_name }}.zip
+        asset_name: ${{ matrix.asset_name }}.zip
+        asset_content_type: application/zip
+        
+    - name: Upload Release Asset (TAR.GZ)
+      if: matrix.target != 'x86_64-pc-windows-gnu'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create_release.outputs.upload_url }}
+        asset_path: ./${{ matrix.asset_name }}.tar.gz
+        asset_name: ${{ matrix.asset_name }}.tar.gz
+        asset_content_type: application/gzip
+
+  docker:
+    name: Build Docker Image
+    needs: create_release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Login to Docker Hub
+      if: github.event_name != 'pull_request'
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKER_PASSWORD }}
+        
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ secrets.DOCKER_USERNAME }}/bws
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=raw,value=latest,enable={{is_default_branch}}
+          
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max

@@ -46,6 +46,9 @@ coverage/
 # Generated documentation
 doc/
 
+# Cargo advisory database
+.cargo/advisory-db/
+
 # OS specific files
 Thumbs.db
 Desktop.ini

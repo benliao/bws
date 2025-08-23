@@ -1,0 +1,37 @@
+# Build artifacts
+target/
+Cargo.lock
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+server.log
+nohup.out
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Documentation
+README.md
+docs/
+
+# Test files
+test_*.sh
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+
+# Environment files
+.env
+.env.*
+
+# GitHub workflows (not needed in container)
+.github/

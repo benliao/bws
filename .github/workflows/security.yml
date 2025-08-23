@@ -1,0 +1,57 @@
+name: Security
+
+on:
+  schedule:
+    # Run security audit weekly on Mondays at 10:00 UTC
+    - cron: '0 10 * * 1'
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  security_audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+        key: ${{ runner.os }}-cargo-audit-${{ hashFiles('**/Cargo.lock') }}
+        
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
+      
+    - name: Run security audit
+      run: cargo audit
+      
+    - name: Run cargo deny
+      uses: EmbarkStudios/cargo-deny-action@v1
+      with:
+        log-level: warn
+        command: check
+        arguments: --all-features
+        
+  dependency_review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v3
+      with:
+        config-file: './.github/dependency-review-config.yml'
