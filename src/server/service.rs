@@ -336,7 +336,8 @@ impl ProxyHttp for WebServerService {
         _session: &mut Session,
         _reused: bool,
         _peer: &HttpPeer,
-        _fd: std::os::unix::io::RawFd,
+        #[cfg(unix)] _fd: std::os::unix::io::RawFd,
+        #[cfg(windows)] _fd: std::os::windows::io::RawSocket,
         _digest: Option<&pingora::protocols::Digest>,
         _ctx: &mut Self::CTX,
     ) -> Result<()> {
