@@ -1,10 +1,10 @@
-// a function read file content 
-use std::fs;
-use std::collections::HashMap;
+// a function read file content
 use async_trait::async_trait;
-use pingora::prelude::*;
 use pingora::http::ResponseHeader;
+use pingora::prelude::*;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fs;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ServerConfig {
@@ -37,7 +37,7 @@ impl ServerConfig {
         let config: ServerConfig = toml::from_str(&content)?;
         Ok(config)
     }
-    
+
     pub fn find_site_by_host_port(&self, host: &str, port: u16) -> Option<&SiteConfig> {
         // First try to match both hostname and port
         for site in &self.sites {
@@ -45,14 +45,14 @@ impl ServerConfig {
                 return Some(site);
             }
         }
-        
+
         // Then try to match just the port (for cases where hostname might not match exactly)
         for site in &self.sites {
             if site.port == port {
                 return Some(site);
             }
         }
-        
+
         // Finally, return the default site if no match
         self.sites.iter().find(|site| site.default)
     }
@@ -95,7 +95,7 @@ impl WebServerService {
     pub fn new(config: ServerConfig) -> Self {
         WebServerService { config }
     }
-    
+
     pub fn get_config(&self) -> &ServerConfig {
         &self.config
     }
@@ -104,7 +104,7 @@ impl WebServerService {
 #[async_trait]
 impl ProxyHttp for WebServerService {
     type CTX = Option<SiteConfig>;
-    
+
     fn new_ctx(&self) -> Self::CTX {
         None
     }
@@ -121,12 +121,13 @@ impl ProxyHttp for WebServerService {
 
     async fn request_filter(&self, session: &mut Session, ctx: &mut Self::CTX) -> Result<bool> {
         // Extract host and port information
-        let host_header = session.req_header()
+        let host_header = session
+            .req_header()
             .headers
             .get("Host")
             .and_then(|h| h.to_str().ok())
             .unwrap_or("localhost");
-            
+
         // Parse host and port
         let (hostname, port) = if let Some(pos) = host_header.find(':') {
             let hostname = &host_header[..pos];
@@ -141,20 +142,26 @@ impl ProxyHttp for WebServerService {
         // Find the matching site configuration and store it in context
         let site_config = self.config.find_site_by_host_port(hostname, port);
         *ctx = site_config.cloned();
-        
+
         let path = session.req_header().uri.path().to_string();
-        
+
         // Log the incoming request with site info
         if let Some(site) = ctx.as_ref() {
-            log::info!("Incoming request: {} {} (site: {}, static_dir: {})", 
-                      session.req_header().method, 
-                      session.req_header().uri,
-                      site.name,
-                      site.static_dir);
+            log::info!(
+                "Incoming request: {} {} (site: {}, static_dir: {})",
+                session.req_header().method,
+                session.req_header().uri,
+                site.name,
+                site.static_dir
+            );
         } else {
-            log::warn!("No site configuration found for {}:{}, using default", hostname, port);
+            log::warn!(
+                "No site configuration found for {}:{}, using default",
+                hostname,
+                port
+            );
         }
-        
+
         match path.as_str() {
             "/api/health" => {
                 self.handle_health(session, ctx.as_ref()).await?;
@@ -172,7 +179,8 @@ impl ProxyHttp for WebServerService {
                 // Serve static index.html from the site's static directory
                 if let Some(site) = ctx.as_ref() {
                     let file_path = format!("{}/index.html", site.static_dir);
-                    self.handle_static_file(session, &file_path, ctx.as_ref()).await?;
+                    self.handle_static_file(session, &file_path, ctx.as_ref())
+                        .await?;
                 } else {
                     self.handle_404(session, ctx.as_ref()).await?;
                 }
@@ -182,7 +190,8 @@ impl ProxyHttp for WebServerService {
                 // Serve static files from the site's static directory
                 if let Some(site) = ctx.as_ref() {
                     let file_path = format!("{}{}", site.static_dir, &path[7..]); // Remove "/static" prefix
-                    self.handle_static_file(session, &file_path, ctx.as_ref()).await?;
+                    self.handle_static_file(session, &file_path, ctx.as_ref())
+                        .await?;
                 } else {
                     self.handle_404(session, ctx.as_ref()).await?;
                 }
@@ -192,7 +201,8 @@ impl ProxyHttp for WebServerService {
                 // Serve HTML files from the site's static directory
                 if let Some(site) = ctx.as_ref() {
                     let file_path = format!("{}{}", site.static_dir, path);
-                    self.handle_static_file(session, &file_path, ctx.as_ref()).await?;
+                    self.handle_static_file(session, &file_path, ctx.as_ref())
+                        .await?;
                 } else {
                     self.handle_404(session, ctx.as_ref()).await?;
                 }
@@ -208,7 +218,11 @@ impl ProxyHttp for WebServerService {
 
 impl WebServerService {
     /// Apply site-specific headers to the response header
-    fn apply_site_headers(&self, header: &mut ResponseHeader, site_config: Option<&SiteConfig>) -> Result<()> {
+    fn apply_site_headers(
+        &self,
+        header: &mut ResponseHeader,
+        site_config: Option<&SiteConfig>,
+    ) -> Result<()> {
         if let Some(site) = site_config {
             for (key, value) in &site.headers {
                 header.insert_header(key.clone(), value.clone())?;
@@ -217,28 +231,37 @@ impl WebServerService {
         Ok(())
     }
 
-    async fn handle_static_file(&self, session: &mut Session, file_path: &str, site_config: Option<&SiteConfig>) -> Result<()> {
+    async fn handle_static_file(
+        &self,
+        session: &mut Session,
+        file_path: &str,
+        site_config: Option<&SiteConfig>,
+    ) -> Result<()> {
         match read_file_bytes(file_path) {
             Ok(content) => {
                 let mime_type = get_mime_type(file_path);
                 let mut header = ResponseHeader::build(200, Some(4))?;
                 header.insert_header("Content-Type", mime_type)?;
                 header.insert_header("Content-Length", content.len().to_string())?;
-                
+
                 // Add cache headers for static files
                 if file_path.starts_with("static/") {
                     header.insert_header("Cache-Control", "public, max-age=3600")?;
                 }
-                
+
                 // Apply site-specific headers
                 self.apply_site_headers(&mut header, site_config)?;
-                
-                session.write_response_header(Box::new(header), false).await?;
-                session.write_response_body(Some(content.into()), true).await?;
+
+                session
+                    .write_response_header(Box::new(header), false)
+                    .await?;
+                session
+                    .write_response_body(Some(content.into()), true)
+                    .await?;
             }
             Err(e) => {
                 log::warn!("Failed to read static file {}: {}", file_path, e);
-                
+
                 // Return 404 for missing static files
                 let error_response = serde_json::json!({
                     "error": "File Not Found",
@@ -251,19 +274,27 @@ impl WebServerService {
                 let mut header = ResponseHeader::build(404, Some(4))?;
                 header.insert_header("Content-Type", "application/json")?;
                 header.insert_header("Content-Length", response_bytes.len().to_string())?;
-                
+
                 // Apply site-specific headers even for error responses
                 self.apply_site_headers(&mut header, site_config)?;
-                
-                session.write_response_header(Box::new(header), false).await?;
-                session.write_response_body(Some(response_bytes.into()), true).await?;
+
+                session
+                    .write_response_header(Box::new(header), false)
+                    .await?;
+                session
+                    .write_response_body(Some(response_bytes.into()), true)
+                    .await?;
             }
         }
-        
+
         Ok(())
     }
 
-    async fn handle_sites_info(&self, session: &mut Session, site_config: Option<&SiteConfig>) -> Result<()> {
+    async fn handle_sites_info(
+        &self,
+        session: &mut Session,
+        site_config: Option<&SiteConfig>,
+    ) -> Result<()> {
         let response = serde_json::json!({
             "server": self.config.server.name,
             "sites": self.config.sites.iter().map(|site| serde_json::json!({
@@ -284,17 +315,25 @@ impl WebServerService {
         let mut header = ResponseHeader::build(200, Some(4))?;
         header.insert_header("Content-Type", "application/json")?;
         header.insert_header("Content-Length", response_bytes.len().to_string())?;
-        
+
         // Apply site-specific headers
         self.apply_site_headers(&mut header, site_config)?;
-        
-        session.write_response_header(Box::new(header), false).await?;
-        session.write_response_body(Some(response_bytes.into()), true).await?;
-        
+
+        session
+            .write_response_header(Box::new(header), false)
+            .await?;
+        session
+            .write_response_body(Some(response_bytes.into()), true)
+            .await?;
+
         Ok(())
     }
 
-    async fn handle_health(&self, session: &mut Session, site_config: Option<&SiteConfig>) -> Result<()> {
+    async fn handle_health(
+        &self,
+        session: &mut Session,
+        site_config: Option<&SiteConfig>,
+    ) -> Result<()> {
         let response = serde_json::json!({
             "status": "ok",
             "timestamp": chrono::Utc::now().to_rfc3339(),
@@ -306,17 +345,25 @@ impl WebServerService {
         let mut header = ResponseHeader::build(200, Some(4))?;
         header.insert_header("Content-Type", "application/json")?;
         header.insert_header("Content-Length", response_bytes.len().to_string())?;
-        
+
         // Apply site-specific headers
         self.apply_site_headers(&mut header, site_config)?;
-        
-        session.write_response_header(Box::new(header), false).await?;
-        session.write_response_body(Some(response_bytes.into()), true).await?;
-        
+
+        session
+            .write_response_header(Box::new(header), false)
+            .await?;
+        session
+            .write_response_body(Some(response_bytes.into()), true)
+            .await?;
+
         Ok(())
     }
 
-    async fn handle_file_content(&self, session: &mut Session, site_config: Option<&SiteConfig>) -> Result<()> {
+    async fn handle_file_content(
+        &self,
+        session: &mut Session,
+        site_config: Option<&SiteConfig>,
+    ) -> Result<()> {
         // Extract file path from query parameters
         let query = session.req_header().uri.query().unwrap_or("");
         let file_path = query
@@ -330,19 +377,23 @@ impl WebServerService {
                 "error": "Missing 'path' query parameter",
                 "example": "/api/file?path=Cargo.toml"
             });
-            
+
             let response_body = error_response.to_string();
             let response_bytes = response_body.into_bytes();
             let mut header = ResponseHeader::build(400, Some(4))?;
             header.insert_header("Content-Type", "application/json")?;
             header.insert_header("Content-Length", response_bytes.len().to_string())?;
-            
+
             // Apply site-specific headers
             self.apply_site_headers(&mut header, site_config)?;
-            
-            session.write_response_header(Box::new(header), false).await?;
-            session.write_response_body(Some(response_bytes.into()), true).await?;
-            
+
+            session
+                .write_response_header(Box::new(header), false)
+                .await?;
+            session
+                .write_response_body(Some(response_bytes.into()), true)
+                .await?;
+
             return Ok(());
         }
 
@@ -359,12 +410,16 @@ impl WebServerService {
                 let mut header = ResponseHeader::build(200, Some(4))?;
                 header.insert_header("Content-Type", "application/json")?;
                 header.insert_header("Content-Length", response_bytes.len().to_string())?;
-                
+
                 // Apply site-specific headers
                 self.apply_site_headers(&mut header, site_config)?;
-                
-                session.write_response_header(Box::new(header), false).await?;
-                session.write_response_body(Some(response_bytes.into()), true).await?;
+
+                session
+                    .write_response_header(Box::new(header), false)
+                    .await?;
+                session
+                    .write_response_body(Some(response_bytes.into()), true)
+                    .await?;
             }
             Err(e) => {
                 let error_response = serde_json::json!({
@@ -377,19 +432,27 @@ impl WebServerService {
                 let mut header = ResponseHeader::build(404, Some(4))?;
                 header.insert_header("Content-Type", "application/json")?;
                 header.insert_header("Content-Length", response_bytes.len().to_string())?;
-                
+
                 // Apply site-specific headers
                 self.apply_site_headers(&mut header, site_config)?;
-                
-                session.write_response_header(Box::new(header), false).await?;
-                session.write_response_body(Some(response_bytes.into()), true).await?;
+
+                session
+                    .write_response_header(Box::new(header), false)
+                    .await?;
+                session
+                    .write_response_body(Some(response_bytes.into()), true)
+                    .await?;
             }
         }
 
         Ok(())
     }
 
-    async fn handle_404(&self, session: &mut Session, site_config: Option<&SiteConfig>) -> Result<()> {
+    async fn handle_404(
+        &self,
+        session: &mut Session,
+        site_config: Option<&SiteConfig>,
+    ) -> Result<()> {
         let error_response = serde_json::json!({
             "error": "Not Found",
             "message": "The requested endpoint does not exist",
@@ -401,13 +464,17 @@ impl WebServerService {
         let mut header = ResponseHeader::build(404, Some(4))?;
         header.insert_header("Content-Type", "application/json")?;
         header.insert_header("Content-Length", response_bytes.len().to_string())?;
-        
+
         // Apply site-specific headers
         self.apply_site_headers(&mut header, site_config)?;
-        
-        session.write_response_header(Box::new(header), false).await?;
-        session.write_response_body(Some(response_bytes.into()), true).await?;
-        
+
+        session
+            .write_response_header(Box::new(header), false)
+            .await?;
+        session
+            .write_response_body(Some(response_bytes.into()), true)
+            .await?;
+
         Ok(())
     }
 }
