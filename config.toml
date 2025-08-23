@@ -1,0 +1,60 @@
+[server]
+name = "BWS Multi-Site Server"
+
+# Default site configuration
+[[sites]]
+name = "main"
+hostname = "localhost"
+port = 8080
+static_dir = "static"
+default = true
+
+[sites.headers]
+"X-Site-Name" = "BWS Main Site"
+"X-Powered-By" = "BWS/1.0"
+"X-Site-Type" = "main"
+"X-Environment" = "production"
+
+# Second site example
+[[sites]]
+name = "blog"
+hostname = "blog.localhost"
+port = 8081
+static_dir = "static-blog"
+
+[sites.headers]
+"X-Site-Name" = "BWS Blog"
+"X-Powered-By" = "BWS/1.0"
+"X-Site-Type" = "blog"
+"X-Content-Type" = "blog-content"
+"X-Author" = "BWS Team"
+
+# Third site example  
+[[sites]]
+name = "api"
+hostname = "api.localhost"
+port = 8082
+static_dir = "static-api"
+api_only = true
+
+[sites.headers]
+"X-Site-Name" = "BWS API Documentation"
+"X-Powered-By" = "BWS/1.0"
+"X-Site-Type" = "api-docs"
+"X-API-Version" = "v1.0"
+"Access-Control-Allow-Origin" = "*"
+"Access-Control-Allow-Methods" = "GET, POST, PUT, DELETE, OPTIONS"
+
+# Fourth site - same hostname, different port
+[[sites]]
+name = "dev"
+hostname = "localhost"
+port = 8083
+static_dir = "static-dev"
+
+[sites.headers]
+"X-Site-Name" = "BWS Development Site"
+"X-Powered-By" = "BWS/1.0"
+"X-Site-Type" = "development"
+"X-Environment" = "development"
+"X-Debug-Mode" = "enabled"

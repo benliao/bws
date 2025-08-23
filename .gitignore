@@ -1,0 +1,51 @@
+# Rust build artifacts
+/target/
+Cargo.lock
+
+# Server logs and runtime files
+server.log
+*.log
+*.log.*
+nohup.out
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Backup files
+*.bak
+*.backup
+
+# Local configuration overrides
+config.local.toml
+local.toml
+
+# Test output files
+test_output/
+*.test
+
+# Coverage reports
+*.profraw
+*.profdata
+coverage/
+
+# Generated documentation
+doc/
+
+# OS specific files
+Thumbs.db
+Desktop.ini

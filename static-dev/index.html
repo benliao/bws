@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BWS Development Site</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: linear-gradient(45deg, #ff6b6b, #4ecdc4); }
+        .container { max-width: 800px; margin: 0 auto; background: rgba(255,255,255,0.95); padding: 20px; border-radius: 15px; backdrop-filter: blur(10px); }
+        .header { background: #6c5ce7; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .feature { background: #fff; padding: 15px; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .status { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .status.dev { background: #fdcb6e; color: #2d3436; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛠️ BWS Development Site</h1>
+            <p>Served from port 8083 (localhost)</p>
+            <span class="status dev">DEVELOPMENT</span>
+        </div>
+        
+        <main>
+            <div class="feature">
+                <h2>Development Environment</h2>
+                <p>This is the development version of the BWS website, running on a separate port for testing new features.</p>
+            </div>
+            
+            <div class="feature">
+                <h2>Configuration Testing</h2>
+                <p>Current configuration allows multiple sites:</p>
+                <ul>
+                    <li><strong>Main Site:</strong> localhost:8080 → static/</li>
+                    <li><strong>Blog:</strong> blog.localhost:8081 → static-blog/</li>
+                    <li><strong>API Docs:</strong> api.localhost:8082 → static-api/</li>
+                    <li><strong>Development:</strong> localhost:8083 → static-dev/</li>
+                </ul>
+            </div>
+            
+            <div class="feature">
+                <h2>Virtual Hosting Features</h2>
+                <ul>
+                    <li>✅ Different ports for different sites</li>
+                    <li>✅ Different hostnames (virtual hosts)</li>
+                    <li>✅ Separate static directories</li>
+                    <li>✅ TOML configuration</li>
+                    <li>✅ API-only sites</li>
+                </ul>
+            </div>
+            
+            <div class="feature">
+                <h2>Testing Instructions</h2>
+                <p>To test different sites, you can:</p>
+                <ol>
+                    <li>Access different ports directly</li>
+                    <li>Add entries to your /etc/hosts file for virtual hosting</li>
+                    <li>Use curl with Host headers</li>
+                </ol>
+            </div>
+        </main>
+        
+        <footer style="text-align: center; margin-top: 30px; color: #636e72;">
+            <p>&copy; 2025 BWS Development. Port: 8083</p>
+        </footer>
+    </div>
+</body>
+</html>

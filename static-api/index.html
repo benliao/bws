@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BWS API Documentation</title>
+    <style>
+        body { font-family: 'Monaco', 'Consolas', monospace; margin: 40px; background: #2c3e50; color: #ecf0f1; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .header { background: #34495e; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .endpoint { background: #34495e; padding: 15px; margin: 10px 0; border-radius: 4px; border-left: 4px solid #3498db; }
+        .method { background: #27ae60; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+        .method.post { background: #e67e22; }
+        .method.delete { background: #e74c3c; }
+        pre { background: #2c3e50; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📡 BWS API Documentation</h1>
+            <p>Served from port 8082 (api.localhost)</p>
+            <p>This site focuses on API documentation and testing.</p>
+        </div>
+        
+        <main>
+            <h2>Available API Endpoints</h2>
+            
+            <div class="endpoint">
+                <h3><span class="method">GET</span> /api/health</h3>
+                <p>Returns the server health status and timestamp.</p>
+                <pre><code>curl http://api.localhost:8082/api/health</code></pre>
+            </div>
+            
+            <div class="endpoint">
+                <h3><span class="method">GET</span> /api/file</h3>
+                <p>Returns the content of a specified file.</p>
+                <pre><code>curl "http://api.localhost:8082/api/file?path=config.toml"</code></pre>
+            </div>
+            
+            <div class="endpoint">
+                <h3><span class="method">GET</span> /api/sites</h3>
+                <p>Returns information about all configured sites (future feature).</p>
+                <pre><code>curl http://api.localhost:8082/api/sites</code></pre>
+            </div>
+            
+            <h2>Testing Multiple Sites</h2>
+            <div class="endpoint">
+                <h3>Main Site</h3>
+                <p>Access the main site: <code>http://localhost:8080</code></p>
+            </div>
+            
+            <div class="endpoint">
+                <h3>Blog Site</h3>
+                <p>Access the blog: <code>http://blog.localhost:8081</code></p>
+            </div>
+            
+            <div class="endpoint">
+                <h3>Dev Site</h3>
+                <p>Access development: <code>http://localhost:8083</code></p>
+            </div>
+        </main>
+        
+        <footer style="text-align: center; margin-top: 30px; color: #95a5a6;">
+            <p>&copy; 2025 BWS API Docs. Port: 8082</p>
+        </footer>
+    </div>
+</body>
+</html>
