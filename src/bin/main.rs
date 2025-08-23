@@ -1,33 +1,37 @@
 use bws_web_server::{ServerConfig, WebServerService};
-use pingora::prelude::*;
 use clap::Parser;
 use daemonize::Daemonize;
+use pingora::prelude::*;
 use std::fs::File;
 
 #[derive(Parser)]
 #[command(name = "bws-web-server")]
-#[command(about = "BWS (Ben's Web Server) - A high-performance multi-site web server built with Pingora")]
+#[command(
+    about = "BWS (Ben's Web Server) - A high-performance multi-site web server built with Pingora"
+)]
 #[command(version)]
-#[command(long_about = "BWS is a high-performance, multi-site web server that can host multiple websites \
+#[command(
+    long_about = "BWS is a high-performance, multi-site web server that can host multiple websites \
 on different ports with individual configurations. It supports configurable headers, static file serving, \
-and health monitoring endpoints.")]
+and health monitoring endpoints."
+)]
 struct Cli {
     /// Configuration file path
     #[arg(short, long, default_value = "config.toml")]
     config: String,
-    
+
     /// Enable verbose logging
     #[arg(short, long)]
     verbose: bool,
-    
+
     /// Run as daemon (background process)
     #[arg(short, long)]
     daemon: bool,
-    
+
     /// PID file path when running as daemon
     #[arg(long, default_value = "/tmp/bws-web-server.pid")]
     pid_file: String,
-    
+
     /// Log file path when running as daemon
     #[arg(long, default_value = "/tmp/bws-web-server.log")]
     log_file: String,
@@ -41,17 +45,17 @@ fn main() {
         println!("Starting BWS server as daemon...");
         println!("PID file: {}", cli.pid_file);
         println!("Log file: {}", cli.log_file);
-        
+
         let stdout = File::create(&cli.log_file).unwrap_or_else(|e| {
             eprintln!("Failed to create log file '{}': {}", cli.log_file, e);
             std::process::exit(1);
         });
         let stderr = stdout.try_clone().unwrap();
-        
+
         let daemonize = Daemonize::new()
             .pid_file(&cli.pid_file)
             .chown_pid_file(true)
-            .working_directory(".")  // Use current directory instead of /tmp
+            .working_directory(".") // Use current directory instead of /tmp
             .stdout(stdout)
             .stderr(stderr);
 
@@ -84,7 +88,11 @@ fn main() {
         std::process::exit(1);
     });
 
-    println!("Loaded configuration from '{}' for {} sites:", cli.config, config.sites.len());
+    println!(
+        "Loaded configuration from '{}' for {} sites:",
+        cli.config,
+        config.sites.len()
+    );
     for site in &config.sites {
         println!(
             "  - {} ({}:{}) -> {}",
@@ -115,32 +123,33 @@ fn main() {
 
     log::info!("Starting BWS multi-site server...");
     my_server.bootstrap();
-    
+
     // Display clickable URLs for each site after server starts (only in foreground mode)
     if !cli.daemon {
         println!("\n🚀 BWS Multi-Site Server is running!");
         println!("📋 Available websites:");
-        
+
         for site in &config.sites {
-            let url = format!("http://{}:{}", 
+            let url = format!(
+                "http://{}:{}",
                 if site.hostname == "localhost" || site.hostname.ends_with(".localhost") {
                     site.hostname.clone()
                 } else {
                     "localhost".to_string()
-                }, 
+                },
                 site.port
             );
-            
+
             // Display clickable URL with site description
             println!("  • {} - {}", site.name, url);
-            
+
             // Show common endpoints for each site
             if cli.verbose {
                 println!("    └─ Health: {}/api/health", url);
                 println!("    └─ Sites: {}/api/sites", url);
             }
         }
-        
+
         println!("\n💡 Tip: Use Ctrl+C to stop the server");
         if !cli.verbose {
             println!("💡 Use --verbose to see health check URLs");
@@ -148,11 +157,16 @@ fn main() {
         println!();
     } else {
         log::info!("BWS daemon started successfully");
-        log::info!("Available sites: {}", config.sites.iter()
-            .map(|s| format!("{}:{}", s.name, s.port))
-            .collect::<Vec<_>>()
-            .join(", "));
+        log::info!(
+            "Available sites: {}",
+            config
+                .sites
+                .iter()
+                .map(|s| format!("{}:{}", s.name, s.port))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
     }
-    
+
     my_server.run_forever();
 }
