@@ -8,12 +8,21 @@ server.log
 *.log.*
 nohup.out
 
+# Docker runtime files
+docker-run/
+docker-logs/
+
 # Daemon files
 *.pid
 bws-daemon.log
 bws-daemon.pid
+bws-web-server.log
+bws-web-server.pid
 /var/log/bws.log
 /var/run/bws.pid
+/tmp/bws*.pid
+/tmp/bws*.log
+/tmp/mock_server_*.pid
 
 # IDE and editor files
 .vscode/
@@ -42,9 +51,17 @@ config.local.toml
 local.toml
 bws_config.toml
 
+# Test configuration files (keep test templates)
+test_*.toml
+!test_load_balancing.toml
+!test_proxy_config.toml
+!test_multisite_config.toml
+
 # Test output files
 test_output/
 *.test
+test_results/
+mock_server_*.pid
 
 # mdBook generated documentation
 /docs/book/
@@ -79,6 +96,12 @@ Desktop.ini
 *.crt
 *.cert
 certificates/
+acme-challenges/
+
+# Reverse proxy test servers and logs
+backend_server_*.log
+upstream_server_*.log
+proxy_test_*.log
 
 # Performance profiling
 perf.data

@@ -101,8 +101,10 @@ allow = [
     "Unicode-DFS-2016",
     "CC0-1.0",
     "0BSD",
-    "Zlib",           # Required by foldhash dependency
-    "Unicode-3.0",    # Required by unicode-ident dependency
+    "Zlib",                    # Required by foldhash dependency
+    "Unicode-3.0",             # Required by unicode-ident dependency
+    "OpenSSL",                 # Required by aws-lc-sys (used by rustls/reqwest/ACME)
+    "CDLA-Permissive-2.0",     # Required by webpki-roots (used by rustls/reqwest/ACME)
 ]
 # The confidence threshold for detecting a license from license text.
 # The higher the value, the more closely the license text must be to the

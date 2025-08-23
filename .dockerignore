@@ -16,25 +16,47 @@ run/
 bws-daemon.log
 bws-daemon.pid
 
+# Docker runtime files
+docker-run/
+docker-logs/
+
 # IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
 
-# Documentation
-README.md
+# Documentation (keep essential docs, exclude development docs)
 PUBLISHING.md
 SECURITY.md
-docs/
+docs/src/
+docs/book/
+*.md
+!README.md
+!docs/load-balancing.md
+!docs/reverse-proxy.md
 
 # Test files
 test_*.sh
 test_output/
+test_results/
+mock_server_*.pid
+
+# Test configuration files (exclude from production builds)
+test_*.toml
+test_load_balancing.toml
+test_proxy_config.toml
+test_multisite_config.toml
 
 # Local configuration files
 config.local.toml
 bws_config.toml
+local.toml
+
+# Reverse proxy test configurations and logs
+backend_server_*.log
+upstream_server_*.log
+proxy_test_*.log
 
 # Temporary files
 *.tmp
@@ -55,6 +77,7 @@ flamegraph.svg
 *.key
 *.crt
 certificates/
+acme-challenges/
 
 # Environment files
 .env

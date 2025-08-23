@@ -1,0 +1,109 @@
+[server]
+name = "BWS Load Balancing Test"
+version = "0.1.5"
+description = "Testing reverse proxy load balancing functionality"
+
+# Site with round-robin load balancing
+[[sites]]
+name = "roundrobin.example.com"
+hostname = "localhost"
+port = 8080
+static_dir = "static"
+default = true
+
+[sites.proxy]
+enabled = true
+
+# Multiple backend servers with same upstream name for load balancing
+[[sites.proxy.upstreams]]
+name = "api-backends"
+url = "http://127.0.0.1:3001"
+weight = 1
+
+[[sites.proxy.upstreams]]
+name = "api-backends"
+url = "http://127.0.0.1:3002"
+weight = 1
+
+[[sites.proxy.upstreams]]
+name = "api-backends"
+url = "http://127.0.0.1:3003"
+weight = 1
+
+# Route to the upstream group
+[[sites.proxy.routes]]
+path = "/api/"
+upstream = "api-backends"
+strip_prefix = false
+
+[sites.proxy.load_balancing]
+method = "round_robin"
+
+[sites.proxy.headers]
+add_x_forwarded = true
+add_forwarded = true
+
+# Site with weighted load balancing
+[[sites]]
+name = "weighted.example.com"
+hostname = "localhost"
+port = 8081
+
+[sites.proxy]
+enabled = true
+
+# Weighted backend servers with same upstream name
+[[sites.proxy.upstreams]]
+name = "web-backends"
+url = "http://127.0.0.1:3001"
+weight = 3  # 60% of traffic
+
+[[sites.proxy.upstreams]]
+name = "web-backends"
+url = "http://127.0.0.1:3002"
+weight = 2  # 40% of traffic
+
+[[sites.proxy.routes]]
+path = "/"
+upstream = "web-backends"
+
+[sites.proxy.load_balancing]
+method = "weighted"
+
+# Site with least connections load balancing
+[[sites]]
+name = "leastconn.example.com"
+hostname = "localhost"
+port = 8082
+
+[sites.proxy]
+enabled = true
+
+[[sites.proxy.upstreams]]
+name = "app-backends"
+url = "http://127.0.0.1:3001"
+weight = 1
+
+[[sites.proxy.upstreams]]
+name = "app-backends"
+url = "http://127.0.0.1:3002"
+weight = 1
+
+[[sites.proxy.routes]]
+path = "/"
+upstream = "app-backends"
+
+[sites.proxy.load_balancing]
+method = "least_connections"
+
+[logging]
+log_level = "info"
+log_format = "json"
+log_requests = true
+
+[performance]
+workers = 2
+max_connections = 1000
+
+[security]
+hide_server_header = false

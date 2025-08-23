@@ -1,4 +1,4 @@
-use bws_web_server::{ServerConfig, WebServerService};
+use bws::{ServerConfig, WebServerService};
 use clap::Parser;
 #[cfg(unix)]
 use daemonize::Daemonize;

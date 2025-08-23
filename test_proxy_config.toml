@@ -1,0 +1,46 @@
+[server]
+name = "BWS Test Server"
+version = "0.1.5"
+description = "Testing reverse proxy functionality"
+
+[[sites]]
+name = "example.com"
+hostname = "localhost"
+port = 8080
+static_dir = "static"
+default = true
+
+[sites.proxy]
+enabled = true
+
+[[sites.proxy.upstreams]]
+name = "backend"
+url = "http://127.0.0.1:3000"
+weight = 1
+
+[[sites.proxy.routes]]
+path = "/backend/"
+upstream = "backend"
+strip_prefix = false
+
+[[sites.proxy.routes]]
+path = "/app/"
+upstream = "backend"
+strip_prefix = true
+rewrite_target = "/"
+
+[sites.proxy.headers]
+add_x_forwarded = true
+add_forwarded = true
+
+[logging]
+log_level = "info"
+log_format = "json"
+log_requests = true
+
+[performance]
+workers = 2
+max_connections = 1000
+
+[security]
+hide_server_header = false

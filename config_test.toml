@@ -1,0 +1,126 @@
+# BWS Test Configuration with Multiple Sites
+[server]
+name = "BWS Test Server"
+
+# HTTP Site for local development
+[[sites]]
+name = "example_site"
+hostname = "localhost" 
+port = 8081
+static_dir = "./static"
+default = true
+api_only = false
+redirect_to_https = false
+index_files = ["index.html", "index.htm"]
+
+[sites.headers]
+"X-Frame-Options" = "DENY"
+"X-Content-Type-Options" = "nosniff"
+
+[sites.compression]
+enabled = true
+level = 6
+min_size = 1000
+types = ["text/html", "text/css", "application/javascript", "application/json"]
+
+[sites.cache]
+enabled = true
+max_age = 3600
+public = true
+
+[sites.access_control]
+enabled = false
+allowed_ips = []
+blocked_ips = []
+
+[sites.ssl]
+enabled = false
+auto_cert = false
+domains = []
+
+# HTTPS Site with auto SSL certificate
+[[sites]]
+name = "secure_site"
+hostname = "secure.localhost"
+port = 8443
+static_dir = "./static"
+default = false
+api_only = false
+redirect_to_https = false
+index_files = ["index.html", "index.htm"]
+
+[sites.headers]
+"X-Frame-Options" = "DENY"
+"X-Content-Type-Options" = "nosniff"
+"Strict-Transport-Security" = "max-age=31536000"
+
+[sites.compression]
+enabled = true
+level = 6
+min_size = 1000
+types = ["text/html", "text/css", "application/javascript", "application/json"]
+
+[sites.cache]
+enabled = true
+max_age = 3600
+public = true
+
+[sites.access_control]
+enabled = false
+allowed_ips = []
+blocked_ips = []
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+domains = ["ssl.localhost", "https.localhost"]
+
+[sites.ssl.acme]
+enabled = true
+email = "test@example.com"
+staging = true
+challenge_dir = "./acme-challenges"
+
+# Manual SSL Site
+[[sites]]
+name = "manual_ssl_site"
+hostname = "manual.localhost"
+port = 8444
+static_dir = "./static"
+default = false
+api_only = false
+redirect_to_https = false
+index_files = ["index.html", "index.htm"]
+
+[sites.headers]
+"X-Frame-Options" = "DENY"
+"X-Content-Type-Options" = "nosniff"
+"X-SSL-Type" = "manual"
+
+[sites.compression]
+enabled = true
+level = 6
+min_size = 1000
+types = ["text/html", "text/css", "application/javascript", "application/json"]
+
+[sites.cache]
+enabled = true
+max_age = 3600
+public = true
+
+[sites.access_control]
+enabled = false
+allowed_ips = []
+blocked_ips = []
+
+[sites.ssl]
+enabled = true
+auto_cert = false
+cert_file = "./certs/manual.crt"
+key_file = "./certs/manual.key"
+domains = []
+
+# Note: Error pages configuration may need to be set programmatically
+# [sites.error_pages]
+# 404 = "/404.html"
+# 500 = "/500.html"

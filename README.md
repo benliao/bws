@@ -1,7 +1,120 @@
 # BWS (Ben's Web Server)
 
 [![CI](https://github.com/benliao/bws/workflows/CI/badge.svg)](https://github.com/benliao/bws/actions)
-[![Security](https://github.com/benliao/bws/workflows/Security/badge.svg)](https://github.com/benliao/bws/actions)
+[![Security](https://github.com/benliao/bws/workflows/Security/badge.svg)](https://github## 🔄 Reverse Proxy & Load Balancing
+
+BWS includes comprehensive reverse proxy functionality similar to Caddy, with support for multiple load balancing algorithms:
+
+### Load Balancing Algorithms
+
+1. **Round Robin** (`round_robin`): Distributes requests evenly across all servers
+2. **Weighted** (`weighted`): Distributes requests based on server weights/capacity
+3. **Least Connections** (`least_connections`): Routes to server with fewest active connections
+
+### Basic Reverse Proxy Setup
+
+```toml
+[[sites]]
+name = "proxy_site"
+hostname = "proxy.example.com"
+port = 8080
+
+[sites.proxy]
+enabled = true
+
+# Backend servers (same upstream name for load balancing)
+[[sites.proxy.upstreams]]
+name = "backend-pool"
+url = "http://127.0.0.1:3001"
+weight = 1
+
+[[sites.proxy.upstreams]]
+name = "backend-pool"
+url = "http://127.0.0.1:3002"
+weight = 2  # Gets 2x traffic in weighted mode
+
+# Route configuration
+[[sites.proxy.routes]]
+path = "/api/"
+upstream = "backend-pool"
+strip_prefix = false
+
+# Load balancing method
+[sites.proxy.load_balancing]
+method = "round_robin"  # or "weighted" or "least_connections"
+
+# Proxy headers
+[sites.proxy.headers]
+add_x_forwarded = true
+add_forwarded = true
+
+[sites.proxy.headers.add]
+"X-Proxy-Server" = "BWS"
+
+[sites.proxy.headers.remove]
+"X-Internal-Token" = true
+```
+
+### Advanced Proxy Configuration
+
+```toml
+[sites.proxy]
+enabled = true
+
+# Request timeout settings
+timeout = { read = 30, write = 30 }
+
+# Multiple upstream groups
+[[sites.proxy.upstreams]]
+name = "api-cluster"
+url = "http://api1.internal:8080"
+weight = 3
+
+[[sites.proxy.upstreams]]
+name = "api-cluster"
+url = "http://api2.internal:8080"
+weight = 2
+
+[[sites.proxy.upstreams]]
+name = "static-cluster"
+url = "http://cdn1.internal:8080"
+weight = 1
+
+[[sites.proxy.upstreams]]
+name = "static-cluster"
+url = "http://cdn2.internal:8080"
+weight = 1
+
+# Multiple routes to different upstream groups
+[[sites.proxy.routes]]
+path = "/api/"
+upstream = "api-cluster"
+
+[[sites.proxy.routes]]
+path = "/static/"
+upstream = "static-cluster"
+strip_prefix = true  # Remove /static/ when forwarding
+
+# Load balancing configuration
+[sites.proxy.load_balancing]
+method = "least_connections"
+```
+
+### Testing Load Balancing
+
+Use the included test script to verify load balancing:
+
+```bash
+# Set up test configuration
+cp test_load_balancing.toml config.toml
+
+# Run the load balancing test
+./test_load_balance.sh
+```
+
+For detailed information, see: **[Load Balancing Documentation →](docs/load-balancing.md)**
+
+## 🔒 SSL/TLS Configurationcom/benliao/bws/actions)
 [![Crates.io](https://img.shields.io/crates/v/bws-web-server.svg)](https://crates.io/crates/bws-web-server)
 [![Downloads](https://img.shields.io/crates/d/bws-web-server.svg)](https://crates.io/crates/bws-web-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -23,6 +136,10 @@ The full documentation includes:
 ## 🚀 Features
 
 - **Multi-Site Support**: Host multiple websites on different ports with individual configurations
+- **Reverse Proxy & Load Balancing**: Full reverse proxy functionality with three load balancing algorithms (round-robin, weighted, least-connections)
+- **Per-Site SSL/TLS**: Each site can have its own SSL certificates and HTTPS configuration
+- **Auto SSL Certificates**: Automatic SSL certificate generation via ACME (Let's Encrypt)
+- **Manual SSL Support**: Use your own SSL certificates per site
 - **Configurable Headers**: Set custom HTTP headers per site via TOML configuration
 - **High Performance**: Built on Pingora for enterprise-grade performance and reliability
 - **Health Monitoring**: Built-in health check endpoints for monitoring
@@ -60,6 +177,7 @@ cargo build --release
 [server]
 name = "BWS Multi-Site Server"
 
+# HTTP Site
 [[sites]]
 name = "main"
 hostname = "localhost"
@@ -67,34 +185,111 @@ port = 8080
 static_dir = "static"
 default = true
 
+[sites.ssl]
+enabled = false
+
 [sites.headers]
 "X-Site-Name" = "BWS Main Site"
 "X-Powered-By" = "BWS/1.0"
-"X-Site-Type" = "main"
 
+# Reverse Proxy Site with Load Balancing
 [[sites]]
-name = "api"
-hostname = "api.localhost"
-port = 8081
-static_dir = "static-api"
-api_only = true
+name = "proxy"
+hostname = "proxy.localhost"
+port = 8090
+static_dir = "static"
+
+[sites.proxy]
+enabled = true
+
+# Multiple backend servers for load balancing
+[[sites.proxy.upstreams]]
+name = "api-servers"
+url = "http://127.0.0.1:3001"
+weight = 2
+
+[[sites.proxy.upstreams]]
+name = "api-servers"
+url = "http://127.0.0.1:3002"
+weight = 1
+
+[[sites.proxy.upstreams]]
+name = "api-servers"
+url = "http://127.0.0.1:3003"
+weight = 1
+
+# Proxy routes
+[[sites.proxy.routes]]
+path = "/api/"
+upstream = "api-servers"
+strip_prefix = false
+
+# Load balancing configuration
+[sites.proxy.load_balancing]
+method = "weighted"  # round_robin, weighted, or least_connections
+
+# Proxy headers
+[sites.proxy.headers]
+add_x_forwarded = true
+add_forwarded = true
+
+[sites.proxy.headers.add]
+"X-Proxy-Version" = "BWS/1.0"
+
+[sites.proxy.headers.remove]
+"X-Internal-Header" = true
+
+# HTTPS Site with Auto SSL
+[[sites]]
+name = "secure"
+hostname = "secure.localhost"
+port = 8443
+static_dir = "static"
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+domains = ["secure.localhost", "ssl.localhost"]
+
+[sites.ssl.acme]
+enabled = true
+email = "admin@example.com"
+staging = false
+challenge_dir = "./acme-challenges"
 
 [sites.headers]
-"X-API-Version" = "v1"
-"X-Service" = "api"
+"X-Site-Name" = "BWS Secure Site"
+"Strict-Transport-Security" = "max-age=31536000"
+
+# HTTPS Site with Manual SSL
+[[sites]]
+name = "manual_ssl"
+hostname = "manual.localhost"
+port = 8444
+static_dir = "static"
+
+[sites.ssl]
+enabled = true
+auto_cert = false
+cert_file = "./certs/manual.crt"
+key_file = "./certs/manual.key"
+
+[sites.headers]
+"X-Site-Name" = "BWS Manual SSL Site"
+"X-SSL-Type" = "manual"
 ```
 
 2. **Create static directories and files**:
 
 ```bash
 # Create directories for each site
-mkdir -p static static-api
+mkdir -p static acme-challenges certs
 
 # Add content to main site
-echo "<h1>Welcome to BWS Main Site</h1>" > static/index.html
+echo "<h1>Welcome to BWS Main Site (HTTP)</h1>" > static/index.html
 
-# Add content to API site
-echo "<h1>API Documentation</h1>" > static-api/index.html
+# For SSL sites, you can use the same static directory or create separate ones
+echo "<h1>Welcome to BWS Secure Site (HTTPS)</h1>" > static/secure.html
 ```
 
 3. **Run the server**:
@@ -119,17 +314,97 @@ bws-web-server --version
 4. **Test your setup**:
 
 ```bash
-# Test main site
+# Test HTTP site
 curl -I http://localhost:8080
 
-# Test API site  
-curl -I http://localhost:8081
+# Test HTTPS sites (if SSL is properly configured)
+curl -I https://secure.localhost:8443
+curl -I https://manual.localhost:8444
 
-# Health check
+# Health checks
 curl http://localhost:8080/api/health
+curl https://secure.localhost:8443/api/health
+
+# View all sites configuration
+curl http://localhost:8080/api/sites
 ```
 
-## 💻 Command Line Options
+## � SSL/TLS Configuration
+
+BWS supports per-site SSL/TLS configuration, allowing each site to have its own HTTPS setup:
+
+### Automatic SSL Certificates (ACME/Let's Encrypt)
+
+```toml
+[[sites]]
+name = "auto_ssl_site"
+hostname = "example.com"
+port = 443
+static_dir = "static"
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+domains = ["example.com", "www.example.com"]
+
+[sites.ssl.acme]
+enabled = true
+email = "admin@example.com"
+staging = false  # Set to true for testing
+challenge_dir = "./acme-challenges"
+```
+
+### Manual SSL Certificates
+
+```toml
+[[sites]]
+name = "manual_ssl_site"
+hostname = "secure.example.com"
+port = 443
+static_dir = "static"
+
+[sites.ssl]
+enabled = true
+auto_cert = false
+cert_file = "/etc/ssl/certs/secure.example.com.crt"
+key_file = "/etc/ssl/private/secure.example.com.key"
+```
+
+### Mixed HTTP/HTTPS Sites
+
+You can run both HTTP and HTTPS sites simultaneously:
+
+```toml
+# HTTP site on port 80
+[[sites]]
+name = "http_site"
+hostname = "example.com"
+port = 80
+static_dir = "static"
+
+[sites.ssl]
+enabled = false
+
+# HTTPS site on port 443
+[[sites]]
+name = "https_site"
+hostname = "example.com"
+port = 443
+static_dir = "static"
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+domains = ["example.com"]
+
+[sites.ssl.acme]
+enabled = true
+email = "admin@example.com"
+staging = false
+challenge_dir = "./acme-challenges"
+```
+
+## �💻 Command Line Options
 
 BWS supports the following command line options:
 
@@ -344,6 +619,37 @@ static_dir = "static-dev"
 - **sites.default**: Mark as default site (optional)
 - **sites.api_only**: API-only site, no static files (optional)
 - **sites.headers**: Custom HTTP headers to include in all responses for this site
+- **sites.ssl**: SSL/TLS configuration for this site
+- **sites.ssl.enabled**: Enable/disable SSL for this site
+- **sites.ssl.auto_cert**: Use automatic certificate generation (ACME)
+- **sites.ssl.domains**: Additional domains for the SSL certificate
+- **sites.ssl.cert_file**: Path to SSL certificate file (manual SSL)
+- **sites.ssl.key_file**: Path to SSL private key file (manual SSL)
+- **sites.ssl.acme**: ACME configuration for automatic certificates
+- **sites.ssl.acme.enabled**: Enable ACME certificate generation
+- **sites.ssl.acme.email**: Email for ACME registration
+- **sites.ssl.acme.staging**: Use staging environment for testing
+- **sites.ssl.acme.challenge_dir**: Directory for ACME challenges
+- **sites.proxy**: Reverse proxy configuration for this site
+- **sites.proxy.enabled**: Enable/disable reverse proxy functionality
+- **sites.proxy.upstreams**: Array of backend servers
+- **sites.proxy.upstreams.name**: Upstream group name (group servers with same name)
+- **sites.proxy.upstreams.url**: Backend server URL
+- **sites.proxy.upstreams.weight**: Server weight for weighted load balancing
+- **sites.proxy.routes**: Array of proxy routes
+- **sites.proxy.routes.path**: Path pattern to match for proxying
+- **sites.proxy.routes.upstream**: Upstream group name to proxy to
+- **sites.proxy.routes.strip_prefix**: Remove matched path when forwarding
+- **sites.proxy.load_balancing**: Load balancing configuration
+- **sites.proxy.load_balancing.method**: Algorithm (`round_robin`, `weighted`, `least_connections`)
+- **sites.proxy.timeout**: Request timeout settings
+- **sites.proxy.timeout.read**: Read timeout in seconds
+- **sites.proxy.timeout.write**: Write timeout in seconds
+- **sites.proxy.headers**: Proxy header management
+- **sites.proxy.headers.add_x_forwarded**: Add X-Forwarded-* headers
+- **sites.proxy.headers.add_forwarded**: Add Forwarded header
+- **sites.proxy.headers.add**: Custom headers to add
+- **sites.proxy.headers.remove**: Headers to remove from responses
 
 ### Configurable Headers
 
@@ -479,22 +785,31 @@ The server will start multiple services based on your configuration.
 # Test configurable headers functionality
 ./test_headers.sh
 
+# Test reverse proxy and load balancing
+./test_load_balance.sh
+
 # Test individual sites
 curl http://localhost:8080          # Main site
 curl http://localhost:8081          # Blog site  
 curl http://localhost:8082          # API docs site
 curl http://localhost:8083          # Dev site
+curl http://localhost:8090          # Proxy site
 
 # Test with virtual host headers
 curl -H "Host: blog.localhost:8081" http://localhost:8081
+curl -H "Host: proxy.localhost:8090" http://localhost:8090/api/test
 
-# Check sites configuration (includes header config)
+# Check sites configuration (includes header and proxy config)
 curl http://localhost:8080/api/sites
 
 # Test site-specific headers
 curl -I http://localhost:8080/      # Main site headers
 curl -I http://localhost:8083/      # Dev site headers (X-Debug-Mode: enabled)
 curl -H "Host: api.localhost:8082" -I http://localhost:8082/  # API site CORS headers
+
+# Test reverse proxy functionality
+curl -H "Host: proxy.localhost:8090" http://localhost:8090/api/users  # Proxied to backend
+curl -v -H "Host: proxy.localhost:8090" http://localhost:8090/api/data # Check X-Forwarded headers
 ```
 
 #### Virtual Host Setup (Optional)
@@ -514,7 +829,21 @@ Then access sites via:
 ├── src/
 │   ├── bin/
 │   │   └── main.rs               # Server entry point and multi-site setup
-│   └── lib.rs                    # Web server implementation with config support
+│   ├── config/
+│   │   └── site.rs               # Site and proxy configuration structures
+│   ├── handlers/
+│   │   ├── proxy_handler.rs      # Reverse proxy and load balancing implementation
+│   │   └── static_handler.rs     # Static file serving
+│   ├── server/
+│   │   ├── service.rs            # Main web server service with proxy integration
+│   │   └── middleware.rs         # Request middleware and processing
+│   ├── ssl/
+│   │   ├── acme.rs              # ACME certificate management
+│   │   └── certificate.rs       # SSL certificate handling
+│   └── lib.rs                    # Library root with all modules
+├── docs/
+│   ├── load-balancing.md         # Comprehensive load balancing documentation
+│   └── reverse-proxy.md          # Reverse proxy configuration guide
 ├── static/                       # Main site files
 │   ├── index.html               # Main homepage
 │   ├── about.html               # About page
@@ -528,9 +857,12 @@ Then access sites via:
 ├── static-dev/                   # Development site files
 │   └── index.html               # Dev homepage
 ├── config.toml                   # Multi-site configuration with headers
+├── test_load_balancing.toml      # Load balancing test configuration
+├── test_proxy_config.toml        # Basic proxy test configuration
 ├── Cargo.toml                    # Project dependencies
 ├── test_multisite.sh             # Multi-site test script
 ├── test_headers.sh               # Configurable headers test script
+├── test_load_balance.sh          # Load balancing test script
 ├── test_static_server.sh         # Static website test script
 └── README.md                     # This file
 ```
@@ -574,7 +906,9 @@ The server intelligently routes requests based on URL patterns:
 
 ## Extending the Server
 
-To add new endpoints:
+### Adding New Static Endpoints
+
+To add new static endpoints:
 
 1. Add a new pattern match in `request_filter()`
 2. Create a new handler method following the pattern of existing handlers
@@ -587,6 +921,23 @@ Example:
     Ok(true)
 }
 ```
+
+### Adding Reverse Proxy Features
+
+BWS includes a comprehensive reverse proxy system. Key components:
+
+- **ProxyHandler**: Main proxy logic with load balancing
+- **Load Balancing**: Three algorithms (round-robin, weighted, least-connections)
+- **Connection Tracking**: Atomic counters for least-connections algorithm
+- **Header Management**: X-Forwarded-* and custom header support
+- **Path Transformation**: URL rewriting and prefix stripping
+- **Error Handling**: Graceful fallback and timeout handling
+
+To extend proxy functionality:
+1. Modify `ProxyHandler` in `src/handlers/proxy_handler.rs`
+2. Add new load balancing algorithms in the `select_*` methods
+3. Extend configuration in `src/config/site.rs`
+4. Update routing logic in `src/server/service.rs`
 
 ## Performance Characteristics
 

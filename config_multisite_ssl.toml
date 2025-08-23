@@ -1,0 +1,60 @@
+# BWS Multi-Site Configuration with Per-Site SSL
+[server]
+name = "BWS Multi-Site Server"
+
+# Site 1: Main website with auto SSL certificate
+[[sites]]
+name = "main_site"
+hostname = "example.com"
+port = 443
+static_dir = "./sites/main/static"
+default = true
+redirect_to_https = false
+index_files = ["index.html", "index.htm"]
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+domains = ["www.example.com"]  # Additional domains for this certificate
+
+[sites.ssl.acme]
+enabled = true
+email = "admin@example.com"
+staging = false
+challenge_dir = "./acme-challenges"
+
+[sites.headers]
+"X-Frame-Options" = "DENY"
+"X-Content-Type-Options" = "nosniff"
+"Strict-Transport-Security" = "max-age=31536000; includeSubDomains"
+
+# Site 2: API service with manual SSL certificate
+[[sites]]
+name = "api_site"
+hostname = "api.example.com"
+port = 8443
+static_dir = "./sites/api/static"
+api_only = true
+
+[sites.ssl]
+enabled = true
+auto_cert = false
+cert_file = "/etc/ssl/certs/api.example.com.crt"
+key_file = "/etc/ssl/private/api.example.com.key"
+
+[sites.headers]
+"Access-Control-Allow-Origin" = "*"
+"Access-Control-Allow-Methods" = "GET, POST, PUT, DELETE"
+
+# Site 3: Development site without SSL
+[[sites]]
+name = "dev_site"
+hostname = "dev.example.com"
+port = 8080
+static_dir = "./sites/dev/static"
+
+[sites.ssl]
+enabled = false
+
+[sites.headers]
+"X-Environment" = "development"

@@ -11,7 +11,10 @@
 
 # User Guide
 - [Multi-Site Setup](./multi-site.md)
+- [SSL/TLS Configuration](./ssl-tls.md)
 - [Static File Serving](./static-files.md)
+- [Reverse Proxy](./reverse-proxy.md)
+- [Load Balancing](./load-balancing.md)
 - [Custom Headers](./headers.md)
 - [Health Monitoring](./health.md)
 
