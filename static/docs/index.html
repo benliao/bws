@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BWS Documentation</title>
+    <link rel="stylesheet" href="/assets/css/main.css">
+</head>
+<body>
+    <div class="header">
+        <h1>BWS Documentation</h1>
+        <p>This file is served from a subdirectory: /docs/</p>
+    </div>
+    
+    <div class="content">
+        <h2>Subdirectory File Serving Test</h2>
+        <p>This HTML file is located at <code>static/docs/index.html</code> and demonstrates that BWS can serve files from subdirectories.</p>
+        
+        <h3>Features Tested:</h3>
+        <ul>
+            <li>✅ HTML files in subdirectories</li>
+            <li>✅ CSS files in nested subdirectories (/assets/css/)</li>
+            <li>✅ JavaScript files in nested subdirectories (/assets/js/)</li>
+            <li>✅ Proper MIME type detection</li>
+            <li>✅ Relative path resolution</li>
+        </ul>
+        
+        <p><strong>Current Time:</strong> <span id="current-time">Loading...</span></p>
+        
+        <p><a href="/">← Back to Home</a></p>
+    </div>
+    
+    <script src="/assets/js/app.js"></script>
+</body>
+</html>

@@ -168,6 +168,46 @@ footer {
     margin-top: auto;
 }
 
+/* Test section styles */
+.test-section {
+    background: #f8f9fa;
+    padding: 2rem;
+    border-radius: 8px;
+    margin-top: 2rem;
+    border: 2px solid #e9ecef;
+}
+
+.test-section h3 {
+    color: #e74c3c;
+    margin-bottom: 1rem;
+    font-size: 1.3rem;
+}
+
+.test-links {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.test-links a {
+    color: #3498db;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    background: white;
+    border: 1px solid #3498db;
+    border-radius: 4px;
+    transition: all 0.3s;
+    text-align: center;
+    font-weight: 500;
+}
+
+.test-links a:hover {
+    background: #3498db;
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(52, 152, 219, 0.3);
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .container {

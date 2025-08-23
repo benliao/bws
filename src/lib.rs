@@ -71,7 +71,7 @@ pub fn get_mime_type(file_path: &str) -> &'static str {
     match path.extension().and_then(|ext| ext.to_str()) {
         Some("html") | Some("htm") => "text/html",
         Some("css") => "text/css",
-        Some("js") => "application/javascript",
+        Some("js") | Some("mjs") => "application/javascript",
         Some("json") => "application/json",
         Some("png") => "image/png",
         Some("jpg") | Some("jpeg") => "image/jpeg",
@@ -82,7 +82,23 @@ pub fn get_mime_type(file_path: &str) -> &'static str {
         Some("pdf") => "application/pdf",
         Some("woff") | Some("woff2") => "font/woff",
         Some("ttf") => "font/ttf",
+        Some("otf") => "font/otf",
+        Some("eot") => "application/vnd.ms-fontobject",
         Some("xml") => "application/xml",
+        Some("wasm") => "application/wasm",
+        Some("webp") => "image/webp",
+        Some("avif") => "image/avif",
+        Some("mp4") => "video/mp4",
+        Some("webm") => "video/webm",
+        Some("mp3") => "audio/mpeg",
+        Some("wav") => "audio/wav",
+        Some("ogg") => "audio/ogg",
+        Some("zip") => "application/zip",
+        Some("gz") => "application/gzip",
+        Some("tar") => "application/x-tar",
+        Some("md") => "text/markdown",
+        Some("yaml") | Some("yml") => "application/x-yaml",
+        Some("toml") => "application/toml",
         _ => "application/octet-stream",
     }
 }
@@ -209,7 +225,35 @@ impl ProxyHttp for WebServerService {
                 Ok(true)
             }
             _ => {
-                self.handle_404(session, ctx.as_ref()).await?;
+                // Try to serve any other path as a static file
+                if let Some(site) = ctx.as_ref() {
+                    let file_path = format!("{}{}", site.static_dir, path);
+
+                    // Check if it's a potentially valid file (has extension or is a known file)
+                    if self.is_static_file_request(&path) {
+                        self.handle_static_file(session, &file_path, ctx.as_ref())
+                            .await?;
+                    } else {
+                        // For directory requests, try to serve index.html from that directory
+                        let index_path = if path.ends_with('/') {
+                            format!("{}{}index.html", site.static_dir, path)
+                        } else {
+                            format!("{}{}/index.html", site.static_dir, path)
+                        };
+
+                        // Check if index.html exists in the requested directory
+                        if std::path::Path::new(&index_path).exists() {
+                            self.handle_static_file(session, &index_path, ctx.as_ref())
+                                .await?;
+                        } else {
+                            // If no index.html, try the original file path anyway
+                            self.handle_static_file(session, &file_path, ctx.as_ref())
+                                .await?;
+                        }
+                    }
+                } else {
+                    self.handle_404(session, ctx.as_ref()).await?;
+                }
                 Ok(true)
             }
         }
@@ -229,6 +273,39 @@ impl WebServerService {
             }
         }
         Ok(())
+    }
+
+    /// Check if a path looks like a static file request
+    fn is_static_file_request(&self, path: &str) -> bool {
+        // Check if path has a file extension
+        if let Some(last_segment) = path.split('/').next_back() {
+            if last_segment.contains('.') {
+                return true;
+            }
+        }
+
+        // Check for common static file patterns
+        path.contains("/css/")
+            || path.contains("/js/")
+            || path.contains("/images/")
+            || path.contains("/img/")
+            || path.contains("/assets/")
+            || path.contains("/fonts/")
+            || path.ends_with(".css")
+            || path.ends_with(".js")
+            || path.ends_with(".png")
+            || path.ends_with(".jpg")
+            || path.ends_with(".jpeg")
+            || path.ends_with(".gif")
+            || path.ends_with(".svg")
+            || path.ends_with(".ico")
+            || path.ends_with(".woff")
+            || path.ends_with(".woff2")
+            || path.ends_with(".ttf")
+            || path.ends_with(".pdf")
+            || path.ends_with(".txt")
+            || path.ends_with(".xml")
+            || path.ends_with(".json")
     }
 
     async fn handle_static_file(
