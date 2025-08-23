@@ -1,4 +1,4 @@
-use bws::{ServerConfig, WebServerService};
+use bws_web_server::{ServerConfig, WebServerService};
 use pingora::prelude::*;
 
 fn main() {

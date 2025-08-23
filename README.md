@@ -1,26 +1,78 @@
-# BWS Multi-Site Web Server
+# BWS (Ben's Web Server)
 
-A high-performance, configurable web server built with Rust using Pingora framework by Cloudflare. Supports multiple websites on different ports and hostnames from a single server instance.
+[![CI](https://github.com/benliao/bws/workflows/CI/badge.svg)](https://github.com/benliao/bws/actions)
+[![Security](https://github.com/benliao/bws/workflows/Security/badge.svg)](https://github.com/benliao/bws/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Features
+A high-performance, multi-site web server built with [Pingora](https://github.com/cloudflare/pingora), Cloudflare's battle-tested proxy framework.
 
-- **High Performance**: Built on Pingora, Cloudflare's high-performance proxy framework
-- **Multi-Site Support**: Host multiple websites on different ports or hostnames
-- **TOML Configuration**: Easy configuration via config.toml files
-- **Virtual Hosting**: Support for hostname-based virtual hosts
-- **Port-based Sites**: Different sites on different ports
-- **Static Website Serving**: Serves static HTML, CSS, JS, and other assets with proper MIME types
-- **HTTP/HTTPS Support**: Handles HTTP requests with proper response headers
-- **JSON API**: RESTful endpoints returning JSON responses
-- **File Reading**: API endpoint to read and return file contents
-- **Caching**: Built-in cache headers for static assets
-- **MIME Type Detection**: Automatic content-type detection for various file types
-- **Logging**: Structured logging with configurable levels
-- **Health Monitoring**: Built-in health check endpoint
+## 🚀 Features
 
-## Configuration
+- **Multi-Site Support**: Host multiple websites on different ports with individual configurations
+- **Configurable Headers**: Set custom HTTP headers per site via TOML configuration
+- **High Performance**: Built on Pingora for enterprise-grade performance and reliability
+- **Health Monitoring**: Built-in health check endpoints for monitoring
+- **Security Focused**: Comprehensive security auditing and dependency management
+- **Easy Configuration**: Simple TOML-based configuration system
 
-The server is configured via `config.toml`:
+## 📦 Installation
+
+### From crates.io
+
+```bash
+cargo install bws-web-server
+```
+
+### From Source
+
+```bash
+git clone https://github.com/benliao/bws.git
+cd bws
+cargo build --release
+```
+
+## 🔧 Quick Start
+
+1. **Create a configuration file** (`bws_config.toml`):
+
+```toml
+[[sites]]
+name = "main"
+port = 8080
+upstream = "http://localhost:3000"
+
+[sites.headers]
+"X-Server" = "BWS"
+"X-Site" = "main"
+
+[[sites]]
+name = "api"
+port = 8081
+upstream = "http://localhost:4000"
+
+[sites.headers]
+"X-API-Version" = "v1"
+"X-Service" = "api"
+```
+
+2. **Run the server**:
+
+```bash
+bws-web-server
+```
+
+3. **Test your setup**:
+
+```bash
+# Test main site
+curl -I http://localhost:8080
+
+# Test API site  
+curl -I http://localhost:8081
+
+# Health check
+curl http://localhost:8080/api/health
+```
 
 ```toml
 [server]

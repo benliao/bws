@@ -1,8 +1,27 @@
 [package]
-name = "bws"
+name = "bws-web-server"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+description = "BWS (Ben's Web Server) - A high-performance multi-site web server built with Pingora"
+repository = "https://github.com/benliao/bws"
+homepage = "https://github.com/benliao/bws"
+documentation = "https://github.com/benliao/bws"
+keywords = ["web-server", "pingora", "multi-site", "proxy", "http"]
+categories = ["web-programming::http-server", "network-programming"]
+authors = ["Ben Liao <your-email@example.com>"]
+readme = "README.md"
+exclude = [
+    "target/",
+    ".github/",
+    "*.log",
+    "test_*.sh",
+    "bws_config.toml"
+]
+
+[[bin]]
+name = "bws-web-server"
+path = "src/bin/main.rs"
 
 [dependencies]
 async-trait="0.1"
