@@ -1,6 +1,8 @@
 use bws_web_server::{ServerConfig, WebServerService};
 use pingora::prelude::*;
 use clap::Parser;
+use daemonize::Daemonize;
+use std::fs::File;
 
 #[derive(Parser)]
 #[command(name = "bws-web-server")]
@@ -17,10 +19,53 @@ struct Cli {
     /// Enable verbose logging
     #[arg(short, long)]
     verbose: bool,
+    
+    /// Run as daemon (background process)
+    #[arg(short, long)]
+    daemon: bool,
+    
+    /// PID file path when running as daemon
+    #[arg(long, default_value = "/tmp/bws-web-server.pid")]
+    pid_file: String,
+    
+    /// Log file path when running as daemon
+    #[arg(long, default_value = "/tmp/bws-web-server.log")]
+    log_file: String,
 }
 
 fn main() {
     let cli = Cli::parse();
+
+    // Handle daemon mode
+    if cli.daemon {
+        println!("Starting BWS server as daemon...");
+        println!("PID file: {}", cli.pid_file);
+        println!("Log file: {}", cli.log_file);
+        
+        let stdout = File::create(&cli.log_file).unwrap_or_else(|e| {
+            eprintln!("Failed to create log file '{}': {}", cli.log_file, e);
+            std::process::exit(1);
+        });
+        let stderr = stdout.try_clone().unwrap();
+        
+        let daemonize = Daemonize::new()
+            .pid_file(&cli.pid_file)
+            .chown_pid_file(true)
+            .working_directory(".")  // Use current directory instead of /tmp
+            .stdout(stdout)
+            .stderr(stderr);
+
+        match daemonize.start() {
+            Ok(_) => {
+                // We're now in the daemon process
+                log::info!("BWS server daemonized successfully");
+            }
+            Err(e) => {
+                eprintln!("Error starting daemon: {}", e);
+                std::process::exit(1);
+            }
+        }
+    }
 
     // Initialize logging based on verbosity
     if cli.verbose {
@@ -71,35 +116,43 @@ fn main() {
     log::info!("Starting BWS multi-site server...");
     my_server.bootstrap();
     
-    // Display clickable URLs for each site after server starts
-    println!("\n🚀 BWS Multi-Site Server is running!");
-    println!("📋 Available websites:");
-    
-    for site in &config.sites {
-        let url = format!("http://{}:{}", 
-            if site.hostname == "localhost" || site.hostname.ends_with(".localhost") {
-                site.hostname.clone()
-            } else {
-                "localhost".to_string()
-            }, 
-            site.port
-        );
+    // Display clickable URLs for each site after server starts (only in foreground mode)
+    if !cli.daemon {
+        println!("\n🚀 BWS Multi-Site Server is running!");
+        println!("📋 Available websites:");
         
-        // Display clickable URL with site description
-        println!("  • {} - {}", site.name, url);
-        
-        // Show common endpoints for each site
-        if cli.verbose {
-            println!("    └─ Health: {}/api/health", url);
-            println!("    └─ Sites: {}/api/sites", url);
+        for site in &config.sites {
+            let url = format!("http://{}:{}", 
+                if site.hostname == "localhost" || site.hostname.ends_with(".localhost") {
+                    site.hostname.clone()
+                } else {
+                    "localhost".to_string()
+                }, 
+                site.port
+            );
+            
+            // Display clickable URL with site description
+            println!("  • {} - {}", site.name, url);
+            
+            // Show common endpoints for each site
+            if cli.verbose {
+                println!("    └─ Health: {}/api/health", url);
+                println!("    └─ Sites: {}/api/sites", url);
+            }
         }
+        
+        println!("\n💡 Tip: Use Ctrl+C to stop the server");
+        if !cli.verbose {
+            println!("💡 Use --verbose to see health check URLs");
+        }
+        println!();
+    } else {
+        log::info!("BWS daemon started successfully");
+        log::info!("Available sites: {}", config.sites.iter()
+            .map(|s| format!("{}:{}", s.name, s.port))
+            .collect::<Vec<_>>()
+            .join(", "));
     }
-    
-    println!("\n💡 Tip: Use Ctrl+C to stop the server");
-    if !cli.verbose {
-        println!("💡 Use --verbose to see health check URLs");
-    }
-    println!();
     
     my_server.run_forever();
 }

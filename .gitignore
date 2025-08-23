@@ -8,6 +8,13 @@ server.log
 *.log.*
 nohup.out
 
+# Daemon files
+*.pid
+bws-daemon.log
+bws-daemon.pid
+/var/log/bws.log
+/var/run/bws.pid
+
 # IDE and editor files
 .vscode/
 .idea/
@@ -33,10 +40,15 @@ nohup.out
 # Local configuration overrides
 config.local.toml
 local.toml
+bws_config.toml
 
 # Test output files
 test_output/
 *.test
+
+# Static content directories (if user-generated)
+/static-*-user/
+/user-static/
 
 # Coverage reports
 *.profraw
@@ -52,3 +64,20 @@ doc/
 # OS specific files
 Thumbs.db
 Desktop.ini
+
+# Runtime and lock files
+*.lock
+*.socket
+*.sock
+
+# SSL/TLS certificates (if stored locally)
+*.pem
+*.key
+*.crt
+*.cert
+certificates/
+
+# Performance profiling
+perf.data
+*.perf
+flamegraph.svg

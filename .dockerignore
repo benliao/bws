@@ -1,15 +1,20 @@
 # Build artifacts
 target/
-Cargo.lock
+# Note: We keep Cargo.lock for reproducible builds in Docker
 
-# Git
+# Git and version control
 .git/
 .gitignore
 
-# Logs
+# Logs and runtime files
 *.log
+*.pid
 server.log
 nohup.out
+logs/
+run/
+bws-daemon.log
+bws-daemon.pid
 
 # IDE files
 .vscode/
@@ -19,15 +24,37 @@ nohup.out
 
 # Documentation
 README.md
+PUBLISHING.md
+SECURITY.md
 docs/
 
 # Test files
 test_*.sh
+test_output/
+
+# Local configuration files
+config.local.toml
+bws_config.toml
 
 # Temporary files
 *.tmp
 *.temp
 .DS_Store
+.cache/
+
+# Coverage and profiling
+*.profraw
+*.profdata
+coverage/
+perf.data
+*.perf
+flamegraph.svg
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+certificates/
 
 # Environment files
 .env

@@ -34,6 +34,13 @@ A high-performance, multi-site web server built with [Pingora](https://github.co
 cargo install bws-web-server
 ```
 
+### From Docker (Recommended for Production)
+
+```bash
+# Pull and run the latest version
+docker run -d -p 8080:8080 ghcr.io/benliao/bws:latest
+```
+
 ### From Source
 
 ```bash
@@ -125,6 +132,9 @@ BWS supports the following command line options:
 
 - `-c, --config <FILE>`: Specify configuration file path (default: `config.toml`)
 - `-v, --verbose`: Enable verbose logging with debug information
+- `-d, --daemon`: Run as daemon (background process)
+- `--pid-file <FILE>`: PID file path when running as daemon (default: `/tmp/bws-web-server.pid`)
+- `--log-file <FILE>`: Log file path when running as daemon (default: `/tmp/bws-web-server.log`)
 - `-h, --help`: Show help information
 - `-V, --version`: Show version information
 
@@ -142,7 +152,116 @@ bws-web-server --verbose
 
 # Combine options
 bws-web-server --config prod.toml --verbose
+
+# Run as daemon (background process)
+bws-web-server --daemon
+
+# Run as daemon with custom log and PID files
+bws-web-server --daemon --log-file /var/log/bws.log --pid-file /var/run/bws.pid
 ```
+
+## 🔧 Daemon Management
+
+BWS can run as a daemon (background process) for production deployments. A management script is provided for easy daemon control:
+
+```bash
+# Start the daemon
+./bws-daemon.sh start
+
+# Stop the daemon
+./bws-daemon.sh stop
+
+# Restart the daemon
+./bws-daemon.sh restart
+
+# Check daemon status
+./bws-daemon.sh status
+```
+
+### Daemon Features
+
+- **Background Operation**: Runs detached from the terminal
+- **PID File Management**: Tracks process ID for management
+- **Log File Output**: All output redirected to log files
+- **Graceful Shutdown**: Handles termination signals properly
+- **Status Monitoring**: Built-in health checks and status reporting
+
+### Manual Daemon Control
+
+```bash
+# Start daemon manually
+bws-web-server --daemon --config config.toml --log-file bws.log --pid-file bws.pid
+
+# Stop daemon using PID file
+kill $(cat bws.pid)
+
+# Check if daemon is running
+ps aux | grep bws-web-server
+```
+
+## 🐳 Docker Deployment
+
+BWS provides Docker images for easy deployment and scaling.
+
+### Quick Start with Docker
+
+```bash
+# Pull the latest image from GitHub Container Registry
+docker pull ghcr.io/benliao/bws:latest
+
+# Run with default configuration
+docker run -d \
+  --name bws-server \
+  -p 8080:8080 \
+  -p 8081:8081 \
+  -p 8082:8082 \
+  -p 8083:8083 \
+  ghcr.io/benliao/bws:latest
+
+# Run with custom configuration
+docker run -d \
+  --name bws-server \
+  -p 8080:8080 \
+  -v $(pwd)/config.toml:/app/config.toml:ro \
+  -v $(pwd)/static:/app/static:ro \
+  ghcr.io/benliao/bws:latest
+```
+
+### Using Docker Compose
+
+```bash
+# Start with the provided docker-compose.yml
+docker-compose up -d
+
+# Start with daemon mode profile
+docker-compose --profile daemon up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop services
+docker-compose down
+```
+
+### Available Docker Images
+
+- **Latest**: `ghcr.io/benliao/bws:latest` - Built from main branch
+- **Versioned**: `ghcr.io/benliao/bws:v0.1.2` - Specific version releases
+- **Platform Support**: Available for `linux/amd64` and `linux/arm64`
+
+### Docker Environment Variables
+
+- `BWS_CONFIG`: Configuration file path (default: `/app/config.toml`)
+- `BWS_LOG_FILE`: Log file path for daemon mode (default: `/app/logs/bws.log`)
+- `BWS_PID_FILE`: PID file path for daemon mode (default: `/app/run/bws.pid`)
+- `RUST_LOG`: Logging level (`error`, `warn`, `info`, `debug`, `trace`)
+
+### Docker Volumes
+
+- `/app/config.toml`: Mount your configuration file
+- `/app/static*`: Mount your static content directories
+- `/app/logs`: Persistent log storage
+- `/app/run`: Persistent runtime files (PID files, etc.)
 
 ```toml
 [server]

@@ -1,6 +1,6 @@
 [package]
 name = "bws-web-server"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 license = "MIT"
 description = "BWS (Ben's Web Server) - A high-performance multi-site web server built with Pingora"
@@ -34,3 +34,4 @@ serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 toml = "0.8"
 clap = { version = "4.0", features = ["derive"] }
+daemonize = "0.5"

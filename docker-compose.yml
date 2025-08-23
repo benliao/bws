@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  bws:
+    image: ghcr.io/benliao/bws:latest
+    # Uncomment the line below to build locally instead
+    # build: .
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+      - "8082:8082"
+      - "8083:8083"
+    volumes:
+      # Mount config file if you want to override the default
+      - ./config.toml:/app/config.toml:ro
+      # Mount static directories if you want to override defaults
+      - ./static:/app/static:ro
+      - ./static-blog:/app/static-blog:ro
+      - ./static-api:/app/static-api:ro
+      - ./static-dev:/app/static-dev:ro
+      # Mount logs and run directories for persistence
+      - ./docker-logs:/app/logs
+      - ./docker-run:/app/run
+    environment:
+      - BWS_CONFIG=/app/config.toml
+      - BWS_LOG_FILE=/app/logs/bws.log
+      - BWS_PID_FILE=/app/run/bws.pid
+      - RUST_LOG=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  # Example with daemon mode
+  bws-daemon:
+    image: ghcr.io/benliao/bws:latest
+    # Uncomment the line below to build locally instead
+    # build: .
+    command: ["./start.sh", "--daemon"]
+    ports:
+      - "9080:8080"
+      - "9081:8081"
+      - "9082:8082"
+      - "9083:8083"
+    volumes:
+      - ./config.toml:/app/config.toml:ro
+      - ./static:/app/static:ro
+      - ./static-blog:/app/static-blog:ro
+      - ./static-api:/app/static-api:ro
+      - ./static-dev:/app/static-dev:ro
+      - ./docker-logs-daemon:/app/logs
+      - ./docker-run-daemon:/app/run
+    environment:
+      - BWS_CONFIG=/app/config.toml
+      - BWS_LOG_FILE=/app/logs/bws.log
+      - BWS_PID_FILE=/app/run/bws.pid
+      - RUST_LOG=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    profiles:
+      - daemon  # Use with: docker-compose --profile daemon up
+
+networks:
+  default:
+    driver: bridge
