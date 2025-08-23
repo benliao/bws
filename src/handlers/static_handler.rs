@@ -376,11 +376,27 @@ mod tests {
     #[test]
     fn test_path_safety() {
         let handler = StaticFileHandler::new();
-        let static_dir = "/var/www/html";
-
+        
+        // Create a temporary directory for testing
+        let temp_dir = std::env::temp_dir().join("bws_test_static");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        
+        // Create a test file
+        let index_file = temp_dir.join("index.html");
+        std::fs::write(&index_file, "test content").unwrap();
+        
+        // Create assets directory and file
+        let assets_dir = temp_dir.join("assets");
+        std::fs::create_dir_all(&assets_dir).unwrap();
+        let css_file = assets_dir.join("style.css");
+        std::fs::write(&css_file, "body { color: black; }").unwrap();
+        
+        let static_dir = temp_dir.to_str().unwrap();
+        
         assert!(handler.is_path_safe(static_dir, "index.html"));
         assert!(handler.is_path_safe(static_dir, "assets/style.css"));
-        // Note: These tests might fail on systems where the paths don't exist
-        // In a real test environment, you'd create temporary directories
+        
+        // Clean up
+        std::fs::remove_dir_all(&temp_dir).unwrap();
     }
 }

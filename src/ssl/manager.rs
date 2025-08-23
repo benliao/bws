@@ -468,7 +468,7 @@ mod tests {
         config.acme = Some(AcmeConfig::default());
         assert!(config.validate().is_err()); // Empty email
 
-        config.acme.as_mut().unwrap().email = "test@example.com".to_string();
+        config.acme.as_mut().unwrap().contact_email = "test@example.com".to_string();
         assert!(config.validate().is_err()); // Terms not agreed
 
         config.acme.as_mut().unwrap().terms_agreed = true;

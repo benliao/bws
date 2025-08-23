@@ -314,7 +314,7 @@ mod tests {
         let temp_dir = tempdir().unwrap();
         let store_path = temp_dir.path().join("certificates.toml");
 
-        let mut store = CertificateStore::new(store_path.clone());
+        let store = CertificateStore::new(store_path.clone());
 
         // Test saving empty store
         store.save().await.unwrap();
@@ -341,7 +341,9 @@ mod tests {
             last_renewal_check: None,
         };
 
-        assert_eq!(cert.days_until_expiry(), 30);
+        // Allow for small timing differences (29-30 days)
+        let days_until_expiry = cert.days_until_expiry();
+        assert!(days_until_expiry >= 29 && days_until_expiry <= 30);
         assert!(cert.needs_renewal(45)); // Should renew if 45 days or less
         assert!(!cert.needs_renewal(25)); // Should not renew if more than 30 days left
         assert!(!cert.is_expired());

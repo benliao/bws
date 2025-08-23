@@ -450,7 +450,7 @@ mod tests {
     async fn test_config_save_load() {
         use crate::config::SiteConfig;
 
-        let mut config = ServerConfig {
+        let config = ServerConfig {
             server: ServerInfo {
                 name: "test-server".to_string(),
                 version: "1.0.0".to_string(),
@@ -467,10 +467,11 @@ mod tests {
                 redirect_to_https: false,
                 index_files: vec!["index.html".to_string()],
                 error_pages: HashMap::new(),
-                compression: crate::config::site::CompressionConfig::default(),
-                cache: crate::config::site::CacheConfig::default(),
-                access_control: crate::config::site::AccessControlConfig::default(),
-                ssl: crate::config::site::SiteSslConfig::default(),
+                compression: Default::default(),
+                cache: Default::default(),
+                access_control: Default::default(),
+                ssl: Default::default(),
+                proxy: Default::default(),
             }],
             logging: LoggingConfig::default(),
             performance: PerformanceConfig::default(),

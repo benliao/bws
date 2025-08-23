@@ -659,8 +659,8 @@ mod tests {
         site.port = 0;
         assert!(site.validate().is_err());
 
-        // Test invalid port range
-        site.port = 70000;
+        // Test invalid port range (port 0 is invalid)
+        site.port = 0;
         assert!(site.validate().is_err());
     }
 

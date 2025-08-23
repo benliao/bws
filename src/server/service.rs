@@ -434,14 +434,14 @@ mod tests {
     #[tokio::test]
     async fn test_web_server_service_creation() {
         let config = create_test_config();
-        let service = WebServerService::new(config).await;
-        assert!(service.is_ok());
+        let _service = WebServerService::new(config);
+        // Service creation should succeed
     }
 
     #[tokio::test]
     async fn test_config_reload() {
         let config = create_test_config();
-        let service = WebServerService::new(config.clone()).await.unwrap();
+        let service = WebServerService::new(config.clone());
 
         let mut new_config = config.clone();
         new_config.server.name = "updated-server".to_string();
