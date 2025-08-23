@@ -60,7 +60,7 @@ if check_server 8080; then
     echo -e "${GREEN}✓ Server is running${NC}"
     echo
 else
-    echo -e "${RED}✗ Server is not running. Please start the server first with: cargo run${NC}"
+    echo -e "${RED}✗ Server is not running. Please start the server first with: cd .. && cargo run${NC}"
     echo
     exit 1
 fi

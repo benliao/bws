@@ -372,7 +372,7 @@ sleep 2
 
 # Start BWS with WebSocket proxy configuration
 print_status "Starting BWS with WebSocket proxy configuration..."
-RUST_LOG=info ./target/release/bws --config test_websocket_proxy.toml &
+RUST_LOG=info ../target/release/bws --config test_websocket_proxy.toml &
 BWS_PID=$!
 
 # Wait for BWS to start

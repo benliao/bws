@@ -171,7 +171,7 @@ print_info "Created test web interface"
 
 # Test 1: Configuration validation
 print_info "Test 1: Validating WebSocket configuration"
-if ./target/release/bws --config simple_websocket_test.toml --help > /dev/null 2>&1; then
+if ../target/release/bws --config simple_websocket_test.toml --help > /dev/null 2>&1; then
     print_success "Configuration syntax is valid"
 else
     print_error "Configuration has syntax errors"
@@ -180,7 +180,7 @@ fi
 
 # Test 2: Start BWS server
 print_info "Test 2: Starting BWS with WebSocket proxy configuration"
-./target/release/bws --config simple_websocket_test.toml &
+../target/release/bws --config simple_websocket_test.toml &
 BWS_PID=$!
 
 # Wait for server to start

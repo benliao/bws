@@ -7,9 +7,7 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tokio::net::TcpStream;
-use tokio_tungstenite::{
-    tungstenite::Message, MaybeTlsStream, WebSocketStream,
-};
+use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 use url::Url;
 
 pub struct WebSocketProxyHandler {
@@ -130,11 +128,7 @@ impl WebSocketProxyHandler {
     }
 
     /// Handle WebSocket proxy connection with full bidirectional relay
-    pub async fn handle_websocket_proxy(
-        &self,
-        session: &mut Session,
-        path: &str,
-    ) -> Result<bool> {
+    pub async fn handle_websocket_proxy(&self, session: &mut Session, path: &str) -> Result<bool> {
         // Find matching WebSocket route
         if let Some(route) = self.find_websocket_route(path) {
             info!(
@@ -175,7 +169,10 @@ impl WebSocketProxyHandler {
                         if let Err(e) = session.write_response_header(Box::new(resp), false).await {
                             error!("Failed to send error response: {}", e);
                         }
-                        if let Err(e) = session.write_response_body(Some("WebSocket proxy error".into()), true).await {
+                        if let Err(e) = session
+                            .write_response_body(Some("WebSocket proxy error".into()), true)
+                            .await
+                        {
                             error!("Failed to send error body: {}", e);
                         }
                     }
@@ -209,7 +206,7 @@ impl WebSocketProxyHandler {
                 let name_str = name.as_str();
                 match name_str.to_lowercase().as_str() {
                     "sec-websocket-key"
-                    | "sec-websocket-version" 
+                    | "sec-websocket-version"
                     | "sec-websocket-protocol"
                     | "sec-websocket-extensions"
                     | "origin"
@@ -231,7 +228,8 @@ impl WebSocketProxyHandler {
         }
 
         // Connect to upstream WebSocket
-        let (_upstream_ws, response) = match self.connect_upstream_websocket(ws_url, headers).await {
+        let (_upstream_ws, response) = match self.connect_upstream_websocket(ws_url, headers).await
+        {
             Ok(result) => result,
             Err(e) => {
                 error!("Failed to connect to upstream WebSocket: {}", e);
@@ -239,12 +237,15 @@ impl WebSocketProxyHandler {
             }
         };
 
-        info!("Connected to upstream WebSocket, status: {}", response.status());
+        info!(
+            "Connected to upstream WebSocket, status: {}",
+            response.status()
+        );
 
         // Extract headers we need from the response before building the client response
         let mut ws_protocol = None;
         let mut ws_extensions = None;
-        
+
         for (name, value) in response.headers().iter() {
             if let Ok(value_str) = value.to_str() {
                 match name.as_str().to_lowercase().as_str() {
@@ -266,15 +267,17 @@ impl WebSocketProxyHandler {
         let mut resp_builder = pingora::http::ResponseHeader::build(101, None).unwrap();
         resp_builder.insert_header("Upgrade", "websocket").unwrap();
         resp_builder.insert_header("Connection", "Upgrade").unwrap();
-        resp_builder.insert_header("Sec-WebSocket-Accept", &ws_accept).unwrap();
-        
+        resp_builder
+            .insert_header("Sec-WebSocket-Accept", &ws_accept)
+            .unwrap();
+
         // Add optional headers from upstream response
         if let Some(protocol) = ws_protocol {
             if let Err(e) = resp_builder.insert_header("Sec-WebSocket-Protocol", &protocol) {
                 warn!("Failed to set WebSocket protocol header: {}", e);
             }
         }
-        
+
         if let Some(extensions) = ws_extensions {
             if let Err(e) = resp_builder.insert_header("Sec-WebSocket-Extensions", &extensions) {
                 warn!("Failed to set WebSocket extensions header: {}", e);
@@ -282,7 +285,9 @@ impl WebSocketProxyHandler {
         }
 
         // Send upgrade response to client
-        session.write_response_header(Box::new(resp_builder), false).await?;
+        session
+            .write_response_header(Box::new(resp_builder), false)
+            .await?;
 
         info!("WebSocket upgrade successful, starting message relay simulation");
 
@@ -290,32 +295,32 @@ impl WebSocketProxyHandler {
         // 1. Take ownership of the raw TCP stream from the session
         // 2. Wrap it in a WebSocket stream
         // 3. Use relay_websocket_messages to handle bidirectional communication
-        
+
         // For now, we simulate the connection being established and then closed
         // This allows the WebSocket framework to work correctly
-        
+
         // Simulate the WebSocket connection being active
         info!("Simulating WebSocket connection active state");
         tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-        
+
         // In a real implementation, we would spawn:
         // tokio::spawn(Self::relay_websocket_messages(client_ws, upstream_ws));
-        
+
         info!("WebSocket proxy session completed");
         Ok(())
     }
 
     /// Calculate Sec-WebSocket-Accept header value
     fn calculate_websocket_accept(&self, ws_key: &str) -> String {
-        use sha1::{Digest, Sha1};
         use base64::prelude::*;
-        
+        use sha1::{Digest, Sha1};
+
         const WS_GUID: &str = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
         let mut hasher = Sha1::new();
         hasher.update(ws_key.as_bytes());
         hasher.update(WS_GUID.as_bytes());
         let result = hasher.finalize();
-        BASE64_STANDARD.encode(&result)
+        BASE64_STANDARD.encode(result)
     }
 
     /// Convert HTTP upstream URL to WebSocket URL
@@ -325,8 +330,8 @@ impl WebSocketProxyHandler {
         route: &ProxyRoute,
         path: &str,
     ) -> Result<String> {
-        let upstream_url = Url::parse(&upstream.url)
-            .map_err(|_| Error::new_str("Invalid upstream URL"))?;
+        let upstream_url =
+            Url::parse(&upstream.url).map_err(|_| Error::new_str("Invalid upstream URL"))?;
 
         let scheme = match upstream_url.scheme() {
             "http" => "ws",
@@ -373,17 +378,21 @@ impl WebSocketProxyHandler {
         &self,
         ws_url: &str,
         _headers: Vec<(&str, &str)>,
-    ) -> Result<(WebSocketStream<MaybeTlsStream<TcpStream>>, tokio_tungstenite::tungstenite::handshake::client::Response)> {
+    ) -> Result<(
+        WebSocketStream<MaybeTlsStream<TcpStream>>,
+        tokio_tungstenite::tungstenite::handshake::client::Response,
+    )> {
         // For now, use the simple connect_async approach
         // In a production environment, you'd want to handle custom headers
         // by building a proper request with tokio_tungstenite::client_async
-        
-        let (ws_stream, response) = tokio_tungstenite::connect_async(ws_url)
-            .await
-            .map_err(|e| {
-                error!("WebSocket connection error: {}", e);
-                Error::new_str("WebSocket connection failed")
-            })?;
+
+        let (ws_stream, response) =
+            tokio_tungstenite::connect_async(ws_url)
+                .await
+                .map_err(|e| {
+                    error!("WebSocket connection error: {}", e);
+                    Error::new_str("WebSocket connection failed")
+                })?;
 
         debug!("Successfully connected to upstream WebSocket");
         Ok((ws_stream, response))
@@ -462,7 +471,7 @@ impl WebSocketProxyHandler {
 mod tests {
     use super::*;
     use crate::config::site::{LoadBalancingConfig, ProxyHeadersConfig, TimeoutConfig};
-    use pingora::http::{RequestHeader, Method};
+    use pingora::http::{Method, RequestHeader};
     use std::collections::HashMap;
 
     fn create_test_config() -> ProxyConfig {
@@ -521,14 +530,15 @@ mod tests {
     #[test]
     fn test_websocket_upgrade_detection() {
         let mut req = RequestHeader::build(Method::GET, b"/ws", None).unwrap();
-        
+
         // Missing headers - should not be WebSocket
         assert!(!WebSocketProxyHandler::is_websocket_upgrade_request(&req));
 
         // Add WebSocket headers
         req.insert_header("Upgrade", "websocket").unwrap();
         req.insert_header("Connection", "Upgrade").unwrap();
-        req.insert_header("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==").unwrap();
+        req.insert_header("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+            .unwrap();
 
         // Now should be detected as WebSocket
         assert!(WebSocketProxyHandler::is_websocket_upgrade_request(&req));
@@ -570,7 +580,9 @@ mod tests {
             websocket: true,
         };
 
-        let ws_url = handler.get_websocket_url(upstream, route, "/ws/chat").unwrap();
+        let ws_url = handler
+            .get_websocket_url(upstream, route, "/ws/chat")
+            .unwrap();
         assert_eq!(ws_url, "ws://localhost:3001/chat");
 
         // Test with HTTPS upstream
@@ -581,7 +593,9 @@ mod tests {
             max_conns: None,
         };
 
-        let wss_url = handler.get_websocket_url(https_upstream, route, "/ws/chat").unwrap();
+        let wss_url = handler
+            .get_websocket_url(https_upstream, route, "/ws/chat")
+            .unwrap();
         assert_eq!(wss_url, "wss://localhost:3001/chat");
     }
 

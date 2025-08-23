@@ -6,8 +6,8 @@ echo
 
 # Check if server is running
 if ! pgrep -f "target/debug/main" > /dev/null; then
-    echo "Starting BWS server..."
-    RUST_LOG=info cargo run &
+    echo "Starting BWS server in background..."
+    RUST_LOG=info cargo run --manifest-path ../Cargo.toml &
     SERVER_PID=$!
     sleep 5
     echo "Server started with PID $SERVER_PID"

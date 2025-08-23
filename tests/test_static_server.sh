@@ -5,7 +5,7 @@ echo
 
 # Start server in background
 echo "Starting server..."
-RUST_LOG=info cargo run &
+RUST_LOG=info cargo run --manifest-path ../Cargo.toml &
 SERVER_PID=$!
 sleep 3
 

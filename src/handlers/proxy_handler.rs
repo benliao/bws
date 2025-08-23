@@ -237,7 +237,10 @@ impl ProxyHandler {
         // Check if this is a WebSocket upgrade request
         if WebSocketProxyHandler::is_websocket_upgrade_request(session.req_header()) {
             info!("Detected WebSocket upgrade request for path: {}", path);
-            return self.websocket_handler.handle_websocket_proxy(session, path).await;
+            return self
+                .websocket_handler
+                .handle_websocket_proxy(session, path)
+                .await;
         }
 
         // Find matching route for regular HTTP proxy

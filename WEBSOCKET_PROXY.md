@@ -32,7 +32,7 @@ websocket = true  # Enable WebSocket proxying
 Run the included test script to see WebSocket proxy in action:
 
 ```bash
-./test_websocket_proxy.sh
+./tests/test_websocket_proxy.sh
 ```
 
 This will:

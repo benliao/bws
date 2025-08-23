@@ -61,7 +61,7 @@ sleep 2
 # Start BWS with the load balancing configuration
 echo "🌐 Starting BWS with load balancing configuration..."
 cd /Users/benliao/work/bws
-cargo run -- --config test_load_balancing.toml &
+cargo run --manifest-path ../Cargo.toml -- --config test_load_balancing.toml &
 BWS_PID=$!
 echo $BWS_PID > "/tmp/bws.pid"
 

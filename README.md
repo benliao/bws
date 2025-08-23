@@ -114,10 +114,10 @@ Use the included test script to verify load balancing:
 
 ```bash
 # Set up test configuration
-cp test_load_balancing.toml config.toml
+cp tests/test_load_balancing.toml config.toml
 
 # Run the load balancing test
-./test_load_balance.sh
+./tests/test_load_balance.sh
 ```
 
 For detailed information, see: **[Load Balancing Documentation →](docs/load-balancing.md)**
@@ -786,13 +786,13 @@ The server will start multiple services based on your configuration.
 ### Testing Multiple Sites
 ```bash
 # Run comprehensive multi-site test
-./test_multisite.sh
+./tests/test_multisite.sh
 
 # Test configurable headers functionality
-./test_headers.sh
+./tests/test_headers.sh
 
 # Test reverse proxy and load balancing
-./test_load_balance.sh
+./tests/test_load_balance.sh
 
 # Test individual sites
 curl http://localhost:8080          # Main site
@@ -860,16 +860,20 @@ Then access sites via:
 │   └── index.html               # Blog homepage
 ├── static-api/                   # API documentation site
 │   └── index.html               # API docs homepage
-├── static-dev/                   # Development site files
-│   └── index.html               # Dev homepage
+├── tests/                        # Test scripts and configurations
+│   ├── test_multisite.sh         # Multi-site test script
+│   ├── test_headers.sh           # Configurable headers test script
+│   ├── test_load_balance.sh      # Load balancing test script
+│   ├── test_static_server.sh     # Static website test script
+│   ├── test_websocket_proxy.sh   # WebSocket proxy test script
+│   ├── test_websocket_client.py  # WebSocket client test
+│   ├── test_websocket_full.py    # Full WebSocket test suite
+│   ├── test_ws_upstream.py       # WebSocket upstream server
+│   ├── test_load_balancing.toml  # Load balancing test configuration
+│   ├── test_proxy_config.toml    # Basic proxy test configuration
+│   ├── test_websocket_config.toml # WebSocket proxy test configuration
+│   └── config_test.toml          # General test configuration
 ├── config.toml                   # Multi-site configuration with headers
-├── test_load_balancing.toml      # Load balancing test configuration
-├── test_proxy_config.toml        # Basic proxy test configuration
-├── Cargo.toml                    # Project dependencies
-├── test_multisite.sh             # Multi-site test script
-├── test_headers.sh               # Configurable headers test script
-├── test_load_balance.sh          # Load balancing test script
-├── test_static_server.sh         # Static website test script
 └── README.md                     # This file
 ```
 

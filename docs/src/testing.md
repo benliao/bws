@@ -688,7 +688,7 @@ async fn handle_websocket_connection(stream: TcpStream, port: u16) {
 ```bash
 #!/bin/bash
 # Run the WebSocket proxy test script
-./test_websocket_proxy.sh
+./tests/test_websocket_proxy.sh
 ```
 
 This script will:

@@ -331,7 +331,7 @@ BWS automatically converts HTTP upstream URLs to WebSocket URLs:
 Use the included test script to verify WebSocket proxy functionality:
 
 ```bash
-./test_websocket_proxy.sh
+./tests/test_websocket_proxy.sh
 ```
 
 This will:
@@ -353,7 +353,7 @@ python3 -m http.server 3002 &
 python3 -m http.server 3003 &
 
 # 2. Start BWS with load balancing configuration
-cargo run -- --config test_load_balancing.toml
+cargo run -- --config tests/test_load_balancing.toml
 
 # 3. Test load balancing
 curl http://localhost:8080/api/test  # Round-robin distribution
@@ -366,7 +366,7 @@ curl http://localhost:8082/         # Least connections distribution
 Use the included test script to verify all load balancing algorithms:
 
 ```bash
-./test_load_balance.sh
+./tests/test_load_balance.sh
 ```
 
 This script will:

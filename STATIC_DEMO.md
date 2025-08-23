@@ -42,7 +42,7 @@
 
 3. **Test programmatically:**
    ```bash
-   ./test_static_server.sh  # Comprehensive test
+   ./tests/test_static_server.sh  # Comprehensive test
    ```
 
 ## File types supported:

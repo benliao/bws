@@ -187,7 +187,7 @@ add_forwarded = true
 
 Use the included test script:
 ```bash
-./test_load_balance.sh
+./tests/test_load_balance.sh
 ```
 
 ## Implementation Details
