@@ -22,9 +22,13 @@ services:
       - ./docker-logs:/app/logs
       - ./docker-run:/app/run
     environment:
+      # Configuration file path (used by start.sh script)
       - BWS_CONFIG=/app/config.toml
+      # Log file path for daemon mode (used by start.sh script)
       - BWS_LOG_FILE=/app/logs/bws.log
+      # PID file path for daemon mode (used by start.sh script)
       - BWS_PID_FILE=/app/run/bws.pid
+      # Rust logging level
       - RUST_LOG=info
     restart: unless-stopped
     healthcheck:
@@ -54,9 +58,13 @@ services:
       - ./docker-logs-daemon:/app/logs
       - ./docker-run-daemon:/app/run
     environment:
+      # Configuration file path (used by start.sh script)
       - BWS_CONFIG=/app/config.toml
+      # Log file path for daemon mode (used by start.sh script)
       - BWS_LOG_FILE=/app/logs/bws.log
+      # PID file path for daemon mode (used by start.sh script)
       - BWS_PID_FILE=/app/run/bws.pid
+      # Rust logging level
       - RUST_LOG=info
     restart: unless-stopped
     healthcheck:
