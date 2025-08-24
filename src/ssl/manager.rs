@@ -603,7 +603,7 @@ impl SslManager {
         // Check if certificate needs renewal
         let needs_renewal = {
             let store = self.certificate_store.read().await;
-            store.get_certificate(domain).map_or(true, |cert| cert.needs_renewal(self.config.renewal_days_before_expiry))
+            store.get_certificate(domain).is_none_or(|cert| cert.needs_renewal(self.config.renewal_days_before_expiry))
         };
 
         if needs_renewal {

@@ -96,7 +96,7 @@ impl RenewalScheduler {
 
         // Check if this is a fresh certificate that we haven't checked recently
         // This helps catch certificates that were manually installed
-        cert.last_renewal_check.map_or(true, |last_check| {
+        cert.last_renewal_check.is_none_or(|last_check| {
             let hours_since_check = (Utc::now() - last_check).num_hours();
             // Only check again if it's been more than the check interval
             hours_since_check >= i64::try_from(self.check_interval_hours).unwrap_or(24)

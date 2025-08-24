@@ -74,7 +74,7 @@ impl AcmeClient {
         info!("Using Let's Encrypt URL: {}", le_url);
 
         // Create account
-        let (mut account, _credentials) = Account::create(
+        let (account, _credentials) = Account::create(
             &NewAccount {
                 contact: &[&format!("mailto:{}", self.config.contact_email)],
                 terms_of_service_agreed: self.config.terms_agreed,
@@ -170,12 +170,12 @@ impl AcmeClient {
         // Wait for all challenges to be validated
         for identifier in &identifiers {
             let Identifier::Dns(domain) = identifier;
-            self.wait_for_challenge_validation(&mut account, &mut order, domain)
+            self.wait_for_challenge_validation(&account, &mut order, domain)
                 .await?;
         }
 
         // Wait for the order to be ready
-        self.wait_for_order_ready(&mut account, &mut order).await?;
+        self.wait_for_order_ready(&account, &mut order).await?;
 
         // Generate a CSR with properly configured subject
         info!("Generating CSR for domains: {:?}", domains);
@@ -211,7 +211,7 @@ impl AcmeClient {
 
         // Wait for certificate to be ready and download it
         info!("Waiting for certificate to be ready...");
-        let cert_chain = self.wait_for_certificate(&mut account, &mut order).await?;
+        let cert_chain = self.wait_for_certificate(&account, &mut order).await?;
         info!(
             "Certificate downloaded successfully, length: {} bytes",
             cert_chain.len()
