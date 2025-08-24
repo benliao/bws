@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.89 AS builder
+FROM rust:1.89-bookworm AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
