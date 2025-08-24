@@ -1,15 +1,21 @@
 # SSL/TLS Configuration
 
-BWS provides comprehensive per-site SSL/TLS support, allowing each site to have its own HTTPS configuration. This enables you to run mixed HTTP and HTTPS sites, use different SSL certificates for different domains, and configure automatic certificate management.
+BWS provides robust, production-ready SSL/TLS support with automatic certificate management, comprehensive error handling, and thread-safe operations. Each site can have its own HTTPS configuration, enabling mixed HTTP/HTTPS deployments with different certificates per domain.
 
 ## Overview
 
 BWS supports two types of SSL/TLS configuration:
 
-1. **Automatic SSL Certificates** - Using ACME (Let's Encrypt) for automatic certificate generation and renewal
+1. **Automatic SSL Certificates** - Using ACME (Let's Encrypt) with automatic renewal monitoring
 2. **Manual SSL Certificates** - Using your own SSL certificate files
 
-Each site can independently choose its SSL configuration, enabling flexible deployment scenarios.
+### Production-Ready Features
+
+- **Automatic Certificate Renewal**: Background monitoring service checks and renews certificates
+- **Thread-Safe Operations**: All SSL operations are safe for concurrent access
+- **Comprehensive Error Handling**: Graceful error propagation with detailed logging
+- **Zero-Downtime Renewal**: Certificates renewed without service interruption
+- **Robust Monitoring**: Certificate expiration tracking and proactive renewal
 
 ## Automatic SSL Certificates (ACME)
 
@@ -45,11 +51,12 @@ challenge_dir = "./acme-challenges"
 
 ### ACME Challenge Handling
 
-BWS automatically handles ACME HTTP-01 challenges:
+BWS automatically handles ACME HTTP-01 challenges with robust error handling:
 
 1. **Challenge Directory**: Configure `challenge_dir` where ACME challenges will be served
 2. **Automatic Routing**: BWS automatically serves files from `/.well-known/acme-challenge/` 
 3. **Directory Creation**: The challenge directory is created automatically if it doesn't exist
+4. **Error Handling**: Comprehensive error reporting for challenge failures
 
 ```bash
 # Create challenge directory
@@ -58,6 +65,25 @@ mkdir -p ./acme-challenges
 # BWS will automatically serve challenges from:
 # http://yourdomain.com/.well-known/acme-challenge/TOKEN
 ```
+
+### Automatic Certificate Renewal
+
+BWS includes a production-ready certificate monitoring system:
+
+```rust
+// Background service automatically monitors certificates
+// - Checks certificate expiration every hour
+// - Renews certificates when needed (before 30 days expiration)
+// - Handles renewal failures gracefully with logging
+// - Thread-safe operations prevent race conditions
+```
+
+**Renewal Features**:
+- **Automatic Monitoring**: Background service checks certificates hourly
+- **Proactive Renewal**: Renews certificates 30 days before expiration
+- **Error Recovery**: Comprehensive error handling with detailed logging
+- **Zero Downtime**: Renewals happen without service interruption
+- **Thread Safety**: All operations are safe for concurrent access
 
 ### Production vs Staging
 

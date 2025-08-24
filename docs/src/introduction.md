@@ -1,10 +1,21 @@
 # Introduction
 
-Welcome to **BWS (Ben's Web Server)** - a high-performance, multi-site web server built with [Pingora](https://github.com/cloudflare/pingora), Cloudflare's battle-tested proxy framework.
+Welcome to **BWS (Ben's Web Server)** - a production-ready, high-performance, multi-site web server built with [Pingora](https://github.com/cloudflare/pingora), Cloudflare's battle-tested proxy framework.
 
 ## What is BWS?
 
-BWS is designed to be a simple yet powerful web server that can host multiple websites on different ports with individual configurations. It combines the reliability and performance of Cloudflare's Pingora framework with an easy-to-use configuration system.
+BWS is designed to be a robust yet easy-to-use web server that can host multiple websites on different ports with individual configurations. It combines the reliability and performance of Cloudflare's Pingora framework with comprehensive error handling, automatic SSL management, and production-grade reliability.
+
+## Production-Ready Features
+
+BWS has been extensively hardened for production deployment:
+
+- **🛡️ Zero Panic Policy**: No `.unwrap()` calls - all errors handled gracefully
+- **🔄 Automatic SSL Renewal**: Background certificate monitoring with robust error handling
+- **🧹 Code Quality**: Zero Clippy warnings for maximum code quality
+- **🔧 Thread-Safe Operations**: All operations safe for concurrent access
+- **📝 Comprehensive Logging**: Structured logging with detailed error documentation
+- **💾 Resource Management**: Proper cleanup of connections and certificate operations
 
 ## Key Features
 
