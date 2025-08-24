@@ -95,6 +95,72 @@ impl SslManager {
         Ok(manager)
     }
 
+    /// Create SSL manager from site configuration
+    pub async fn from_site_config(
+        site: &crate::config::site::SiteConfig,
+    ) -> Result<Option<Self>, Box<dyn std::error::Error>> {
+        if !site.ssl.enabled {
+            return Ok(None);
+        }
+
+        // Determine cert_dir first
+        let cert_dir = site
+            .ssl
+            .cert_file
+            .as_ref()
+            .and_then(|path| std::path::Path::new(path).parent())
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| {
+                if site.ssl.auto_cert {
+                    "./certs".to_string() // Use local directory for ACME auto-certificates
+                } else {
+                    "/etc/bws/certs".to_string() // Use system directory for manual certificates
+                }
+            });
+
+        let ssl_config = SslConfig {
+            enabled: site.ssl.enabled,
+            auto_cert: site.ssl.auto_cert,
+            cert_dir: cert_dir.clone(),
+            acme: site.ssl.acme.as_ref().map(|site_acme| AcmeConfig {
+                directory_url: if site_acme.staging {
+                    "https://acme-staging-v02.api.letsencrypt.org/directory".to_string()
+                } else {
+                    "https://acme-v02.api.letsencrypt.org/directory".to_string()
+                },
+                contact_email: site_acme.email.clone(),
+                terms_agreed: !site_acme.email.is_empty(), // Auto-agree if email is provided
+                challenge_dir: site_acme.challenge_dir.clone().unwrap_or_else(|| {
+                    // Auto-generate challenge directory based on cert_dir
+                    format!("{}/challenges", cert_dir)
+                }),
+                account_key_file: format!("{}/acme-account.key", cert_dir),
+                enabled: site_acme.enabled,
+                staging: site_acme.staging,
+            }),
+            manual_certs: {
+                let mut manual_certs = HashMap::new();
+                if let (Some(cert_file), Some(key_file)) = (&site.ssl.cert_file, &site.ssl.key_file)
+                {
+                    manual_certs.insert(
+                        site.hostname.clone(),
+                        ManualCertConfig {
+                            cert_file: cert_file.clone(),
+                            key_file: key_file.clone(),
+                            auto_renew: false,
+                        },
+                    );
+                }
+                manual_certs
+            },
+            renewal_check_interval_hours: 24,
+            renewal_days_before_expiry: 30,
+        };
+
+        let manager = Self::new(ssl_config).await?;
+        Ok(Some(manager))
+    }
+
     pub async fn get_tls_config(&self, domain: &str) -> Option<rustls::ServerConfig> {
         let configs = self.tls_configs.read().await;
         configs.get(domain).cloned()
@@ -138,41 +204,64 @@ impl SslManager {
         }
 
         log::info!("Obtaining certificate via ACME for domain: {}", domain);
+        log::info!("Domain passed to ACME client: '{}'", domain);
 
         if let Some(acme_client) = &self.acme_client {
-            let mut client = acme_client.write().await;
+            let client = acme_client.write().await;
+            log::info!(
+                "Calling ACME client.obtain_certificate with domains: {:?}",
+                &[domain.to_string()]
+            );
             let (cert_pem, key_pem): (String, String) = client
                 .obtain_certificate(&[domain.to_string()])
                 .await
                 .map_err(|e| {
+                    log::error!("ACME obtain_certificate failed: {}", e);
                     Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>
                 })?;
+
+            log::info!(
+                "ACME certificate obtained successfully, cert size: {} bytes, key size: {} bytes",
+                cert_pem.len(),
+                key_pem.len()
+            );
 
             // Create certificate paths
             let cert_path = get_certificate_path(domain, &self.config.cert_dir);
             let key_path = get_key_path(domain, &self.config.cert_dir);
 
+            log::info!("Certificate will be saved to: {:?}", cert_path);
+            log::info!("Private key will be saved to: {:?}", key_path);
+
             // Create certificate object
-            let certificate = Certificate::from_files(
+            log::info!("Creating certificate object for domain: {}", domain);
+            let certificate = Certificate::from_pem_data(
                 domain.to_string(),
                 cert_path.clone(),
                 key_path.clone(),
+                &cert_pem,
                 true, // auto_renew enabled for ACME certificates
             )
             .await?;
 
             // Save certificate files
+            log::info!("Saving certificate and private key files...");
             certificate.save_certificate(&cert_pem, &key_pem).await?;
+            log::info!("Certificate files saved successfully");
 
             // Add to store
+            log::info!("Adding certificate to store...");
             {
                 let mut store = self.certificate_store.write().await;
                 store.add_certificate(certificate);
                 store.save().await?;
             }
+            log::info!("Certificate added to store successfully");
 
             // Update TLS config
+            log::info!("Updating TLS configuration...");
             self.update_tls_config(domain).await?;
+            log::info!("TLS configuration updated successfully");
 
             log::info!(
                 "Successfully obtained and configured certificate for {}",
@@ -395,9 +484,132 @@ impl SslManager {
     pub async fn get_acme_challenge_response(&self, token: &str) -> Option<String> {
         if let Some(acme_client) = &self.acme_client {
             let client = acme_client.read().await;
-            client.get_challenge_content(token)
+            client.get_acme_challenge_response(token).await
         } else {
             None
+        }
+    }
+
+    /// Check if auto-cert is enabled for this SSL manager
+    pub fn is_auto_cert_enabled(&self) -> bool {
+        self.config.auto_cert
+    }
+
+    /// Check if a certificate is available for a domain
+    pub async fn has_certificate(&self, domain: &str) -> bool {
+        let store = self.certificate_store.read().await;
+        store.has_certificate(domain)
+    }
+
+    /// Get TLS configuration for a domain (Result version for dynamic TLS)
+    pub async fn get_rustls_config(
+        &self,
+        domain: &str,
+    ) -> Result<rustls::ServerConfig, Box<dyn std::error::Error + Send + Sync>> {
+        let store = self.certificate_store.read().await;
+
+        if let Some(certificate) = store.get_certificate(domain) {
+            match certificate.get_rustls_config().await {
+                Ok(config) => Ok(config),
+                Err(e) => Err(format!("Failed to create rustls config: {}", e).into()),
+            }
+        } else {
+            Err(format!("No certificate found for domain: {}", domain).into())
+        }
+    }
+
+    /// Get list of domains managed by this SSL manager
+    pub async fn get_managed_domains(&self) -> Vec<String> {
+        let store = self.certificate_store.read().await;
+        store.get_all_domains()
+    }
+
+    /// Get certificate expiry date for a domain
+    pub async fn get_certificate_expiry(
+        &self,
+        domain: &str,
+    ) -> Result<Option<chrono::DateTime<chrono::Utc>>, Box<dyn std::error::Error + Send + Sync>>
+    {
+        let store = self.certificate_store.read().await;
+        store.get_certificate_expiry(domain)
+    }
+
+    /// Renew certificate for a domain
+    pub async fn renew_certificate_public(
+        &self,
+        domain: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        if let Some(acme_client) = &self.acme_client {
+            let client = acme_client.write().await;
+            let (cert_pem, key_pem) = client.obtain_certificate(&[domain.to_string()]).await?;
+
+            // Save certificate files
+            let cert_dir = std::path::Path::new(&self.config.cert_dir);
+            tokio::fs::create_dir_all(cert_dir).await?;
+
+            let cert_path = cert_dir.join(format!("{}.crt", domain));
+            let key_path = cert_dir.join(format!("{}.key", domain));
+
+            tokio::fs::write(&cert_path, &cert_pem).await?;
+            tokio::fs::write(&key_path, &key_pem).await?;
+
+            // Create certificate object and add to store
+            match crate::ssl::certificate::Certificate::from_files(
+                domain.to_string(),
+                cert_path,
+                key_path,
+                true, // auto_renew = true
+            )
+            .await
+            {
+                Ok(certificate) => {
+                    let mut store = self.certificate_store.write().await;
+                    store.add_certificate(certificate);
+                    // Note: Save functionality will be added later if needed
+                }
+                Err(e) => {
+                    log::error!("Failed to create certificate object for {}: {}", domain, e);
+                    return Err(format!("Failed to create certificate object: {}", e).into());
+                }
+            }
+
+            log::info!("Successfully renewed certificate for domain: {}", domain);
+            Ok(())
+        } else {
+            Err("ACME client not initialized".into())
+        }
+    }
+
+    /// Check and renew certificate for a specific domain (public method)
+    pub async fn check_and_renew_certificate(
+        &self,
+        domain: &str,
+    ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+        // Check if certificate needs renewal
+        let needs_renewal = {
+            let store = self.certificate_store.read().await;
+            if let Some(cert) = store.get_certificate(domain) {
+                cert.needs_renewal(self.config.renewal_days_before_expiry)
+            } else {
+                true // No certificate means we need to obtain one
+            }
+        };
+
+        if needs_renewal {
+            log::info!("Certificate for {} needs renewal", domain);
+            match self.renew_certificate(domain).await {
+                Ok(()) => {
+                    log::info!("Successfully renewed certificate for {}", domain);
+                    Ok(true)
+                }
+                Err(e) => {
+                    log::error!("Failed to renew certificate for {}: {}", domain, e);
+                    Err(format!("Certificate renewal failed: {}", e).into())
+                }
+            }
+        } else {
+            log::debug!("Certificate for {} is still valid", domain);
+            Ok(false)
         }
     }
 }

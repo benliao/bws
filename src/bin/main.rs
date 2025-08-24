@@ -2,6 +2,7 @@ use bws_web_server::{ServerConfig, WebServerService};
 use clap::Parser;
 #[cfg(unix)]
 use daemonize::Daemonize;
+use pingora::listeners::tls::TlsSettings;
 use pingora::prelude::*;
 #[cfg(unix)]
 use std::fs::File;
@@ -44,6 +45,11 @@ struct Cli {
 
 fn main() {
     let cli = Cli::parse();
+
+    // Initialize Rustls crypto provider
+    rustls::crypto::aws_lc_rs::default_provider()
+        .install_default()
+        .expect("Failed to install default crypto provider");
 
     // Handle daemon mode (Unix only)
     #[cfg(unix)]
@@ -111,17 +117,99 @@ fn main() {
 
     let mut my_server = Server::new(None).unwrap();
 
+    // Create the main web service instance
+    let web_service = WebServerService::new(config.clone());
+
+    // Check if any site has ACME enabled and create a dedicated HTTP challenge service on port 80
+    let has_acme_enabled = config.sites.iter().any(|site| {
+        site.ssl.enabled
+            && site.ssl.auto_cert
+            && site
+                .ssl
+                .acme
+                .as_ref()
+                .map(|acme| acme.enabled)
+                .unwrap_or(false)
+    });
+
+    if has_acme_enabled {
+        // Check if we already have a service listening on port 80
+        let has_port_80 = config.sites.iter().any(|site| site.port == 80);
+
+        if !has_port_80 {
+            log::info!("Creating dedicated HTTP challenge service on port 80 for ACME validation");
+            let mut acme_service =
+                pingora::proxy::http_proxy_service(&my_server.configuration, web_service.clone());
+            acme_service.add_tcp("0.0.0.0:80");
+            my_server.add_service(acme_service);
+        } else {
+            log::info!("Port 80 already configured for ACME challenges");
+        }
+    }
+
+    // Pre-initialize SSL certificates for ACME-enabled sites
+    if has_acme_enabled {
+        log::info!("Initializing ACME certificates before starting server...");
+        let runtime = tokio::runtime::Runtime::new().unwrap();
+        if let Err(e) = runtime.block_on(web_service.initialize_ssl_managers()) {
+            log::error!("Failed to initialize SSL managers: {}", e);
+            log::warn!("Server will start without HTTPS support until certificates are obtained");
+        } else {
+            log::info!("SSL managers initialized successfully");
+        }
+    }
+
     // Create a service for each site configuration
     for site in &config.sites {
         let service_name = format!("BWS Site: {}", site.name);
-        let mut proxy_service = pingora::proxy::http_proxy_service(
-            &my_server.configuration,
-            WebServerService::new(config.clone()),
-        );
+        let mut proxy_service =
+            pingora::proxy::http_proxy_service(&my_server.configuration, web_service.clone());
 
-        // Listen on the configured port
         let listen_addr = format!("0.0.0.0:{}", site.port);
-        proxy_service.add_tcp(&listen_addr);
+
+        // Check if this is an HTTPS site and if we have certificates
+        if site.ssl.enabled {
+            // Check if certificates are available
+            let cert_path = format!("./certs/{}.crt", site.hostname);
+            let key_path = format!("./certs/{}.key", site.hostname);
+
+            if std::path::Path::new(&cert_path).exists() && std::path::Path::new(&key_path).exists()
+            {
+                // Certificates available - configure TLS listener
+                log::info!(
+                    "Configuring HTTPS for site '{}' on {} (certificates found)",
+                    site.name,
+                    listen_addr
+                );
+
+                match TlsSettings::intermediate(&cert_path, &key_path) {
+                    Ok(tls_settings) => {
+                        proxy_service.add_tls_with_settings(&listen_addr, None, tls_settings);
+                        log::info!(
+                            "HTTPS listener configured successfully for site '{}'",
+                            site.name
+                        );
+                    }
+                    Err(e) => {
+                        log::error!("Failed to load TLS settings for {}: {}", site.name, e);
+                        log::warn!("Falling back to HTTP for site '{}'", site.name);
+                        proxy_service.add_tcp(&listen_addr);
+                    }
+                }
+            } else {
+                // No certificates - add HTTP listener only
+                log::warn!(
+                    "Certificates not found for site '{}' - serving HTTP only",
+                    site.name
+                );
+                log::info!("Expected: {} and {}", cert_path, key_path);
+                proxy_service.add_tcp(&listen_addr);
+            }
+        } else {
+            // Regular HTTP site
+            proxy_service.add_tcp(&listen_addr);
+            log::info!("HTTP listener configured for site '{}'", site.name);
+        }
 
         log::info!("Starting service '{}' on {}", service_name, listen_addr);
         my_server.add_service(proxy_service);
@@ -141,8 +229,21 @@ fn main() {
         println!("📋 Available websites:");
 
         for site in &config.sites {
+            let protocol = if site.ssl.enabled {
+                // Check if certificates exist to determine actual protocol
+                let cert_path = format!("./certs/{}.crt", site.hostname);
+                if std::path::Path::new(&cert_path).exists() {
+                    "https"
+                } else {
+                    "http"
+                }
+            } else {
+                "http"
+            };
+
             let url = format!(
-                "http://{}:{}",
+                "{}://{}:{}",
+                protocol,
                 if site.hostname == "localhost" || site.hostname.ends_with(".localhost") {
                     site.hostname.clone()
                 } else {
@@ -153,6 +254,19 @@ fn main() {
 
             // Display clickable URL with site description
             println!("  • {} - {}", site.name, url);
+
+            // Show certificate status for SSL sites
+            if site.ssl.enabled {
+                let cert_path = format!("./certs/{}.crt", site.hostname);
+                if std::path::Path::new(&cert_path).exists() {
+                    println!("    └─ ✅ HTTPS enabled (certificates found)");
+                } else {
+                    println!("    └─ ⚠️  HTTP only (certificates not found)");
+                    if site.ssl.auto_cert {
+                        println!("    └─ 🔄 ACME auto-renewal enabled");
+                    }
+                }
+            }
 
             // Show common endpoints for each site
             if cli.verbose {
@@ -177,6 +291,28 @@ fn main() {
                 .collect::<Vec<_>>()
                 .join(", ")
         );
+    }
+
+    // Start certificate monitoring and renewal in background
+    if has_acme_enabled {
+        let web_service_for_monitoring = web_service.clone();
+        std::thread::spawn(move || {
+            log::info!("Starting certificate monitoring and auto-renewal service...");
+            let runtime = tokio::runtime::Runtime::new().unwrap();
+
+            loop {
+                // Check and renew certificates every hour
+                std::thread::sleep(std::time::Duration::from_secs(3600));
+
+                if let Err(e) =
+                    runtime.block_on(web_service_for_monitoring.check_and_renew_certificates())
+                {
+                    log::error!("Certificate renewal check failed: {}", e);
+                } else {
+                    log::debug!("Certificate renewal check completed successfully");
+                }
+            }
+        });
     }
 
     my_server.run_forever();

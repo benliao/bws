@@ -49,6 +49,29 @@ impl Certificate {
         })
     }
 
+    pub async fn from_pem_data(
+        domain: String,
+        cert_path: PathBuf,
+        key_path: PathBuf,
+        cert_pem: &str,
+        auto_renew: bool,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
+        // Parse certificate from PEM data
+        let cert_info = Self::parse_certificate(cert_pem.as_bytes())?;
+
+        Ok(Certificate {
+            domain,
+            cert_path,
+            key_path,
+            issued_at: cert_info.issued_at,
+            expires_at: cert_info.expires_at,
+            issuer: cert_info.issuer,
+            san_domains: cert_info.san_domains,
+            auto_renew,
+            last_renewal_check: None,
+        })
+    }
+
     pub async fn save_certificate(
         &self,
         cert_pem: &str,
@@ -245,6 +268,12 @@ impl CertificateStore {
             .find(|cert| cert.covers_domain(domain))
     }
 
+    pub fn has_certificate(&self, domain: &str) -> bool {
+        self.certificates
+            .iter()
+            .any(|cert| cert.covers_domain(domain))
+    }
+
     pub fn get_certificates_needing_renewal(&self, days_before_expiry: i64) -> Vec<&Certificate> {
         self.certificates
             .iter()
@@ -273,6 +302,27 @@ impl CertificateStore {
 
     pub fn list_certificates(&self) -> &[Certificate] {
         &self.certificates
+    }
+
+    /// Get all domains managed by this certificate store
+    pub fn get_all_domains(&self) -> Vec<String> {
+        self.certificates
+            .iter()
+            .map(|cert| cert.domain.clone())
+            .collect()
+    }
+
+    /// Get certificate expiry date for a domain
+    pub fn get_certificate_expiry(
+        &self,
+        domain: &str,
+    ) -> Result<Option<chrono::DateTime<chrono::Utc>>, Box<dyn std::error::Error + Send + Sync>>
+    {
+        if let Some(cert) = self.certificates.iter().find(|c| c.domain == domain) {
+            Ok(Some(cert.expires_at))
+        } else {
+            Ok(None)
+        }
     }
 }
 

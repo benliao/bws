@@ -1,9 +1,11 @@
+pub mod certificate_watcher;
 pub mod config;
 pub mod handlers;
 pub mod server;
 pub mod ssl;
 
 // Re-export main types for convenience
+pub use certificate_watcher::CertificateWatcher;
 pub use config::{ServerConfig, SiteConfig};
 pub use server::WebServerService;
 pub use ssl::{AcmeConfig, SslManager};

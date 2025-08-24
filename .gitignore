@@ -51,17 +51,59 @@ config.local.toml
 local.toml
 bws_config.toml
 
-# Test configuration files (keep test templates)
+# Development and test configuration files
 test_*.toml
+config-test-*.toml
+config-*-test.toml
+debug-*.toml
+config-dev-*.toml
+config-*-dev.toml
 !test_load_balancing.toml
 !test_proxy_config.toml
 !test_multisite_config.toml
+
+# ACME development files
+acme-*.rs
+*_acme.rs
+acme_*.rs
+
+# Development documentation
+*_FEATURES.md
+*_FIX_SUMMARY.md
+*_TODO.md
+*_NOTES.md
+
+# ACME and SSL/TLS certificates and challenges
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+certs/
+certificates/
+acme-challenges/
+test-acme-challenges/
+.well-known/
+ssl-certs/
+letsencrypt/
+
+# ACME account and challenge files
+acme-account.key
+acme-*.json
+challenge-*.txt
 
 # Test output files
 test_output/
 *.test
 test_results/
 mock_server_*.pid
+
+# Test scripts (keep in repo but exclude from some contexts)
+test_*.sh
+diagnose_*.sh
+debug_*.sh
+start-*.sh
 
 # mdBook generated documentation
 /docs/book/
@@ -81,6 +123,10 @@ doc/
 # Cargo advisory database
 .cargo/advisory-db/
 
+# Local cargo configuration (machine-specific)
+.cargo/config.toml
+.cargo/config
+
 # OS specific files
 Thumbs.db
 Desktop.ini
@@ -89,14 +135,6 @@ Desktop.ini
 *.lock
 *.socket
 *.sock
-
-# SSL/TLS certificates (if stored locally)
-*.pem
-*.key
-*.crt
-*.cert
-certificates/
-acme-challenges/
 
 # Reverse proxy test servers and logs
 backend_server_*.log

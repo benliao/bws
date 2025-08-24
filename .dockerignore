@@ -2,6 +2,11 @@
 target/
 # Note: We keep Cargo.lock for reproducible builds in Docker
 
+# Local cargo configuration (machine-specific)
+.cargo/config.toml
+.cargo/config
+.cargo/advisory-db/
+
 # Git and version control
 .git/
 .gitignore
@@ -25,6 +30,7 @@ docker-logs/
 .idea/
 *.swp
 *.swo
+.DS_Store
 
 # Documentation (keep essential docs, exclude development docs)
 PUBLISHING.md
@@ -36,22 +42,61 @@ docs/book/
 !docs/load-balancing.md
 !docs/reverse-proxy.md
 
-# Test files
+# Test files and scripts
 test_*.sh
+test_*.py
+diagnose_*.sh
+debug_*.sh
 test_output/
 test_results/
 mock_server_*.pid
 
 # Test configuration files (exclude from production builds)
 test_*.toml
+config-test-*.toml
+config-*-test.toml
+debug-*.toml
+config-dev-*.toml
+config-*-dev.toml
 test_load_balancing.toml
 test_proxy_config.toml
 test_multisite_config.toml
+
+# Development files (exclude from production builds)
+acme-*.rs
+*_acme.rs
+acme_*.rs
+*_FEATURES.md
+*_FIX_SUMMARY.md
+*_TODO.md
+*_NOTES.md
+*_old.rs
+*_new.rs
+*_broken.rs
+*_fixed.rs
 
 # Local configuration files
 config.local.toml
 bws_config.toml
 local.toml
+
+# SSL/TLS certificates and ACME data (sensitive data should not be in containers)
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+certs/
+certificates/
+acme-challenges/
+test-acme-challenges/
+.well-known/
+ssl-certs/
+letsencrypt/
+acme-account.key
+acme-*.json
+challenge-*.txt
 
 # Reverse proxy test configurations and logs
 backend_server_*.log
@@ -61,7 +106,6 @@ proxy_test_*.log
 # Temporary files
 *.tmp
 *.temp
-.DS_Store
 .cache/
 
 # Coverage and profiling
@@ -72,16 +116,17 @@ perf.data
 *.perf
 flamegraph.svg
 
-# SSL certificates
-*.pem
-*.key
-*.crt
-certificates/
-acme-challenges/
-
-# Environment files
+# Environment files (may contain secrets)
 .env
 .env.*
 
 # GitHub workflows (not needed in container)
 .github/
+
+# Backup files
+*.bak
+*.backup
+
+# Development utilities
+scripts/
+!scripts/docker-entrypoint.sh

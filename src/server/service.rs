@@ -4,12 +4,14 @@ use crate::ssl::SslManager;
 use async_trait::async_trait;
 use pingora::http::ResponseHeader;
 use pingora::prelude::*;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
+#[derive(Clone)]
 pub struct WebServerService {
     config: Arc<RwLock<ServerConfig>>,
-    ssl_manager: Option<Arc<SslManager>>,
+    ssl_managers: Arc<RwLock<HashMap<String, Arc<SslManager>>>>, // hostname -> SslManager
     static_handler: Arc<StaticFileHandler>,
     api_handler: Arc<ApiHandler>,
     health_handler: Arc<HealthHandler>,
@@ -19,22 +21,89 @@ pub struct WebServerService {
 
 impl WebServerService {
     pub fn new(config: ServerConfig) -> Self {
-        // For now, don't initialize SSL manager synchronously
-        // TODO: Initialize SSL manager in background after service starts
-
         // Initialize handlers
         let static_handler = Arc::new(StaticFileHandler::new());
         let api_handler = Arc::new(ApiHandler::new());
         let health_handler = Arc::new(HealthHandler::new());
 
+        // Initialize SSL managers storage
+        let ssl_managers = Arc::new(RwLock::new(HashMap::new()));
+
         WebServerService {
             config: Arc::new(RwLock::new(config)),
-            ssl_manager: None, // Will be initialized later if needed
+            ssl_managers,
             static_handler,
             api_handler,
             health_handler,
             proxy_handler: Arc::new(ProxyHandler::new(crate::config::ProxyConfig::default())),
         }
+    }
+
+    /// Initialize SSL managers for all sites with SSL enabled
+    pub async fn initialize_ssl_managers(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let config = self.config.read().await;
+        let mut ssl_managers = self.ssl_managers.write().await;
+
+        for site in &config.sites {
+            if site.ssl.enabled {
+                log::info!(
+                    "Initializing SSL manager for site: {} ({})",
+                    site.name,
+                    site.hostname
+                );
+
+                match SslManager::from_site_config(site).await {
+                    Ok(Some(ssl_manager)) => {
+                        // Initialize certificate for this domain
+                        match ssl_manager.ensure_certificate(&site.hostname).await {
+                            Ok(success) => {
+                                if success {
+                                    log::info!("SSL certificate ready for {}", site.hostname);
+                                } else {
+                                    log::warn!(
+                                        "Failed to obtain SSL certificate for {}",
+                                        site.hostname
+                                    );
+                                }
+                            }
+                            Err(e) => {
+                                log::error!("SSL certificate error for {}: {}", site.hostname, e);
+                            }
+                        }
+
+                        ssl_managers.insert(site.hostname.clone(), Arc::new(ssl_manager));
+                    }
+                    Ok(None) => {
+                        log::debug!("SSL not enabled for site: {}", site.name);
+                    }
+                    Err(e) => {
+                        log::error!(
+                            "Failed to initialize SSL manager for {}: {}",
+                            site.hostname,
+                            e
+                        );
+                    }
+                }
+            }
+        }
+
+        log::info!("SSL managers initialized for {} sites", ssl_managers.len());
+
+        // TODO: Start automatic certificate renewal scheduler
+        // This will be implemented in a future version
+        let acme_managers_count = ssl_managers
+            .values()
+            .filter(|manager| manager.is_auto_cert_enabled())
+            .count();
+
+        if acme_managers_count > 0 {
+            log::info!(
+                "ACME auto-renewal enabled for {} sites",
+                acme_managers_count
+            );
+        }
+
+        Ok(())
     }
 
     pub async fn get_config(&self) -> ServerConfig {
@@ -62,11 +131,52 @@ impl WebServerService {
         &self,
         domain: &str,
     ) -> Result<bool, Box<dyn std::error::Error>> {
-        if let Some(ssl_manager) = &self.ssl_manager {
+        let ssl_managers = self.ssl_managers.read().await;
+        if let Some(ssl_manager) = ssl_managers.get(domain) {
             ssl_manager.ensure_certificate(domain).await
         } else {
             Ok(false)
         }
+    }
+
+    /// Check and renew certificates for all SSL-enabled sites
+    pub async fn check_and_renew_certificates(&self) -> Result<(), Box<dyn std::error::Error>> {
+        let ssl_managers = self.ssl_managers.read().await;
+        let mut renewed_any = false;
+
+        for (domain, ssl_manager) in ssl_managers.iter() {
+            if ssl_manager.is_auto_cert_enabled() {
+                log::debug!("Checking certificate renewal for domain: {}", domain);
+
+                match ssl_manager.check_and_renew_certificate(domain).await {
+                    Ok(renewed) => {
+                        if renewed {
+                            log::info!("Certificate renewed for domain: {}", domain);
+                            renewed_any = true;
+                        } else {
+                            log::debug!(
+                                "Certificate for {} is still valid, no renewal needed",
+                                domain
+                            );
+                        }
+                    }
+                    Err(e) => {
+                        log::error!("Failed to check/renew certificate for {}: {}", domain, e);
+                    }
+                }
+            }
+        }
+
+        if renewed_any {
+            log::info!("🔄 Some certificates were renewed. Server restart may be required for HTTPS to use new certificates.");
+        }
+
+        Ok(())
+    }
+
+    async fn get_ssl_manager_for_domain(&self, domain: &str) -> Option<Arc<SslManager>> {
+        let ssl_managers = self.ssl_managers.read().await;
+        ssl_managers.get(domain).cloned()
     }
 
     async fn find_site_by_request(&self, session: &Session) -> Option<SiteConfig> {
@@ -87,11 +197,60 @@ impl WebServerService {
             let port = port_str.parse::<u16>().unwrap_or(8080);
             (hostname, port)
         } else {
-            // Default to 8080 if no port specified
-            (host_header, 8080)
+            // Default to port 80 for HTTP or 443 for HTTPS based on scheme
+            let default_port = if session.req_header().uri.scheme_str() == Some("https") {
+                443
+            } else {
+                80
+            };
+            (host_header, default_port)
         };
 
-        config.find_site_by_host_port(hostname, port).cloned()
+        // First try exact hostname:port match
+        if let Some(site) = config.find_site_by_host_port(hostname, port).cloned() {
+            return Some(site);
+        }
+
+        // For ACME challenge requests on port 80, find any site with the same hostname that has ACME enabled
+        let path = session.req_header().uri.path();
+        if port == 80 && path.starts_with("/.well-known/acme-challenge/") {
+            // Look for any site with this hostname that has ACME enabled
+            for site in &config.sites {
+                if site.hostname == hostname && site.ssl.enabled && site.ssl.auto_cert {
+                    if let Some(acme_config) = &site.ssl.acme {
+                        if acme_config.enabled {
+                            log::debug!(
+                                "Using site '{}' for ACME challenge on port 80 for hostname '{}'",
+                                site.name,
+                                hostname
+                            );
+                            return Some(site.clone());
+                        }
+                    }
+                }
+            }
+
+            // If no exact hostname match, try to find any ACME-enabled site (for wildcard scenarios)
+            log::debug!(
+                "Looking for any ACME-enabled site for challenge request to '{}'",
+                hostname
+            );
+            for site in &config.sites {
+                if site.ssl.enabled && site.ssl.auto_cert {
+                    if let Some(acme_config) = &site.ssl.acme {
+                        if acme_config.enabled {
+                            log::debug!(
+                                "Using ACME-enabled site '{}' for challenge request",
+                                site.name
+                            );
+                            return Some(site.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        None
     }
 
     async fn handle_ssl_redirect(&self, session: &mut Session, site: &SiteConfig) -> Result<bool> {
@@ -136,14 +295,180 @@ impl WebServerService {
             .unwrap_or(false)
     }
 
-    async fn handle_acme_challenge(&self, session: &mut Session, path: &str) -> Result<bool> {
-        if let Some(ssl_manager) = &self.ssl_manager {
+    async fn handle_acme_challenge_for_site(
+        &self,
+        session: &mut Session,
+        path: &str,
+        site: &SiteConfig,
+    ) -> Result<bool> {
+        // Check if this is an ACME challenge request
+        if !path.starts_with("/.well-known/acme-challenge/") {
+            return Ok(false);
+        }
+
+        log::debug!(
+            "ACME challenge handler started for site '{}', ssl.enabled={}, ssl.auto_cert={}",
+            site.name,
+            site.ssl.enabled,
+            site.ssl.auto_cert
+        );
+
+        // Check if the site has ACME enabled
+        if !site.ssl.enabled || !site.ssl.auto_cert {
+            log::warn!("ACME challenge request for site '{}' but SSL auto_cert not enabled (ssl.enabled={}, ssl.auto_cert={})", 
+                      site.name, site.ssl.enabled, site.ssl.auto_cert);
+
+            let mut header = ResponseHeader::build(404, Some(3))?;
+            header.insert_header("Content-Type", "application/json")?;
+            header.insert_header("X-Site-Name", &site.hostname)?;
+            header.insert_header("X-ACME-Enabled", "false")?;
+            header.insert_header("X-ACME-Challenge-Status", "ssl-not-enabled")?;
+            header.insert_header("X-ACME-Site", &site.name)?;
+
+            let error_body = format!(
+                r#"{{"error":"ACME Not Enabled","message":"Site {} does not have SSL auto_cert enabled","status":404,"site":"{}","hostname":"{}"}}"#,
+                site.name, site.name, site.hostname
+            );
+            header.insert_header("Content-Length", error_body.len().to_string())?;
+
+            session
+                .write_response_header(Box::new(header), false)
+                .await?;
+            session
+                .write_response_body(Some(error_body.into_bytes().into()), true)
+                .await?;
+            return Ok(true);
+        }
+
+        let acme_enabled = site
+            .ssl
+            .acme
+            .as_ref()
+            .map(|acme| acme.enabled)
+            .unwrap_or(false);
+
+        log::debug!(
+            "ACME config check for site '{}': acme_config_exists={}, acme_enabled={}",
+            site.name,
+            site.ssl.acme.is_some(),
+            acme_enabled
+        );
+
+        if !acme_enabled {
+            log::warn!("ACME challenge request for site '{}' but ACME not enabled in config (acme_config_exists={}, acme_enabled={})", 
+                      site.name, site.ssl.acme.is_some(), acme_enabled);
+
+            let mut header = ResponseHeader::build(404, Some(3))?;
+            header.insert_header("Content-Type", "application/json")?;
+            header.insert_header("X-Site-Name", &site.hostname)?;
+            header.insert_header("X-ACME-Enabled", "false")?;
+            header.insert_header("X-ACME-Challenge-Status", "acme-disabled")?;
+            header.insert_header("X-ACME-Site", &site.name)?;
+
+            let error_body = format!(
+                r#"{{"error":"ACME Disabled","message":"Site {} has ACME disabled in configuration","status":404,"site":"{}","hostname":"{}"}}"#,
+                site.name, site.name, site.hostname
+            );
+            header.insert_header("Content-Length", error_body.len().to_string())?;
+
+            session
+                .write_response_header(Box::new(header), false)
+                .await?;
+            session
+                .write_response_body(Some(error_body.into_bytes().into()), true)
+                .await?;
+            return Ok(true);
+        }
+
+        log::info!(
+            "Handling ACME challenge request for site '{}': {}",
+            site.name,
+            path
+        );
+        let start_time = std::time::Instant::now();
+
+        // For ACME challenges, prioritize filesystem access to avoid blocking on SSL manager initialization
+        if let Some(token) = path.strip_prefix("/.well-known/acme-challenge/") {
+            log::debug!(
+                "Looking for ACME challenge token: {} (took {:?})",
+                token,
+                start_time.elapsed()
+            );
+
+            // First try reading challenge file directly from filesystem (fastest path)
+            let challenge_path = std::path::PathBuf::from("./certs")
+                .join("challenges")
+                .join(".well-known")
+                .join("acme-challenge")
+                .join(token);
+
+            log::debug!("Trying to read challenge file from: {:?}", challenge_path);
+
+            if let Ok(content) = tokio::fs::read_to_string(&challenge_path).await {
+                log::info!(
+                    "Serving ACME challenge response from filesystem for token: {} (took {:?})",
+                    token,
+                    start_time.elapsed()
+                );
+                let mut header = ResponseHeader::build(200, Some(3))?;
+                header.insert_header("Content-Type", "text/plain")?;
+                header.insert_header("Content-Length", content.len().to_string())?;
+
+                // Add ACME-specific headers for debugging
+                header.insert_header("X-Site-Name", &site.hostname)?;
+                header.insert_header("X-ACME-Enabled", "true")?;
+                header.insert_header("X-ACME-Challenge-Source", "filesystem")?;
+                header.insert_header("X-ACME-Site", &site.name)?;
+
+                session
+                    .write_response_header(Box::new(header), false)
+                    .await?;
+                session
+                    .write_response_body(Some(content.into_bytes().into()), true)
+                    .await?;
+                log::info!(
+                    "Successfully sent ACME challenge response for token: {} (took {:?})",
+                    token,
+                    start_time.elapsed()
+                );
+                return Ok(true);
+            } else {
+                log::debug!(
+                    "Challenge file not found at {:?}, checking SSL manager (took {:?})",
+                    challenge_path,
+                    start_time.elapsed()
+                );
+            }
+        }
+
+        // Fallback to SSL manager (only if filesystem lookup failed)
+        if let Some(ssl_manager) = self.get_ssl_manager_for_domain(&site.hostname).await {
+            log::debug!(
+                "Found SSL manager for domain '{}' (took {:?})",
+                site.hostname,
+                start_time.elapsed()
+            );
+
             if ssl_manager.handles_acme_challenge(path) {
                 if let Some(token) = path.strip_prefix("/.well-known/acme-challenge/") {
+                    log::debug!(
+                        "Looking for ACME challenge token in SSL manager: {} (took {:?})",
+                        token,
+                        start_time.elapsed()
+                    );
+
+                    // Try to get challenge response from SSL manager
                     if let Some(response) = ssl_manager.get_acme_challenge_response(token).await {
+                        log::info!("Serving ACME challenge response from SSL manager for token: {} (took {:?})", token, start_time.elapsed());
                         let mut header = ResponseHeader::build(200, Some(3))?;
                         header.insert_header("Content-Type", "text/plain")?;
                         header.insert_header("Content-Length", response.len().to_string())?;
+
+                        // Add ACME-specific headers for debugging
+                        header.insert_header("X-Site-Name", &site.hostname)?;
+                        header.insert_header("X-ACME-Enabled", "true")?;
+                        header.insert_header("X-ACME-Challenge-Source", "ssl-manager")?;
+                        header.insert_header("X-ACME-Site", &site.name)?;
 
                         session
                             .write_response_header(Box::new(header), false)
@@ -151,16 +476,64 @@ impl WebServerService {
                         session
                             .write_response_body(Some(response.into_bytes().into()), true)
                             .await?;
+                        log::info!(
+                            "Successfully sent ACME challenge response for token: {} (took {:?})",
+                            token,
+                            start_time.elapsed()
+                        );
                         return Ok(true);
+                    } else {
+                        log::debug!(
+                            "SSL manager has no challenge response for token: {} (took {:?})",
+                            token,
+                            start_time.elapsed()
+                        );
                     }
                 }
-
-                // Challenge not found, return 404
-                self.handle_404(session, None).await?;
-                return Ok(true);
+            } else {
+                log::warn!(
+                    "SSL manager does not handle ACME challenges for path: {} (took {:?})",
+                    path,
+                    start_time.elapsed()
+                );
             }
+        } else {
+            log::debug!(
+                "No SSL manager found for hostname: {} (took {:?})",
+                site.hostname,
+                start_time.elapsed()
+            );
         }
-        Ok(false)
+
+        // Challenge not found, return 404 with ACME debugging headers
+        log::warn!(
+            "ACME challenge not found for path: {} (took {:?})",
+            path,
+            start_time.elapsed()
+        );
+
+        let mut header = ResponseHeader::build(404, Some(3))?;
+        header.insert_header("Content-Type", "application/json")?;
+
+        // Add ACME debugging headers
+        header.insert_header("X-Site-Name", &site.hostname)?;
+        header.insert_header("X-ACME-Enabled", "true")?;
+        header.insert_header("X-ACME-Challenge-Status", "not-found")?;
+        header.insert_header("X-ACME-Site", &site.name)?;
+
+        let error_body = format!(
+            r#"{{"error":"ACME Challenge Not Found","message":"Challenge token not found for site {}","status":404,"site":"{}","hostname":"{}"}}"#,
+            site.name, site.name, site.hostname
+        );
+        header.insert_header("Content-Length", error_body.len().to_string())?;
+
+        session
+            .write_response_header(Box::new(header), false)
+            .await?;
+        session
+            .write_response_body(Some(error_body.into_bytes().into()), true)
+            .await?;
+        Ok(true)
     }
 
     async fn apply_site_headers(
@@ -265,21 +638,29 @@ impl ProxyHttp for WebServerService {
         *ctx = site_config.clone();
 
         let path = session.req_header().uri.path().to_string();
+        let host_header = session
+            .req_header()
+            .headers
+            .get("Host")
+            .and_then(|h| h.to_str().ok())
+            .unwrap_or("localhost");
 
         // Log the incoming request
         if let Some(site) = ctx.as_ref() {
             log::info!(
-                "Incoming request: {} {} (site: {}, static_dir: {})",
+                "Incoming request: {} {} (site: {}, static_dir: {}, host: {})",
                 session.req_header().method,
                 session.req_header().uri,
                 site.name,
-                site.static_dir
+                site.static_dir,
+                host_header
             );
         } else {
             log::warn!(
-                "No site configuration found for request: {} {}",
+                "No site configuration found for request: {} {} (host: {})",
                 session.req_header().method,
-                session.req_header().uri
+                session.req_header().uri,
+                host_header
             );
         }
 
@@ -291,8 +672,49 @@ impl ProxyHttp for WebServerService {
         }
 
         // Handle ACME challenge requests
-        if self.handle_acme_challenge(session, &path).await? {
-            return Ok(true);
+        if path.starts_with("/.well-known/acme-challenge/") {
+            log::debug!(
+                "ACME challenge request detected: {} (site found: {})",
+                path,
+                ctx.is_some()
+            );
+            if let Some(site) = ctx.as_ref() {
+                log::debug!(
+                    "Calling handle_acme_challenge_for_site for site '{}'",
+                    site.name
+                );
+                if self
+                    .handle_acme_challenge_for_site(session, &path, site)
+                    .await?
+                {
+                    return Ok(true);
+                }
+                log::debug!(
+                    "handle_acme_challenge_for_site returned false for site '{}'",
+                    site.name
+                );
+            } else {
+                // ACME challenge request but no site found
+                log::warn!(
+                    "ACME challenge request but no site configuration found: {}",
+                    path
+                );
+                let mut header = ResponseHeader::build(404, Some(3))?;
+                header.insert_header("Content-Type", "application/json")?;
+                header.insert_header("X-ACME-Challenge-Status", "no-site-found")?;
+                header.insert_header("X-ACME-Enabled", "false")?;
+
+                let error_body = r#"{"error":"No Site Found","message":"No site configuration found for ACME challenge","status":404}"#;
+                header.insert_header("Content-Length", error_body.len().to_string())?;
+
+                session
+                    .write_response_header(Box::new(header), false)
+                    .await?;
+                session
+                    .write_response_body(Some(error_body.as_bytes().into()), true)
+                    .await?;
+                return Ok(true);
+            }
         }
 
         // Route request to appropriate handler

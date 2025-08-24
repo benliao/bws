@@ -48,7 +48,7 @@ pub struct SiteSslConfig {
     pub acme: Option<SiteAcmeConfig>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SiteAcmeConfig {
     #[serde(default)]
     pub enabled: bool,
@@ -57,7 +57,7 @@ pub struct SiteAcmeConfig {
     #[serde(default)]
     pub staging: bool,
     #[serde(default)]
-    pub challenge_dir: String,
+    pub challenge_dir: Option<String>, // Make optional for automatic management
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
@@ -172,17 +172,6 @@ fn default_read_timeout() -> u64 {
 }
 fn default_write_timeout() -> u64 {
     30
-}
-
-impl Default for SiteAcmeConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            email: String::new(),
-            staging: false,
-            challenge_dir: "./acme-challenges".to_string(),
-        }
-    }
 }
 
 impl Default for HealthCheckConfig {
