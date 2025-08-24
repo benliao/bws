@@ -47,13 +47,11 @@ fn main() {
     let cli = Cli::parse();
 
     // Initialize Rustls crypto provider
-    rustls::crypto::aws_lc_rs::default_provider()
-        .install_default()
-        .map_err(|e| {
-            eprintln!("Failed to install default crypto provider: {e:?}");
-            std::process::exit(1);
-        })
-        .unwrap();
+    if let Err(e) = rustls::crypto::aws_lc_rs::default_provider()
+        .install_default() {
+        eprintln!("Failed to install default crypto provider: {e:?}");
+        std::process::exit(1);
+    }
 
     // Handle daemon mode (Unix only)
     #[cfg(unix)]
@@ -308,10 +306,14 @@ fn main() {
         let web_service_for_monitoring = web_service;
         std::thread::spawn(move || {
             log::info!("Starting certificate monitoring and auto-renewal service...");
-            let runtime = tokio::runtime::Runtime::new().unwrap_or_else(|e| {
-                log::error!("Failed to create async runtime for certificate monitoring: {e}");
-                panic!("Cannot start certificate monitoring without async runtime");
-            });
+            let runtime = match tokio::runtime::Runtime::new() {
+                Ok(rt) => rt,
+                Err(e) => {
+                    log::error!("Failed to create async runtime for certificate monitoring: {e}");
+                    log::error!("Certificate monitoring will be disabled");
+                    return;
+                }
+            };
 
             loop {
                 // Check and renew certificates every hour

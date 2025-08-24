@@ -25,16 +25,22 @@ impl StaticFileHandler {
     async fn resolve_file_path(&self, site: &SiteConfig, request_path: &str) -> Option<String> {
         let clean_path = self.clean_path(request_path);
 
+        // Security check: ensure the path is safe before proceeding
+        if !self.is_path_safe(&site.static_dir, &clean_path) {
+            log::warn!("Blocked path traversal attempt: {}", request_path);
+            return None;
+        }
+
         // Try exact path first
-        let file_path = format!("{}{}", site.static_dir, clean_path);
+        let file_path = format!("{}/{}", site.static_dir, clean_path);
         if self.is_file_accessible(&file_path).await {
             return Some(file_path);
         }
 
         // If path ends with '/', try index files
-        if clean_path.ends_with('/') {
+        if clean_path.ends_with('/') || clean_path.is_empty() {
             for index_file in site.get_index_files() {
-                let index_path = format!("{}{}{}", site.static_dir, clean_path, index_file);
+                let index_path = format!("{}/{}{}", site.static_dir, clean_path, index_file);
                 if self.is_file_accessible(&index_path).await {
                     return Some(index_path);
                 }
@@ -42,7 +48,7 @@ impl StaticFileHandler {
         } else {
             // Try adding '/' and looking for index files
             for index_file in site.get_index_files() {
-                let index_path = format!("{}{}/{}", site.static_dir, clean_path, index_file);
+                let index_path = format!("{}/{}/{}", site.static_dir, clean_path, index_file);
                 if self.is_file_accessible(&index_path).await {
                     return Some(index_path);
                 }
@@ -59,11 +65,28 @@ impl StaticFileHandler {
 
         // Handle root path
         if path == "/" {
-            return "/".to_string();
+            return "".to_string();
         }
 
         // Remove leading slash for joining with static_dir
-        path.strip_prefix('/').unwrap_or(path).to_string()
+        let clean = path.strip_prefix('/').unwrap_or(path);
+        
+        // Normalize path separators and remove dangerous sequences
+        let clean = clean.replace('\\', "/"); // Normalize Windows paths
+        let clean = clean.replace("//", "/"); // Remove double slashes
+        
+        // Split path and filter out dangerous components
+        let components: Vec<&str> = clean
+            .split('/')
+            .filter(|component| {
+                !component.is_empty() 
+                && *component != "." 
+                && *component != ".."
+                && !component.contains('\0') // Null byte injection protection
+            })
+            .collect();
+            
+        components.join("/")
     }
 
     async fn is_file_accessible(&self, file_path: &str) -> bool {
@@ -72,8 +95,12 @@ impl StaticFileHandler {
         // Check if file exists and is a regular file
         if let Ok(metadata) = fs::metadata(path).await {
             if metadata.is_file() {
-                // Additional security check: ensure the file is within the static directory
-                // This prevents path traversal attacks
+                // Additional security check: file size limit (100MB max)
+                const MAX_FILE_SIZE: u64 = 100 * 1024 * 1024;
+                if metadata.len() > MAX_FILE_SIZE {
+                    log::warn!("File too large, rejecting: {} ({} bytes)", file_path, metadata.len());
+                    return false;
+                }
                 return true;
             }
         }
@@ -277,7 +304,6 @@ impl StaticFileHandler {
     }
 
     // Security function to prevent path traversal
-    #[allow(dead_code)]
     fn is_path_safe(&self, static_dir: &str, requested_path: &str) -> bool {
         let static_path = Path::new(static_dir);
         let requested_path = static_path.join(requested_path);
@@ -288,6 +314,22 @@ impl StaticFileHandler {
         {
             requested_canonical.starts_with(static_canonical)
         } else {
+            // If canonicalization fails, be conservative and reject
+            // This handles cases where the path doesn't exist or has permission issues
+            let static_abs = match std::fs::canonicalize(static_path) {
+                Ok(path) => path,
+                Err(_) => return false,
+            };
+            
+            // For non-existent files, check if the parent directory is safe
+            let mut check_path = requested_path.clone();
+            while let Some(parent) = check_path.parent() {
+                if let Ok(parent_canonical) = parent.canonicalize() {
+                    return parent_canonical.starts_with(&static_abs);
+                }
+                check_path = parent.to_path_buf();
+            }
+            
             false
         }
     }
@@ -328,7 +370,7 @@ mod tests {
     fn test_clean_path() {
         let handler = StaticFileHandler::new();
 
-        assert_eq!(handler.clean_path("/"), "/");
+        assert_eq!(handler.clean_path("/"), ""); // Root path becomes empty for joining with static_dir
         assert_eq!(handler.clean_path("/test.html"), "test.html");
         assert_eq!(handler.clean_path("/path/to/file.css"), "path/to/file.css");
         assert_eq!(handler.clean_path("/test.html?query=1"), "test.html");
@@ -337,6 +379,22 @@ mod tests {
             handler.clean_path("/test.html?query=1#fragment"),
             "test.html"
         );
+
+        // Test security: path traversal protection
+        // "../.." components are filtered out, leaving only valid path components
+        assert_eq!(handler.clean_path("/../../../etc/passwd"), "etc/passwd");
+        assert_eq!(handler.clean_path("/test/../../../secret"), "test/secret"); // ".." filtered out, leaving "test" and "secret"
+        assert_eq!(handler.clean_path("./test.html"), "test.html"); // "." filtered out
+        assert_eq!(handler.clean_path("/./test/../file.css"), "test/file.css"); // "." and ".." filtered out
+        
+        // Test null byte injection protection
+        assert_eq!(handler.clean_path("/test\0.html"), ""); // Component with null byte is filtered out
+        
+        // Test double slash normalization
+        assert_eq!(handler.clean_path("//test//file.js"), "test/file.js");
+        
+        // Test Windows path normalization
+        assert_eq!(handler.clean_path("/path\\to\\file.css"), "path/to/file.css");
     }
 
     #[test]

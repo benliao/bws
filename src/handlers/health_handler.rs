@@ -215,14 +215,14 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn test_readiness_check() {
+    #[test]
+    fn test_readiness_check() {
         let handler = HealthHandler::new();
-        assert!(handler.check_readiness().await);
+        assert!(handler.check_readiness());
     }
 
-    #[tokio::test]
-    async fn test_liveness_check() {
+    #[test]
+    fn test_liveness_check() {
         let handler = HealthHandler::new();
         assert!(handler.check_liveness());
     }

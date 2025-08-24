@@ -164,8 +164,18 @@ impl WebSocketProxyHandler {
                     error!("WebSocket proxy failed: {}", e);
                     // Send error response if we haven't sent headers yet
                     if session.response_written().is_none() {
-                        let mut resp = pingora::http::ResponseHeader::build(502, None).unwrap();
-                        resp.insert_header("Content-Type", "text/plain").unwrap();
+                        let mut resp = match pingora::http::ResponseHeader::build(502, None) {
+                            Ok(r) => r,
+                            Err(e) => {
+                                error!("Failed to build error response header: {}", e);
+                                return Ok(false);
+                            }
+                        };
+                        
+                        if let Err(e) = resp.insert_header("Content-Type", "text/plain") {
+                            error!("Failed to insert content-type header: {}", e);
+                        }
+                        
                         if let Err(e) = session.write_response_header(Box::new(resp), false).await {
                             error!("Failed to send error response: {}", e);
                         }
@@ -264,12 +274,25 @@ impl WebSocketProxyHandler {
         let ws_accept = self.calculate_websocket_accept(ws_key);
 
         // Build WebSocket upgrade response for client
-        let mut resp_builder = pingora::http::ResponseHeader::build(101, None).unwrap();
-        resp_builder.insert_header("Upgrade", "websocket").unwrap();
-        resp_builder.insert_header("Connection", "Upgrade").unwrap();
-        resp_builder
-            .insert_header("Sec-WebSocket-Accept", &ws_accept)
-            .unwrap();
+        let mut resp_builder = match pingora::http::ResponseHeader::build(101, None) {
+            Ok(r) => r,
+            Err(e) => {
+                error!("Failed to build WebSocket upgrade response: {}", e);
+                return Err(pingora::Error::new_str("Failed to build WebSocket response"));
+            }
+        };
+        
+        if let Err(e) = resp_builder.insert_header("Upgrade", "websocket") {
+            error!("Failed to insert Upgrade header: {}", e);
+        }
+        
+        if let Err(e) = resp_builder.insert_header("Connection", "Upgrade") {
+            error!("Failed to insert Connection header: {}", e);
+        }
+        
+        if let Err(e) = resp_builder.insert_header("Sec-WebSocket-Accept", &ws_accept) {
+            error!("Failed to insert Sec-WebSocket-Accept header: {}", e);
+        }
 
         // Add optional headers from upstream response
         if let Some(protocol) = ws_protocol {

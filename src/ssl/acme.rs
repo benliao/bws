@@ -433,11 +433,13 @@ mod tests {
         let response = client.get_acme_challenge_response(test_token).await;
 
         assert!(response.is_some(), "Challenge response should be found");
-        assert_eq!(
-            response.unwrap(),
-            test_key_auth,
-            "Challenge response content should match"
-        );
+        if let Some(response_content) = response {
+            assert_eq!(
+                response_content,
+                test_key_auth,
+                "Challenge response content should match"
+            );
+        }
 
         // Test with non-existent token
         let missing_response = client

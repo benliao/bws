@@ -1,24 +1,37 @@
-use log::{info, warn};
+use log::{info, warn, error};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::Path;
+use tokio::sync::mpsc;
 
 pub struct CertificateWatcher {
     cert_dir: String,
     domains: Vec<String>,
+    _watcher: Option<RecommendedWatcher>, // Keep watcher alive
 }
 
 impl CertificateWatcher {
     pub fn new(cert_dir: String, domains: Vec<String>) -> Self {
-        Self { cert_dir, domains }
+        Self { 
+            cert_dir, 
+            domains,
+            _watcher: None,
+        }
     }
 
-    pub fn start_watching(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+    pub fn start_watching(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let (tx, mut rx) = mpsc::unbounded_channel();
 
         let mut watcher = RecommendedWatcher::new(
             move |res: Result<Event, notify::Error>| {
-                if let Ok(event) = res {
-                    let _ = tx.send(event);
+                match res {
+                    Ok(event) => {
+                        if let Err(e) = tx.send(event) {
+                            error!("Failed to send file watcher event: {}", e);
+                        }
+                    }
+                    Err(e) => {
+                        error!("File watcher error: {}", e);
+                    }
                 }
             },
             notify::Config::default(),
@@ -30,6 +43,9 @@ impl CertificateWatcher {
             "Certificate watcher started for directory: {}",
             self.cert_dir
         );
+
+        // Store watcher to keep it alive
+        self._watcher = Some(watcher);
 
         let domains = self.domains.clone();
         let cert_dir = self.cert_dir.clone();
@@ -72,6 +88,7 @@ impl CertificateWatcher {
                     _ => {}
                 }
             }
+            info!("Certificate watcher task terminated");
         });
 
         Ok(())
