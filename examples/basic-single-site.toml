@@ -1,0 +1,31 @@
+# Basic Single Site Configuration
+# This example shows a minimal configuration for serving a single static website
+
+[server]
+name = "BWS Single Site Server"
+# Optional: worker_threads = 4
+
+# Single site configuration
+[[sites]]
+name = "main"
+hostname = "localhost"
+port = 8080
+static_dir = "public"
+default = true
+
+# Optional custom headers
+[sites.headers]
+"X-Site-Name" = "My Website"
+"X-Powered-By" = "BWS/1.0"
+"Cache-Control" = "public, max-age=3600"
+
+# Optional security settings
+[sites.security]
+enable_security_headers = true
+cors_enabled = true
+cors_origins = ["*"]
+
+# Optional rate limiting
+[sites.rate_limit]
+max_requests = 100
+window_seconds = 60

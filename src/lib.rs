@@ -1,19 +1,26 @@
-pub mod certificate_watcher;
+//! BWS (Ben's Web Server) - A high-performance multi-site web server
+//!
+//! BWS is built with the Pingora framework and provides enterprise-grade
+//! features including SSL/TLS management, load balancing, and security.
+
+pub mod core;
 pub mod config;
 pub mod handlers;
+pub mod middleware;
+pub mod monitoring;
 pub mod server;
 pub mod ssl;
 
 // Re-export main types for convenience
-pub use certificate_watcher::CertificateWatcher;
 pub use config::{ServerConfig, SiteConfig};
+pub use core::{BwsError, BwsResult};
+pub use monitoring::{CertificateWatcher, HealthHandler};
 pub use server::WebServerService;
 pub use ssl::{AcmeConfig, SslManager};
 
-// Legacy compatibility exports
+// Legacy compatibility exports for external crates
 use std::fs;
 
-// Legacy function for backward compatibility
 /// Read file contents as bytes
 /// 
 /// # Errors
@@ -23,41 +30,22 @@ pub fn read_file_bytes(file_path: &str) -> std::io::Result<Vec<u8>> {
     fs::read(file_path)
 }
 
-// Legacy function for backward compatibility
+/// Get MIME type for a file extension
+/// 
+/// # Arguments
+/// 
+/// * `file_path` - The file path to determine MIME type for
+/// 
+/// # Returns
+/// 
+/// Returns the MIME type string for the file extension
 #[must_use]
 pub fn get_mime_type(file_path: &str) -> &'static str {
+    // Use the new utils module for MIME type detection
     let path = std::path::Path::new(file_path);
-    match path.extension().and_then(|ext| ext.to_str()) {
-        Some("html") | Some("htm") => "text/html",
-        Some("css") => "text/css",
-        Some("js") | Some("mjs") => "application/javascript",
-        Some("json") => "application/json",
-        Some("png") => "image/png",
-        Some("jpg") | Some("jpeg") => "image/jpeg",
-        Some("gif") => "image/gif",
-        Some("svg") => "image/svg+xml",
-        Some("ico") => "image/x-icon",
-        Some("txt") => "text/plain",
-        Some("pdf") => "application/pdf",
-        Some("woff") | Some("woff2") => "font/woff",
-        Some("ttf") => "font/ttf",
-        Some("otf") => "font/otf",
-        Some("eot") => "application/vnd.ms-fontobject",
-        Some("xml") => "application/xml",
-        Some("wasm") => "application/wasm",
-        Some("webp") => "image/webp",
-        Some("avif") => "image/avif",
-        Some("mp4") => "video/mp4",
-        Some("webm") => "video/webm",
-        Some("mp3") => "audio/mpeg",
-        Some("wav") => "audio/wav",
-        Some("ogg") => "audio/ogg",
-        Some("zip") => "application/zip",
-        Some("gz") => "application/gzip",
-        Some("tar") => "application/x-tar",
-        Some("md") => "text/markdown",
-        Some("yaml") | Some("yml") => "application/x-yaml",
-        Some("toml") => "application/toml",
-        _ => "application/octet-stream",
-    }
+    let extension = path.extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("");
+    
+    core::utils::fs::get_mime_type(extension)
 }

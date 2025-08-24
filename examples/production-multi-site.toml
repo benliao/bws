@@ -1,0 +1,77 @@
+# Production Multi-Site Configuration
+# This example shows a production-ready configuration with security hardening
+
+[server]
+name = "BWS Production Server"
+worker_threads = 8
+max_connections = 1000
+
+# Main website
+[[sites]]
+name = "main"
+hostname = "example.com"
+port = 443
+static_dir = "/var/www/main"
+default = true
+
+[sites.headers]
+"X-Site-Name" = "Main Website"
+"Strict-Transport-Security" = "max-age=31536000; includeSubDomains"
+"X-Content-Type-Options" = "nosniff"
+"X-Frame-Options" = "DENY"
+
+[sites.security]
+enable_security_headers = true
+cors_enabled = false
+max_file_size = "10MB"
+
+[sites.rate_limit]
+max_requests = 1000
+window_seconds = 60
+burst = 50
+
+# API subdomain
+[[sites]]
+name = "api"
+hostname = "api.example.com"
+port = 443
+api_only = true
+
+[sites.headers]
+"X-Site-Name" = "API Server"
+"Access-Control-Allow-Origin" = "https://example.com"
+"Access-Control-Allow-Methods" = "GET, POST, PUT, DELETE, OPTIONS"
+"Access-Control-Allow-Headers" = "Content-Type, Authorization"
+
+[sites.security]
+enable_security_headers = true
+cors_enabled = true
+cors_origins = ["https://example.com", "https://app.example.com"]
+
+[sites.rate_limit]
+max_requests = 5000
+window_seconds = 60
+burst = 100
+
+# SSL Configuration with ACME
+[ssl]
+enabled = true
+auto_cert = true
+
+[ssl.acme]
+directory_url = "https://acme-v02.api.letsencrypt.org/directory"
+contact_email = "admin@example.com"
+terms_agreed = true
+cache_dir = "/etc/bws/certs"
+
+# Monitoring
+[monitoring]
+health_check_enabled = true
+metrics_enabled = true
+cert_check_interval = 3600  # 1 hour
+
+# Logging
+[logging]
+level = "info"
+format = "json"
+file = "/var/log/bws/access.log"

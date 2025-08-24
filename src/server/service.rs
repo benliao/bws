@@ -1,5 +1,6 @@
 use crate::config::{ServerConfig, SiteConfig};
 use crate::handlers::*;
+use crate::monitoring::HealthHandler;
 use crate::ssl::SslManager;
 use async_trait::async_trait;
 use pingora::http::ResponseHeader;

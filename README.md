@@ -21,6 +21,29 @@ Built on [Pingora](https://github.com/cloudflare/pingora), Cloudflare's producti
 
 **Developer Experience**: Hot configuration reloading, comprehensive monitoring, and clear error messages make BWS a joy to operate in production environments.
 
+## 🏗️ **Enterprise Architecture**
+
+BWS follows professional software engineering practices with a modular, maintainable architecture:
+
+```
+src/
+├── core/              # Foundation: types, error handling, utilities
+├── config/            # Configuration management and validation
+├── handlers/          # Request processing (static, API, proxy, WebSocket)
+├── middleware/        # Cross-cutting concerns (CORS, security, rate limiting)
+├── monitoring/        # Health checks, metrics, certificate monitoring
+├── server/            # Server infrastructure and orchestration
+└── ssl/               # SSL/TLS and certificate management
+```
+
+**Clean Separation of Concerns**: Each module has a single responsibility, making the codebase maintainable and testable.
+
+**Centralized Error Handling**: Comprehensive error types with context provide clear debugging information.
+
+**Security by Design**: Input validation, path traversal protection, and security headers are built into the core architecture.
+
+See [Architecture Documentation](docs/architecture/README.md) for detailed design principles and module responsibilities.
+
 ## ✨ Key Features
 
 ### 🛡️ **Memory Safety & Code Quality**
