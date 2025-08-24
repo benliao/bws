@@ -7,11 +7,21 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Documentation](https://img.shields.io/badge/docs-mdbook-blue.svg)](https://benliao.github.io/bws/)
 
-A high-performance, multi-site web server built with [Pingora](https://github.com/cloudflare/pingora), Cloudflare's battle-tested proxy framework.
+**A memory-safe, high-performance web server and reverse proxy built with Rust.**
+
+Built on [Pingora](https://github.com/cloudflare/pingora), Cloudflare's production-tested proxy framework, BWS delivers enterprise-grade performance with Rust's memory safety guarantees. No buffer overflows, no use-after-free vulnerabilities, no data races – just reliable, fast web serving.
+
+## 🎯 Why BWS?
+
+**Memory Safety Meets Performance**: Unlike traditional web servers written in C/C++, BWS eliminates entire classes of security vulnerabilities through Rust's type system. No more segmentation faults, buffer overflows, or memory leaks in production.
+
+**Cloudflare-Grade Infrastructure**: Built on the same Pingora framework that handles 20% of the internet's traffic, BWS brings enterprise-level performance and reliability to your applications.
+
+**SSL Made Simple**: Automatic certificate management means your sites stay secure without manual intervention. Let's Encrypt integration handles renewals, monitoring, and deployment seamlessly.
+
+**Developer Experience**: Hot configuration reloading, comprehensive monitoring, and clear error messages make BWS a joy to operate in production environments.
 
 ## 🔄 Reverse Proxy & Load Balancing
-
-BWS includes comprehensive reverse proxy functionality similar to Caddy, with support for multiple load balancing algorithms:
 
 ### Load Balancing Algorithms
 
@@ -137,19 +147,38 @@ The full documentation includes:
 - 🐳 **Docker Guide** - Container deployment options
 - 💡 **Examples** - Real-world use cases and configurations
 
-## ✨ Features
+## ✨ Key Features
 
-- **🚀 High Performance**: Built on Pingora, CloudFlare's high-performance proxy framework
-- **🌐 Multi-Site Hosting**: Host multiple websites on different ports with individual configurations
-- **🔄 Reverse Proxy**: Comprehensive proxy functionality with load balancing (round-robin, weighted, least-connections)
-- **🔌 WebSocket Proxy**: Full WebSocket proxying support with load balancing
-- **📋 Configurable Headers**: Site-specific HTTP headers (CORS, security, custom headers)
-- **🔒 SSL/TLS Support**: ACME (Let's Encrypt) integration and manual certificate management
-- **🛡️ Security Features**: Security headers, request filtering, and access control
-- **💨 Compression**: Built-in gzip compression for static and dynamic content
-- **📊 Health Monitoring**: Built-in health check endpoints with detailed system information
-- **⚡ Hot Reload**: Configuration changes without server restart
-- **🔧 Cross-Platform**: Linux, macOS, and Windows support with static linking options
+### 🛡️ **Memory Safety First**
+- **Zero Buffer Overflows**: Rust's ownership system prevents memory corruption at compile time
+- **Eliminated Use-After-Free**: No dangling pointers or memory access violations
+- **Data Race Protection**: Safe concurrent access guaranteed by Rust's type system
+- **Predictable Performance**: No garbage collection pauses or unpredictable latency spikes
+
+### ⚡ **Enterprise Performance**
+- **Production-Grade Foundation**: Built on Pingora, serving billions of requests at Cloudflare
+- **Zero-Copy Operations**: Efficient memory handling with minimal allocations
+- **Async-First Architecture**: Non-blocking I/O for maximum throughput
+- **Optimized Binary**: Native compilation with aggressive optimizations
+
+### 🔒 **SSL/TLS Excellence**
+- **Automatic Certificate Management**: Let's Encrypt integration with zero-downtime renewal
+- **Perfect Forward Secrecy**: Modern TLS configurations for maximum security
+- **SNI Support**: Multiple certificates per instance for different domains
+- **ACME Protocol**: Industry-standard automatic certificate provisioning
+
+### 🌐 **Advanced Networking**
+- **Multi-Site Hosting**: Host multiple websites with independent configurations
+- **Intelligent Load Balancing**: Round-robin, weighted, and least-connections algorithms
+- **WebSocket Proxying**: Full WebSocket support with load balancing
+- **Header Management**: Flexible request/response header manipulation
+- **Path-Based Routing**: Sophisticated URL routing and rewriting
+
+### 🔧 **Operations Excellence**
+- **Hot Configuration Reload**: Update settings without service interruption
+- **Comprehensive Monitoring**: Built-in health checks and metrics endpoints
+- **Docker Ready**: Multi-architecture container images for easy deployment
+- **Cross-Platform**: Native binaries for Linux, macOS, and Windows
 
 ## 📦 Installation
 
