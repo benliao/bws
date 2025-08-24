@@ -2,8 +2,8 @@ use bws_web_server::{ServerConfig, WebServerService};
 use clap::Parser;
 #[cfg(unix)]
 use daemonize::Daemonize;
-use pingora::listeners::tls::TlsSettings;
 use pingora::prelude::*;
+use pingora::listeners::tls::TlsSettings;
 #[cfg(unix)]
 use std::fs::File;
 
@@ -49,7 +49,11 @@ fn main() {
     // Initialize Rustls crypto provider
     rustls::crypto::aws_lc_rs::default_provider()
         .install_default()
-        .expect("Failed to install default crypto provider");
+        .map_err(|e| {
+            eprintln!("Failed to install default crypto provider: {e:?}");
+            std::process::exit(1);
+        })
+        .unwrap();
 
     // Handle daemon mode (Unix only)
     #[cfg(unix)]
@@ -59,10 +63,13 @@ fn main() {
         println!("Log file: {}", cli.log_file);
 
         let stdout = File::create(&cli.log_file).unwrap_or_else(|e| {
-            eprintln!("Failed to create log file '{}': {}", cli.log_file, e);
+            eprintln!("Failed to create log file '{}': {e}", cli.log_file);
             std::process::exit(1);
         });
-        let stderr = stdout.try_clone().unwrap();
+        let stderr = stdout.try_clone().unwrap_or_else(|e| {
+            eprintln!("Failed to clone log file handle: {e}");
+            std::process::exit(1);
+        });
 
         let daemonize = Daemonize::new()
             .pid_file(&cli.pid_file)
@@ -77,7 +84,7 @@ fn main() {
                 log::info!("BWS server daemonized successfully");
             }
             Err(e) => {
-                eprintln!("Error starting daemon: {}", e);
+                eprintln!("Error starting daemon: {e}");
                 std::process::exit(1);
             }
         }
@@ -93,10 +100,8 @@ fn main() {
     }
 
     // Load configuration from specified file
-    let config = ServerConfig::load_from_file(&cli.config).unwrap_or_else(|e| {
-        eprintln!("Failed to load config file '{}': {}", cli.config, e);
-        eprintln!("Make sure the config file exists and is properly formatted.");
-        eprintln!("Use --help for more information.");
+        let config = ServerConfig::load_from_file(&cli.config).unwrap_or_else(|e| {
+        eprintln!("Failed to load configuration from '{}': {e}", cli.config);
         std::process::exit(1);
     });
 
@@ -115,7 +120,10 @@ fn main() {
         }
     }
 
-    let mut my_server = Server::new(None).unwrap();
+    let mut my_server = Server::new(None).unwrap_or_else(|e| {
+        eprintln!("Failed to create server: {e}");
+        std::process::exit(1);
+    });
 
     // Create the main web service instance
     let web_service = WebServerService::new(config.clone());
@@ -128,31 +136,33 @@ fn main() {
                 .ssl
                 .acme
                 .as_ref()
-                .map(|acme| acme.enabled)
-                .unwrap_or(false)
+                .is_some_and(|acme| acme.enabled)
     });
 
     if has_acme_enabled {
         // Check if we already have a service listening on port 80
         let has_port_80 = config.sites.iter().any(|site| site.port == 80);
 
-        if !has_port_80 {
+        if has_port_80 {
+            log::info!("Port 80 already configured for ACME challenges");
+        } else {
             log::info!("Creating dedicated HTTP challenge service on port 80 for ACME validation");
             let mut acme_service =
                 pingora::proxy::http_proxy_service(&my_server.configuration, web_service.clone());
             acme_service.add_tcp("0.0.0.0:80");
             my_server.add_service(acme_service);
-        } else {
-            log::info!("Port 80 already configured for ACME challenges");
         }
     }
 
     // Pre-initialize SSL certificates for ACME-enabled sites
     if has_acme_enabled {
         log::info!("Initializing ACME certificates before starting server...");
-        let runtime = tokio::runtime::Runtime::new().unwrap();
+        let runtime = tokio::runtime::Runtime::new().unwrap_or_else(|e| {
+            log::error!("Failed to create async runtime for SSL initialization: {e}");
+            std::process::exit(1);
+        });
         if let Err(e) = runtime.block_on(web_service.initialize_ssl_managers()) {
-            log::error!("Failed to initialize SSL managers: {}", e);
+            log::error!("Failed to initialize SSL managers: {e}");
             log::warn!("Server will start without HTTPS support until certificates are obtained");
         } else {
             log::info!("SSL managers initialized successfully");
@@ -202,7 +212,7 @@ fn main() {
                     "Certificates not found for site '{}' - serving HTTP only",
                     site.name
                 );
-                log::info!("Expected: {} and {}", cert_path, key_path);
+                log::info!("Expected: {cert_path} and {key_path}");
                 proxy_service.add_tcp(&listen_addr);
             }
         } else {
@@ -211,7 +221,7 @@ fn main() {
             log::info!("HTTP listener configured for site '{}'", site.name);
         }
 
-        log::info!("Starting service '{}' on {}", service_name, listen_addr);
+        log::info!("Starting service '{service_name}' on {listen_addr}");
         my_server.add_service(proxy_service);
     }
 
@@ -295,10 +305,13 @@ fn main() {
 
     // Start certificate monitoring and renewal in background
     if has_acme_enabled {
-        let web_service_for_monitoring = web_service.clone();
+        let web_service_for_monitoring = web_service;
         std::thread::spawn(move || {
             log::info!("Starting certificate monitoring and auto-renewal service...");
-            let runtime = tokio::runtime::Runtime::new().unwrap();
+            let runtime = tokio::runtime::Runtime::new().unwrap_or_else(|e| {
+                log::error!("Failed to create async runtime for certificate monitoring: {e}");
+                panic!("Cannot start certificate monitoring without async runtime");
+            });
 
             loop {
                 // Check and renew certificates every hour
@@ -307,7 +320,7 @@ fn main() {
                 if let Err(e) =
                     runtime.block_on(web_service_for_monitoring.check_and_renew_certificates())
                 {
-                    log::error!("Certificate renewal check failed: {}", e);
+                    log::error!("Certificate renewal check failed: {e}");
                 } else {
                     log::debug!("Certificate renewal check completed successfully");
                 }

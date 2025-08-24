@@ -241,8 +241,7 @@ impl SslManager {
                 key_path.clone(),
                 &cert_pem,
                 true, // auto_renew enabled for ACME certificates
-            )
-            .await?;
+            )?;
 
             // Save certificate files
             log::info!("Saving certificate and private key files...");
@@ -511,10 +510,10 @@ impl SslManager {
         if let Some(certificate) = store.get_certificate(domain) {
             match certificate.get_rustls_config().await {
                 Ok(config) => Ok(config),
-                Err(e) => Err(format!("Failed to create rustls config: {}", e).into()),
+                Err(e) => Err(format!("Failed to create rustls config: {e}").into()),
             }
         } else {
-            Err(format!("No certificate found for domain: {}", domain).into())
+            Err(format!("No certificate found for domain: {domain}").into())
         }
     }
 
@@ -525,6 +524,11 @@ impl SslManager {
     }
 
     /// Get certificate expiry date for a domain
+    /// Get certificate expiry date for a domain
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the certificate cannot be parsed or accessed.
     pub async fn get_certificate_expiry(
         &self,
         domain: &str,
@@ -535,20 +539,27 @@ impl SslManager {
     }
 
     /// Renew certificate for a domain
+    /// Renew certificate for a specific domain (public method)
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if certificate renewal fails or if ACME client is not initialized.
     pub async fn renew_certificate_public(
         &self,
         domain: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         if let Some(acme_client) = &self.acme_client {
-            let client = acme_client.write().await;
-            let (cert_pem, key_pem) = client.obtain_certificate(&[domain.to_string()]).await?;
+            let (cert_pem, key_pem) = {
+                let client = acme_client.write().await;
+                client.obtain_certificate(&[domain.to_string()]).await?
+            };
 
             // Save certificate files
             let cert_dir = std::path::Path::new(&self.config.cert_dir);
             tokio::fs::create_dir_all(cert_dir).await?;
 
-            let cert_path = cert_dir.join(format!("{}.crt", domain));
-            let key_path = cert_dir.join(format!("{}.key", domain));
+            let cert_path = cert_dir.join(format!("{domain}.crt"));
+            let key_path = cert_dir.join(format!("{domain}.key"));
 
             tokio::fs::write(&cert_path, &cert_pem).await?;
             tokio::fs::write(&key_path, &key_pem).await?;
@@ -568,12 +579,12 @@ impl SslManager {
                     // Note: Save functionality will be added later if needed
                 }
                 Err(e) => {
-                    log::error!("Failed to create certificate object for {}: {}", domain, e);
-                    return Err(format!("Failed to create certificate object: {}", e).into());
+                    log::error!("Failed to create certificate object for {domain}: {e}");
+                    return Err(format!("Failed to create certificate object: {e}").into());
                 }
             }
 
-            log::info!("Successfully renewed certificate for domain: {}", domain);
+            log::info!("Successfully renewed certificate for domain: {domain}");
             Ok(())
         } else {
             Err("ACME client not initialized".into())
@@ -581,6 +592,10 @@ impl SslManager {
     }
 
     /// Check and renew certificate for a specific domain (public method)
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if certificate renewal fails or if ACME client is not initialized.
     pub async fn check_and_renew_certificate(
         &self,
         domain: &str,
@@ -588,11 +603,7 @@ impl SslManager {
         // Check if certificate needs renewal
         let needs_renewal = {
             let store = self.certificate_store.read().await;
-            if let Some(cert) = store.get_certificate(domain) {
-                cert.needs_renewal(self.config.renewal_days_before_expiry)
-            } else {
-                true // No certificate means we need to obtain one
-            }
+            store.get_certificate(domain).map_or(true, |cert| cert.needs_renewal(self.config.renewal_days_before_expiry))
         };
 
         if needs_renewal {
@@ -616,6 +627,11 @@ impl SslManager {
 
 // Configuration validation
 impl SslConfig {
+    /// Validate SSL manager configuration
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if the configuration is invalid.
     pub fn validate(&self) -> Result<(), Box<dyn std::error::Error>> {
         if !self.enabled {
             return Ok(());
@@ -638,17 +654,17 @@ impl SslConfig {
 
         for (domain, manual_config) in &self.manual_certs {
             if !is_valid_domain(domain) {
-                return Err(format!("Invalid domain name in manual_certs: {}", domain).into());
+                return Err(format!("Invalid domain name in manual_certs: {domain}").into());
             }
 
             if manual_config.cert_file.is_empty() {
                 return Err(
-                    format!("Certificate file path required for domain: {}", domain).into(),
+                    format!("Certificate file path required for domain: {domain}").into(),
                 );
             }
 
             if manual_config.key_file.is_empty() {
-                return Err(format!("Key file path required for domain: {}", domain).into());
+                return Err(format!("Key file path required for domain: {domain}").into());
             }
         }
 

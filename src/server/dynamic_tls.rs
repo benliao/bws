@@ -71,7 +71,7 @@ impl DynamicTlsHandler {
     }
 
     /// Start background task to monitor for certificate updates
-    pub async fn start_certificate_monitor(&self, domains: Vec<String>) {
+    pub fn start_certificate_monitor(&self, domains: Vec<String>) {
         let ssl_managers = self.ssl_managers.clone();
         let handler = Self {
             ssl_managers: ssl_managers.clone(),

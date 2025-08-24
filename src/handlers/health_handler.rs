@@ -70,7 +70,7 @@ impl HealthHandler {
 
     async fn handle_readiness(&self, session: &mut Session) -> Result<()> {
         // Check if the service is ready to accept requests
-        let is_ready = self.check_readiness().await;
+        let is_ready = self.check_readiness();
 
         let status_code = if is_ready { 200 } else { 503 };
         let response = serde_json::json!({
@@ -89,7 +89,7 @@ impl HealthHandler {
 
     async fn handle_liveness(&self, session: &mut Session) -> Result<()> {
         // Check if the service is alive and functioning
-        let is_alive = self.check_liveness().await;
+        let is_alive = self.check_liveness();
 
         let status_code = if is_alive { 200 } else { 503 };
         let response = serde_json::json!({
@@ -102,13 +102,13 @@ impl HealthHandler {
             .await
     }
 
-    async fn check_readiness(&self) -> bool {
+    fn check_readiness(&self) -> bool {
         // Implement readiness checks here
         // For now, assume always ready
         true
     }
 
-    async fn check_liveness(&self) -> bool {
+    fn check_liveness(&self) -> bool {
         // Implement liveness checks here
         // For now, assume always alive
         true
@@ -224,6 +224,6 @@ mod tests {
     #[tokio::test]
     async fn test_liveness_check() {
         let handler = HealthHandler::new();
-        assert!(handler.check_liveness().await);
+        assert!(handler.check_liveness());
     }
 }

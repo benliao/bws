@@ -46,7 +46,7 @@ impl AcmeClient {
     }
 
     /// Initialize the ACME client by creating or loading an account
-    pub async fn initialize(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub fn initialize(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         if !self.config.enabled {
             return Ok(());
         }
@@ -229,7 +229,7 @@ impl AcmeClient {
 
     async fn wait_for_challenge_validation(
         &self,
-        account: &mut Account,
+        account: &Account,
         order: &mut instant_acme::Order,
         domain: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -290,7 +290,7 @@ impl AcmeClient {
 
     async fn wait_for_order_ready(
         &self,
-        account: &mut Account,
+        account: &Account,
         order: &mut instant_acme::Order,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         for _ in 0..30 {
@@ -317,7 +317,7 @@ impl AcmeClient {
 
     async fn wait_for_certificate(
         &self,
-        account: &mut Account,
+        account: &Account,
         order: &mut instant_acme::Order,
     ) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
         for _ in 0..30 {

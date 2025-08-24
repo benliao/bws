@@ -12,7 +12,7 @@ impl CertificateWatcher {
         Self { cert_dir, domains }
     }
 
-    pub async fn start_watching(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn start_watching(&self) -> Result<(), Box<dyn std::error::Error>> {
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
 
         let mut watcher = RecommendedWatcher::new(

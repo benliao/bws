@@ -49,7 +49,7 @@ impl Certificate {
         })
     }
 
-    pub async fn from_pem_data(
+    pub fn from_pem_data(
         domain: String,
         cert_path: PathBuf,
         key_path: PathBuf,

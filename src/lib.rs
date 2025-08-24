@@ -14,11 +14,17 @@ pub use ssl::{AcmeConfig, SslManager};
 use std::fs;
 
 // Legacy function for backward compatibility
+/// Read file contents as bytes
+/// 
+/// # Errors
+/// 
+/// Returns an IO error if the file cannot be read.
 pub fn read_file_bytes(file_path: &str) -> std::io::Result<Vec<u8>> {
     fs::read(file_path)
 }
 
 // Legacy function for backward compatibility
+#[must_use]
 pub fn get_mime_type(file_path: &str) -> &'static str {
     let path = std::path::Path::new(file_path);
     match path.extension().and_then(|ext| ext.to_str()) {

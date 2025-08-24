@@ -1,4 +1,4 @@
-use crate::ssl::{certificate::*, manager::*};
+use crate::ssl::{certificate::Certificate, manager::{SslManager, SslConfig}};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::time::{interval, Duration};
@@ -11,7 +11,8 @@ pub struct RenewalScheduler {
 }
 
 impl RenewalScheduler {
-    pub fn new(
+    #[must_use]
+    pub const fn new(
         ssl_manager: Arc<SslManager>,
         check_interval_hours: u64,
         renewal_days_before_expiry: i64,
@@ -36,7 +37,7 @@ impl RenewalScheduler {
             interval_timer.tick().await;
 
             if let Err(e) = self.check_and_schedule_renewals().await {
-                log::error!("Error during renewal check: {}", e);
+                log::error!("Error during renewal check: {e}");
             }
         }
     }
@@ -95,14 +96,11 @@ impl RenewalScheduler {
 
         // Check if this is a fresh certificate that we haven't checked recently
         // This helps catch certificates that were manually installed
-        if let Some(last_check) = cert.last_renewal_check {
+        cert.last_renewal_check.map_or(true, |last_check| {
             let hours_since_check = (Utc::now() - last_check).num_hours();
             // Only check again if it's been more than the check interval
-            hours_since_check >= self.check_interval_hours as i64
-        } else {
-            // Never checked before, so check now
-            true
-        }
+            hours_since_check >= i64::try_from(self.check_interval_hours).unwrap_or(24)
+        })
     }
 
     async fn attempt_renewal(&self, cert: &Certificate) -> Result<(), Box<dyn std::error::Error>> {
@@ -137,16 +135,21 @@ impl RenewalScheduler {
         Ok(())
     }
 
+    /// Force certificate renewal for a domain
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if certificate renewal fails.
     pub async fn force_renewal(&self, domain: &str) -> Result<(), Box<dyn std::error::Error>> {
-        log::info!("Forcing certificate renewal for domain: {}", domain);
+        log::info!("Forcing certificate renewal for domain: {domain}");
 
         let success = self.ssl_manager.ensure_certificate(domain).await?;
 
         if success {
-            log::info!("Forced renewal completed successfully for {}", domain);
+            log::info!("Forced renewal completed successfully for {domain}");
             Ok(())
         } else {
-            Err(format!("Failed to force renewal for domain: {}", domain).into())
+            Err(format!("Failed to force renewal for domain: {domain}").into())
         }
     }
 
@@ -208,6 +211,7 @@ pub struct RenewalService {
 }
 
 impl RenewalService {
+    #[must_use] 
     pub fn new(ssl_manager: Arc<SslManager>, config: &SslConfig) -> Self {
         let scheduler = RenewalScheduler::new(
             ssl_manager,
@@ -222,6 +226,11 @@ impl RenewalService {
         self.scheduler.start().await;
     }
 
+    /// Force certificate renewal for a domain
+    /// 
+    /// # Errors
+    /// 
+    /// Returns an error if certificate renewal fails.
     pub async fn force_renewal(&self, domain: &str) -> Result<(), Box<dyn std::error::Error>> {
         self.scheduler.force_renewal(domain).await
     }
@@ -232,7 +241,8 @@ impl RenewalService {
 }
 
 // Helper functions for renewal logic
-pub fn calculate_renewal_urgency(days_until_expiry: i64) -> RenewalUrgency {
+#[must_use]
+pub const fn calculate_renewal_urgency(days_until_expiry: i64) -> RenewalUrgency {
     match days_until_expiry {
         d if d <= 0 => RenewalUrgency::Expired,
         d if d <= 7 => RenewalUrgency::Critical,
@@ -242,7 +252,7 @@ pub fn calculate_renewal_urgency(days_until_expiry: i64) -> RenewalUrgency {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RenewalUrgency {
     Expired,
     Critical, // <= 7 days
@@ -252,20 +262,22 @@ pub enum RenewalUrgency {
 }
 
 impl RenewalUrgency {
-    pub fn as_str(&self) -> &'static str {
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
         match self {
-            RenewalUrgency::Expired => "expired",
-            RenewalUrgency::Critical => "critical",
-            RenewalUrgency::High => "high",
-            RenewalUrgency::Medium => "medium",
-            RenewalUrgency::Low => "low",
+            Self::Expired => "expired",
+            Self::Critical => "critical",
+            Self::High => "high",
+            Self::Medium => "medium",
+            Self::Low => "low",
         }
     }
 
-    pub fn should_renew_now(&self) -> bool {
+    #[must_use]
+    pub const fn should_renew_now(&self) -> bool {
         matches!(
             self,
-            RenewalUrgency::Expired | RenewalUrgency::Critical | RenewalUrgency::High
+            Self::Expired | Self::Critical | Self::High
         )
     }
 }
