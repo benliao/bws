@@ -21,7 +21,7 @@ pub enum HttpMethod {
 
 impl std::str::FromStr for HttpMethod {
     type Err = String;
-    
+
     fn from_str(method: &str) -> Result<Self, Self::Err> {
         match method.to_uppercase().as_str() {
             "GET" => Ok(HttpMethod::Get),
@@ -186,37 +186,37 @@ pub mod constants {
 
     /// Default HTTP port
     pub const DEFAULT_HTTP_PORT: u16 = 8080;
-    
+
     /// Default HTTPS port
     pub const DEFAULT_HTTPS_PORT: u16 = 8443;
-    
+
     /// Default buffer size for file operations
     pub const DEFAULT_BUFFER_SIZE: usize = 8192;
-    
+
     /// Maximum file size for static file serving (10MB)
     pub const MAX_STATIC_FILE_SIZE: u64 = 10 * 1024 * 1024;
-    
+
     /// Default connection timeout
     pub const DEFAULT_CONNECTION_TIMEOUT: Duration = Duration::from_secs(30);
-    
+
     /// Default read timeout
     pub const DEFAULT_READ_TIMEOUT: Duration = Duration::from_secs(60);
-    
+
     /// Default write timeout
     pub const DEFAULT_WRITE_TIMEOUT: Duration = Duration::from_secs(60);
-    
+
     /// Certificate renewal threshold (30 days)
     pub const CERT_RENEWAL_THRESHOLD: Duration = Duration::from_secs(30 * 24 * 60 * 60);
-    
+
     /// Health check interval
     pub const HEALTH_CHECK_INTERVAL: Duration = Duration::from_secs(30);
-    
+
     /// Maximum number of concurrent connections per upstream
     pub const DEFAULT_MAX_CONNECTIONS: usize = 100;
-    
+
     /// BWS version for headers
     pub const BWS_VERSION: &str = env!("CARGO_PKG_VERSION");
-    
+
     /// BWS user agent
     pub const BWS_USER_AGENT: &str = concat!("BWS/", env!("CARGO_PKG_VERSION"));
 }

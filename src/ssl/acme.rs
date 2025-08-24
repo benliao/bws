@@ -435,8 +435,7 @@ mod tests {
         assert!(response.is_some(), "Challenge response should be found");
         if let Some(response_content) = response {
             assert_eq!(
-                response_content,
-                test_key_auth,
+                response_content, test_key_auth,
                 "Challenge response content should match"
             );
         }

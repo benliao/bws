@@ -171,11 +171,11 @@ impl WebSocketProxyHandler {
                                 return Ok(false);
                             }
                         };
-                        
+
                         if let Err(e) = resp.insert_header("Content-Type", "text/plain") {
                             error!("Failed to insert content-type header: {}", e);
                         }
-                        
+
                         if let Err(e) = session.write_response_header(Box::new(resp), false).await {
                             error!("Failed to send error response: {}", e);
                         }
@@ -278,18 +278,20 @@ impl WebSocketProxyHandler {
             Ok(r) => r,
             Err(e) => {
                 error!("Failed to build WebSocket upgrade response: {}", e);
-                return Err(pingora::Error::new_str("Failed to build WebSocket response"));
+                return Err(pingora::Error::new_str(
+                    "Failed to build WebSocket response",
+                ));
             }
         };
-        
+
         if let Err(e) = resp_builder.insert_header("Upgrade", "websocket") {
             error!("Failed to insert Upgrade header: {}", e);
         }
-        
+
         if let Err(e) = resp_builder.insert_header("Connection", "Upgrade") {
             error!("Failed to insert Connection header: {}", e);
         }
-        
+
         if let Err(e) = resp_builder.insert_header("Sec-WebSocket-Accept", &ws_accept) {
             error!("Failed to insert Sec-WebSocket-Accept header: {}", e);
         }

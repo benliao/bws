@@ -11,31 +11,31 @@ use std::io;
 pub enum BwsError {
     /// IO related errors (file operations, network, etc.)
     Io(io::Error),
-    
+
     /// Configuration related errors
     Config(String),
-    
+
     /// SSL/TLS certificate errors
     Certificate(String),
-    
+
     /// HTTP request/response errors
     Http(String),
-    
+
     /// Proxy operation errors
     Proxy(String),
-    
+
     /// Authentication/authorization errors
     Auth(String),
-    
+
     /// Internal server errors
     Internal(String),
-    
+
     /// Validation errors for input data
     Validation(String),
-    
+
     /// Resource not found errors
     NotFound(String),
-    
+
     /// Rate limiting errors
     RateLimit(String),
 }
@@ -100,7 +100,7 @@ where
         self.map_err(|e| {
             let base_error = e.into();
             let context = f();
-            
+
             match base_error {
                 BwsError::Internal(msg) => BwsError::Internal(format!("{}: {}", context, msg)),
                 other => BwsError::Internal(format!("{}: {}", context, other)),

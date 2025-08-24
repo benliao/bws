@@ -40,7 +40,7 @@ pub mod string {
     /// Parse human-readable size to bytes
     pub fn parse_size(input: &str) -> Option<u64> {
         let input = input.trim().to_uppercase();
-        
+
         if let Ok(bytes) = input.parse::<u64>() {
             return Some(bytes);
         }
@@ -98,9 +98,7 @@ pub mod fs {
                     // Check for dangerous filenames
                     let name_str = name.to_string_lossy();
                     if name_str.contains('\0') {
-                        return Err(BwsError::Validation(
-                            "Path contains null byte".to_string()
-                        ));
+                        return Err(BwsError::Validation("Path contains null byte".to_string()));
                     }
                     normalized.push(name);
                 }
@@ -125,12 +123,9 @@ pub mod fs {
     /// Check if a file extension is allowed for static serving
     pub fn is_safe_extension(extension: &str) -> bool {
         const SAFE_EXTENSIONS: &[&str] = &[
-            "html", "htm", "css", "js", "json", "xml",
-            "txt", "md", "pdf", "doc", "docx",
-            "jpg", "jpeg", "png", "gif", "svg", "webp",
-            "mp3", "mp4", "wav", "avi", "mov",
-            "zip", "tar", "gz", "woff", "woff2", "ttf",
-            "ico", "manifest", "map", "wasm"
+            "html", "htm", "css", "js", "json", "xml", "txt", "md", "pdf", "doc", "docx", "jpg",
+            "jpeg", "png", "gif", "svg", "webp", "mp3", "mp4", "wav", "avi", "mov", "zip", "tar",
+            "gz", "woff", "woff2", "ttf", "ico", "manifest", "map", "wasm",
         ];
 
         SAFE_EXTENSIONS.contains(&extension.to_lowercase().as_str())
@@ -197,12 +192,8 @@ pub mod net {
     /// Check if an IP address is in a private range
     pub fn is_private_ip(ip: &IpAddr) -> bool {
         match ip {
-            IpAddr::V4(ipv4) => {
-                ipv4.is_private() || ipv4.is_loopback() || ipv4.is_link_local()
-            }
-            IpAddr::V6(ipv6) => {
-                ipv6.is_loopback() || ((ipv6.segments()[0] & 0xfe00) == 0xfc00)
-            }
+            IpAddr::V4(ipv4) => ipv4.is_private() || ipv4.is_loopback() || ipv4.is_link_local(),
+            IpAddr::V6(ipv6) => ipv6.is_loopback() || ((ipv6.segments()[0] & 0xfe00) == 0xfc00),
         }
     }
 
@@ -257,7 +248,7 @@ mod tests {
     fn test_normalize_path() {
         let path = fs::normalize_path("../test/../file.txt").unwrap();
         assert_eq!(path, PathBuf::from("file.txt"));
-        
+
         let path = fs::normalize_path("./folder/./file.txt").unwrap();
         assert_eq!(path, PathBuf::from("folder/file.txt"));
     }

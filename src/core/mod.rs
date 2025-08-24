@@ -10,7 +10,7 @@ pub mod utils;
 // Re-export commonly used items
 pub use error::{BwsError, BwsResult, ErrorContext};
 pub use types::{
-    constants, CacheControl, CompressionAlgorithm, HealthStatus, HttpMethod,
-    LoadBalancingStrategy, Priority, RateLimit, SecurityHeaders, SslMode,
+    constants, CacheControl, CompressionAlgorithm, HealthStatus, HttpMethod, LoadBalancingStrategy,
+    Priority, RateLimit, SecurityHeaders, SslMode,
 };
 pub use utils::{fs, net, string, time};

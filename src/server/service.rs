@@ -101,7 +101,7 @@ impl WebServerService {
                 "Starting certificate renewal monitoring for {} ACME-enabled domains",
                 acme_managers_count
             );
-            
+
             // Start background certificate renewal monitoring
             for (domain, manager) in ssl_managers.iter() {
                 if manager.is_auto_cert_enabled() {
@@ -109,11 +109,17 @@ impl WebServerService {
                     let domain_clone = domain.clone();
                     tokio::spawn(async move {
                         // Check certificates every hour
-                        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(3600));
+                        let mut interval =
+                            tokio::time::interval(tokio::time::Duration::from_secs(3600));
                         loop {
                             interval.tick().await;
-                            if let Err(e) = manager_clone.check_and_renew_certificate(&domain_clone).await {
-                                log::error!("Certificate renewal check failed for {domain_clone}: {e}");
+                            if let Err(e) = manager_clone
+                                .check_and_renew_certificate(&domain_clone)
+                                .await
+                            {
+                                log::error!(
+                                    "Certificate renewal check failed for {domain_clone}: {e}"
+                                );
                             }
                         }
                     });

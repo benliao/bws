@@ -70,22 +70,22 @@ impl StaticFileHandler {
 
         // Remove leading slash for joining with static_dir
         let clean = path.strip_prefix('/').unwrap_or(path);
-        
+
         // Normalize path separators and remove dangerous sequences
         let clean = clean.replace('\\', "/"); // Normalize Windows paths
         let clean = clean.replace("//", "/"); // Remove double slashes
-        
+
         // Split path and filter out dangerous components
         let components: Vec<&str> = clean
             .split('/')
             .filter(|component| {
-                !component.is_empty() 
-                && *component != "." 
-                && *component != ".."
-                && !component.contains('\0') // Null byte injection protection
+                !component.is_empty()
+                    && *component != "."
+                    && *component != ".."
+                    && !component.contains('\0') // Null byte injection protection
             })
             .collect();
-            
+
         components.join("/")
     }
 
@@ -98,7 +98,11 @@ impl StaticFileHandler {
                 // Additional security check: file size limit (100MB max)
                 const MAX_FILE_SIZE: u64 = 100 * 1024 * 1024;
                 if metadata.len() > MAX_FILE_SIZE {
-                    log::warn!("File too large, rejecting: {} ({} bytes)", file_path, metadata.len());
+                    log::warn!(
+                        "File too large, rejecting: {} ({} bytes)",
+                        file_path,
+                        metadata.len()
+                    );
                     return false;
                 }
                 return true;
@@ -320,7 +324,7 @@ impl StaticFileHandler {
                 Ok(path) => path,
                 Err(_) => return false,
             };
-            
+
             // For non-existent files, check if the parent directory is safe
             let mut check_path = requested_path.clone();
             while let Some(parent) = check_path.parent() {
@@ -329,7 +333,7 @@ impl StaticFileHandler {
                 }
                 check_path = parent.to_path_buf();
             }
-            
+
             false
         }
     }
@@ -386,15 +390,18 @@ mod tests {
         assert_eq!(handler.clean_path("/test/../../../secret"), "test/secret"); // ".." filtered out, leaving "test" and "secret"
         assert_eq!(handler.clean_path("./test.html"), "test.html"); // "." filtered out
         assert_eq!(handler.clean_path("/./test/../file.css"), "test/file.css"); // "." and ".." filtered out
-        
+
         // Test null byte injection protection
         assert_eq!(handler.clean_path("/test\0.html"), ""); // Component with null byte is filtered out
-        
+
         // Test double slash normalization
         assert_eq!(handler.clean_path("//test//file.js"), "test/file.js");
-        
+
         // Test Windows path normalization
-        assert_eq!(handler.clean_path("/path\\to\\file.css"), "path/to/file.css");
+        assert_eq!(
+            handler.clean_path("/path\\to\\file.css"),
+            "path/to/file.css"
+        );
     }
 
     #[test]

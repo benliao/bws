@@ -525,9 +525,9 @@ impl SslManager {
 
     /// Get certificate expiry date for a domain
     /// Get certificate expiry date for a domain
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if the certificate cannot be parsed or accessed.
     pub async fn get_certificate_expiry(
         &self,
@@ -540,9 +540,9 @@ impl SslManager {
 
     /// Renew certificate for a domain
     /// Renew certificate for a specific domain (public method)
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if certificate renewal fails or if ACME client is not initialized.
     pub async fn renew_certificate_public(
         &self,
@@ -592,9 +592,9 @@ impl SslManager {
     }
 
     /// Check and renew certificate for a specific domain (public method)
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if certificate renewal fails or if ACME client is not initialized.
     pub async fn check_and_renew_certificate(
         &self,
@@ -603,7 +603,9 @@ impl SslManager {
         // Check if certificate needs renewal
         let needs_renewal = {
             let store = self.certificate_store.read().await;
-            store.get_certificate(domain).is_none_or(|cert| cert.needs_renewal(self.config.renewal_days_before_expiry))
+            store
+                .get_certificate(domain)
+                .is_none_or(|cert| cert.needs_renewal(self.config.renewal_days_before_expiry))
         };
 
         if needs_renewal {
@@ -628,9 +630,9 @@ impl SslManager {
 // Configuration validation
 impl SslConfig {
     /// Validate SSL manager configuration
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if the configuration is invalid.
     pub fn validate(&self) -> Result<(), Box<dyn std::error::Error>> {
         if !self.enabled {
@@ -658,9 +660,7 @@ impl SslConfig {
             }
 
             if manual_config.cert_file.is_empty() {
-                return Err(
-                    format!("Certificate file path required for domain: {domain}").into(),
-                );
+                return Err(format!("Certificate file path required for domain: {domain}").into());
             }
 
             if manual_config.key_file.is_empty() {

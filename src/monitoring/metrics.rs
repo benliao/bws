@@ -14,19 +14,19 @@ use std::time::{Duration, Instant};
 pub struct MetricsCollector {
     /// Request counters by status code
     request_counts: Arc<RwLock<HashMap<u16, AtomicU64>>>,
-    
+
     /// Response time histogram
     response_times: Arc<RwLock<Vec<Duration>>>,
-    
+
     /// Active connections counter
     active_connections: AtomicU64,
-    
+
     /// Total bytes served
     bytes_served: AtomicU64,
-    
+
     /// Error counters by type
     error_counts: Arc<RwLock<HashMap<String, AtomicU64>>>,
-    
+
     /// Server start time
     start_time: Instant,
 }
@@ -90,18 +90,30 @@ impl MetricsCollector {
 
     /// Get current metrics snapshot
     pub fn get_metrics(&self) -> BwsResult<MetricsSnapshot> {
-        let request_counts = self.request_counts.read()
-            .map_err(|_| crate::core::BwsError::Internal("Failed to read request counts".to_string()))?
+        let request_counts = self
+            .request_counts
+            .read()
+            .map_err(|_| {
+                crate::core::BwsError::Internal("Failed to read request counts".to_string())
+            })?
             .iter()
             .map(|(k, v)| (*k, v.load(Ordering::Relaxed)))
             .collect();
 
-        let response_times = self.response_times.read()
-            .map_err(|_| crate::core::BwsError::Internal("Failed to read response times".to_string()))?
+        let response_times = self
+            .response_times
+            .read()
+            .map_err(|_| {
+                crate::core::BwsError::Internal("Failed to read response times".to_string())
+            })?
             .clone();
 
-        let error_counts = self.error_counts.read()
-            .map_err(|_| crate::core::BwsError::Internal("Failed to read error counts".to_string()))?
+        let error_counts = self
+            .error_counts
+            .read()
+            .map_err(|_| {
+                crate::core::BwsError::Internal("Failed to read error counts".to_string())
+            })?
             .iter()
             .map(|(k, v)| (k.clone(), v.load(Ordering::Relaxed)))
             .collect();
@@ -155,7 +167,8 @@ impl MetricsCollector {
             Err(_) => return 0.0,
         };
 
-        let total_requests: u64 = request_counts.values()
+        let total_requests: u64 = request_counts
+            .values()
             .map(|v| v.load(Ordering::Relaxed))
             .sum();
 
@@ -163,7 +176,8 @@ impl MetricsCollector {
             return 0.0;
         }
 
-        let error_requests: u64 = request_counts.iter()
+        let error_requests: u64 = request_counts
+            .iter()
             .filter(|(status, _)| **status >= 400)
             .map(|(_, count)| count.load(Ordering::Relaxed))
             .sum();
@@ -183,25 +197,25 @@ impl Default for MetricsCollector {
 pub struct MetricsSnapshot {
     /// Server uptime
     pub uptime: Duration,
-    
+
     /// Request counts by status code
     pub request_counts: HashMap<u16, u64>,
-    
+
     /// Current active connections
     pub active_connections: u64,
-    
+
     /// Total bytes served
     pub bytes_served: u64,
-    
+
     /// Average response time
     pub avg_response_time: Duration,
-    
+
     /// 95th percentile response time
     pub p95_response_time: Duration,
-    
+
     /// Error counts by type
     pub error_counts: HashMap<String, u64>,
-    
+
     /// Overall health status
     pub health_status: HealthStatus,
 }
@@ -237,14 +251,14 @@ mod tests {
     #[test]
     fn test_metrics_collection() {
         let collector = MetricsCollector::new();
-        
+
         // Record some requests
         collector.record_request(200, Duration::from_millis(100), 1024);
         collector.record_request(404, Duration::from_millis(50), 512);
         collector.record_request(500, Duration::from_millis(200), 256);
-        
+
         let metrics = collector.get_metrics().unwrap();
-        
+
         assert_eq!(metrics.request_counts.get(&200), Some(&1));
         assert_eq!(metrics.request_counts.get(&404), Some(&1));
         assert_eq!(metrics.request_counts.get(&500), Some(&1));
@@ -254,11 +268,11 @@ mod tests {
     #[test]
     fn test_connection_tracking() {
         let collector = MetricsCollector::new();
-        
+
         collector.increment_connections();
         collector.increment_connections();
         assert_eq!(collector.active_connections.load(Ordering::Relaxed), 2);
-        
+
         collector.decrement_connections();
         assert_eq!(collector.active_connections.load(Ordering::Relaxed), 1);
     }

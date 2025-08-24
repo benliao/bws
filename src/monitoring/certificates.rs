@@ -1,4 +1,4 @@
-use log::{info, warn, error};
+use log::{error, info, warn};
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::Path;
 use tokio::sync::mpsc;
@@ -11,8 +11,8 @@ pub struct CertificateWatcher {
 
 impl CertificateWatcher {
     pub fn new(cert_dir: String, domains: Vec<String>) -> Self {
-        Self { 
-            cert_dir, 
+        Self {
+            cert_dir,
             domains,
             _watcher: None,
         }
@@ -22,16 +22,14 @@ impl CertificateWatcher {
         let (tx, mut rx) = mpsc::unbounded_channel();
 
         let mut watcher = RecommendedWatcher::new(
-            move |res: Result<Event, notify::Error>| {
-                match res {
-                    Ok(event) => {
-                        if let Err(e) = tx.send(event) {
-                            error!("Failed to send file watcher event: {}", e);
-                        }
+            move |res: Result<Event, notify::Error>| match res {
+                Ok(event) => {
+                    if let Err(e) = tx.send(event) {
+                        error!("Failed to send file watcher event: {}", e);
                     }
-                    Err(e) => {
-                        error!("File watcher error: {}", e);
-                    }
+                }
+                Err(e) => {
+                    error!("File watcher error: {}", e);
                 }
             },
             notify::Config::default(),

@@ -3,8 +3,8 @@ use bws_web_server::server::WebServerService;
 use clap::Parser;
 #[cfg(unix)]
 use daemonize::Daemonize;
-use pingora::prelude::*;
 use pingora::listeners::tls::TlsSettings;
+use pingora::prelude::*;
 #[cfg(unix)]
 use std::fs::File;
 
@@ -48,8 +48,7 @@ fn main() {
     let cli = Cli::parse();
 
     // Initialize Rustls crypto provider
-    if let Err(e) = rustls::crypto::aws_lc_rs::default_provider()
-        .install_default() {
+    if let Err(e) = rustls::crypto::aws_lc_rs::default_provider().install_default() {
         eprintln!("Failed to install default crypto provider: {e:?}");
         std::process::exit(1);
     }
@@ -99,7 +98,7 @@ fn main() {
     }
 
     // Load configuration from specified file
-        let config = ServerConfig::load_from_file(&cli.config).unwrap_or_else(|e| {
+    let config = ServerConfig::load_from_file(&cli.config).unwrap_or_else(|e| {
         eprintln!("Failed to load configuration from '{}': {e}", cli.config);
         std::process::exit(1);
     });
@@ -131,11 +130,7 @@ fn main() {
     let has_acme_enabled = config.sites.iter().any(|site| {
         site.ssl.enabled
             && site.ssl.auto_cert
-            && site
-                .ssl
-                .acme
-                .as_ref()
-                .is_some_and(|acme| acme.enabled)
+            && site.ssl.acme.as_ref().is_some_and(|acme| acme.enabled)
     });
 
     if has_acme_enabled {

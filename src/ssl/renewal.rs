@@ -1,4 +1,7 @@
-use crate::ssl::{certificate::Certificate, manager::{SslManager, SslConfig}};
+use crate::ssl::{
+    certificate::Certificate,
+    manager::{SslConfig, SslManager},
+};
 use chrono::{DateTime, Utc};
 use std::sync::Arc;
 use tokio::time::{interval, Duration};
@@ -136,9 +139,9 @@ impl RenewalScheduler {
     }
 
     /// Force certificate renewal for a domain
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if certificate renewal fails.
     pub async fn force_renewal(&self, domain: &str) -> Result<(), Box<dyn std::error::Error>> {
         log::info!("Forcing certificate renewal for domain: {domain}");
@@ -211,7 +214,7 @@ pub struct RenewalService {
 }
 
 impl RenewalService {
-    #[must_use] 
+    #[must_use]
     pub fn new(ssl_manager: Arc<SslManager>, config: &SslConfig) -> Self {
         let scheduler = RenewalScheduler::new(
             ssl_manager,
@@ -227,9 +230,9 @@ impl RenewalService {
     }
 
     /// Force certificate renewal for a domain
-    /// 
+    ///
     /// # Errors
-    /// 
+    ///
     /// Returns an error if certificate renewal fails.
     pub async fn force_renewal(&self, domain: &str) -> Result<(), Box<dyn std::error::Error>> {
         self.scheduler.force_renewal(domain).await
@@ -275,10 +278,7 @@ impl RenewalUrgency {
 
     #[must_use]
     pub const fn should_renew_now(&self) -> bool {
-        matches!(
-            self,
-            Self::Expired | Self::Critical | Self::High
-        )
+        matches!(self, Self::Expired | Self::Critical | Self::High)
     }
 }
 
