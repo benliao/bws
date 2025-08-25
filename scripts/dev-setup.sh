@@ -144,7 +144,7 @@ EOF
     <h1>BWS Blog Site</h1>
     <div class="post">
         <h2>Welcome to BWS!</h2>
-        <p>This is a sample blog hosted on BWS (Ben's Web Server). BWS supports multiple sites with individual configurations.</p>
+        <p>This is a sample blog hosted on BWS (Blazing Web Server). BWS supports multiple sites with individual configurations.</p>
         <p><strong>Features:</strong> Multi-site hosting, SSL/TLS, load balancing, and more!</p>
     </div>
 </body>

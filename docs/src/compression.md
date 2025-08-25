@@ -1,6 +1,6 @@
 # BWS Compression Documentation
 
-BWS (Ben's Web Server) now supports advanced HTTP response compression using multiple algorithms including Gzip, Deflate, and Brotli compression.
+BWS (Blazing Web Server) now supports advanced HTTP response compression using multiple algorithms including Gzip, Deflate, and Brotli compression.
 
 ## Features
 

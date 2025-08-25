@@ -5,7 +5,11 @@ A memory-safe, high-performance web server and reverse proxy built with Rust. Fe
 
 ## Long Description
 
-**BWS (Ben's Web Server)** is a production-ready web server and reverse proxy that prioritizes memory safety and performance. Built on Cloudflare's Pingora framework with Rust's ownership model, BWS eliminates entire classes of security vulnerabilities while delivering enterprise-grade performance.
+## BWS: Next-Generation Web Infrastructure
+
+**BWS (Blazing Web Server)** is a production-ready web server and reverse proxy that prioritizes memory safety and performance. Built on Cloudflare's Pingora framework with Rust's ownership model, BWS eliminates entire classes of security vulnerabilities while delivering enterprise-grade performance.
+
+## Core Capabilities
 
 ### Key Strengths
 

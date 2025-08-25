@@ -1,4 +1,4 @@
-# 🚀 BWS (Ben's Web Server)
+# 🚀 BWS (Blazing Web Server)
 
 [![CI](https://github.com/benliao/bws/workflows/CI/badge.svg)](https://github.com/benliao/bws/actions)
 [![Security](https://github.com/benliao/bws/workflows/Security/badge.svg)](https://github.com/benliao/bws/actions)

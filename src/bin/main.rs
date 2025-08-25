@@ -11,7 +11,7 @@ use std::fs::File;
 #[derive(Parser)]
 #[command(name = "bws-web-server")]
 #[command(
-    about = "BWS (Ben's Web Server) - A high-performance multi-site web server built with Pingora"
+    about = "BWS (Blazing Web Server) - A high-performance multi-site web server built with Pingora"
 )]
 #[command(version)]
 #[command(

@@ -1,4 +1,4 @@
-//! BWS (Ben's Web Server) - A high-performance multi-site web server
+//! BWS (Blazing Web Server) - A high-performance multi-site web server
 //!
 //! BWS is built with the Pingora framework and provides enterprise-grade
 //! features including SSL/TLS management, load balancing, and security.

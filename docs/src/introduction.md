@@ -1,6 +1,6 @@
 # Introduction
 
-Welcome to **BWS (Ben's Web Server)** - a production-ready, high-performance, multi-site web server built with [Pingora](https://github.com/cloudflare/pingora), Cloudflare's battle-tested proxy framework.
+Welcome to **BWS (Blazing Web Server)** - a production-ready, high-performance, multi-site web server built with [Pingora](https://github.com/cloudflare/pingora), Cloudflare's battle-tested proxy framework.
 
 ## What is BWS?
 
