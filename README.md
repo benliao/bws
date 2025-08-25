@@ -1,16 +1,6 @@
-# 🚀 BWS (Blue Web Server)
+# 🚀 BWS (Ben's Web Server)
 
-[!## ✨ Features
-
-- 🌐 **Multi-Site Hosting** - Multiple websites with individual configurations
-- 🎯 **Multi-Hostname Support** - Handle multiple domains for single site
-- 🔒 **Automatic SSL/TLS** - Let's Encrypt integration with auto-renewal
-- ⚡ **Load Balancing** - Round-robin, weighted, and least-connections algorithms
-- 🔌 **WebSocket Proxy** - Full WebSocket support with load balancing
-- 🗜️ **HTTP Compression** - Gzip, Brotli, and Deflate compression support
-- 📊 **Health Monitoring** - Built-in health checks and metrics
-- 🛡️ **Memory Safety** - Rust eliminates buffer overflows and memory leaks
-- 🔧 **Hot Reload** - Update configuration without downtime://github.com/benliao/bws/workflows/CI/badge.svg)](https://github.com/benliao/bws/actions)
+[![CI](https://github.com/benliao/bws/workflows/CI/badge.svg)](https://github.com/benliao/bws/actions)
 [![Security](https://github.com/benliao/bws/workflows/Security/badge.svg)](https://github.com/benliao/bws/actions)
 [![Crates.io](https://img.shields.io/crates/v/bws-web-server.svg)](https://crates.io/crates/bws-web-server)
 [![Downloads](https://img.shields.io/crates/d/bws-web-server.svg)](https://crates.io/crates/bws-web-server)
@@ -21,11 +11,11 @@ A high-performance, memory-safe web server and reverse proxy built with Rust and
 ## ✨ Features
 
 - 🌐 **Multi-Site Hosting** - Multiple websites with individual configurations
-- 🔗 **Virtual Hosting** - Multiple sites distinguished by hostname on same port
 - 🎯 **Multi-Hostname Support** - Handle multiple domains for single site
 - 🔒 **Automatic SSL/TLS** - Let's Encrypt integration with auto-renewal
 - ⚡ **Load Balancing** - Round-robin, weighted, and least-connections algorithms
 - 🔌 **WebSocket Proxy** - Full WebSocket support with load balancing
+- 🗜️ **HTTP Compression** - Gzip, Brotli, and Deflate compression support
 - 📊 **Health Monitoring** - Built-in health checks and metrics
 - 🛡️ **Memory Safety** - Rust eliminates buffer overflows and memory leaks
 - 🔧 **Hot Reload** - Update configuration without downtime
