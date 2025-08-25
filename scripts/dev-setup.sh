@@ -232,7 +232,7 @@ name = "BWS Development Server"
 name = "main"
 hostname = "localhost"
 port = 8080
-static_dir = "static-dev"
+static_dir = "examples/sites/static-dev"
 default = true
 
 [sites.headers]
@@ -245,7 +245,7 @@ default = true
 name = "blog"
 hostname = "blog.localhost"
 port = 8081
-static_dir = "static-blog"
+static_dir = "examples/sites/static-blog"
 
 [sites.headers]
 "X-Site-Name" = "BWS Dev Blog"
@@ -256,7 +256,7 @@ static_dir = "static-blog"
 name = "api"
 hostname = "api.localhost"
 port = 8082
-static_dir = "static-api"
+static_dir = "examples/sites/static-api"
 api_only = true
 
 [sites.headers]

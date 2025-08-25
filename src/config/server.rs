@@ -199,7 +199,7 @@ impl ServerConfig {
         }
 
         let mut default_sites = 0;
-        let mut used_ports = std::collections::HashSet::new();
+        let mut used_hostname_ports = std::collections::HashSet::new();
 
         for (i, site) in self.sites.iter().enumerate() {
             site.validate().map_err(|e| format!("Site {}: {}", i, e))?;
@@ -208,16 +208,19 @@ impl ServerConfig {
                 default_sites += 1;
             }
 
-            // Check for port conflicts (same hostname and port)
-            let port_key = (&site.hostname, site.port);
-            if used_ports.contains(&port_key) {
-                return Err(format!(
-                    "Duplicate hostname:port combination: {}:{}",
-                    site.hostname, site.port
-                )
-                .into());
+            // Check for hostname:port conflicts across all hostnames for this site
+            // Allow multiple sites on same port with different hostnames (virtual hosting)
+            for hostname in site.get_all_hostnames() {
+                let hostname_port_key = (hostname, site.port);
+                if used_hostname_ports.contains(&hostname_port_key) {
+                    return Err(format!(
+                        "Duplicate hostname:port combination: {}:{}. Each hostname must be unique per port.",
+                        hostname, site.port
+                    )
+                    .into());
+                }
+                used_hostname_ports.insert(hostname_port_key);
             }
-            used_ports.insert(port_key);
         }
 
         if default_sites == 0 {
@@ -280,9 +283,9 @@ impl ServerConfig {
     }
 
     pub fn find_site_by_host_port(&self, host: &str, port: u16) -> Option<&SiteConfig> {
-        // First try to match both hostname and port exactly
+        // First try to match both hostname and port exactly using the new method
         for site in &self.sites {
-            if site.hostname == host && site.port == port {
+            if site.handles_hostname_port(host, port) {
                 return Some(site);
             }
         }
@@ -303,9 +306,12 @@ impl ServerConfig {
             .iter()
             .filter_map(|site| {
                 if site.ssl.enabled {
-                    let mut domains = vec![site.hostname.clone()];
-                    domains.extend(site.ssl.domains.clone());
-                    Some(domains)
+                    Some(
+                        site.get_all_ssl_domains()
+                            .into_iter()
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>(),
+                    )
                 } else {
                     None
                 }
@@ -315,9 +321,9 @@ impl ServerConfig {
     }
 
     pub fn get_site_by_domain(&self, domain: &str) -> Option<&SiteConfig> {
-        self.sites
-            .iter()
-            .find(|site| site.hostname == domain || site.ssl.domains.contains(&domain.to_string()))
+        self.sites.iter().find(|site| {
+            site.handles_hostname(domain) || site.ssl.domains.contains(&domain.to_string())
+        })
     }
 
     pub fn reload_from_file(&mut self, path: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -459,6 +465,7 @@ mod tests {
             sites: vec![SiteConfig {
                 name: "test-site".to_string(),
                 hostname: "localhost".to_string(),
+                hostnames: vec![],
                 port: 8080,
                 static_dir: "/tmp/static".to_string(),
                 default: true,

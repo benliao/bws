@@ -240,7 +240,7 @@ impl WebServerService {
         if port == 80 && path.starts_with("/.well-known/acme-challenge/") {
             // Look for any site with this hostname that has ACME enabled
             for site in &config.sites {
-                if site.hostname == hostname && site.ssl.enabled && site.ssl.auto_cert {
+                if site.handles_hostname(hostname) && site.ssl.enabled && site.ssl.auto_cert {
                     if let Some(acme_config) = &site.ssl.acme {
                         if acme_config.enabled {
                             log::debug!(
@@ -858,6 +858,7 @@ mod tests {
             sites: vec![SiteConfig {
                 name: "test-site".to_string(),
                 hostname: "localhost".to_string(),
+                hostnames: vec![],
                 port: 8080,
                 static_dir: "/tmp/static".to_string(),
                 default: true,

@@ -515,6 +515,130 @@ async fn test_multi_site_configuration() {
 }
 ```
 
+### Virtual Hosting (Shared Port) Testing
+
+BWS supports virtual hosting where multiple sites share the same port but are distinguished by hostname. This is particularly useful for hosting multiple domains on standard ports (80/443).
+
+#### Test Configuration
+
+```toml
+# tests/test_multisite_shared_port.toml
+[server]
+name = "BWS Multi-Site Shared Port Test Server"
+
+# All sites share port 8080 but have different hostnames
+[[sites]]
+name = "main"
+hostname = "www.local.com"
+port = 8080
+static_dir = "examples/sites/static"
+default = true
+
+[sites.headers]
+"X-Site-Name" = "Main Site"
+"X-Port-Sharing" = "enabled"
+
+[[sites]]
+name = "blog"
+hostname = "blog.local.com"
+port = 8080
+static_dir = "examples/sites/static-blog"
+
+[sites.headers]
+"X-Site-Name" = "Blog Site"
+"X-Port-Sharing" = "enabled"
+
+[[sites]]
+name = "api"
+hostname = "api.local.com"
+port = 8080
+static_dir = "examples/sites/static-api"
+
+[sites.headers]
+"X-Site-Name" = "API Documentation"
+"X-Port-Sharing" = "enabled"
+```
+
+#### Running Virtual Hosting Tests
+
+```bash
+# Automated test script
+./tests/test_multisite_shared_port.sh test
+
+# Manual testing with Host headers
+curl -H "Host: www.local.com" http://127.0.0.1:8080
+curl -H "Host: blog.local.com" http://127.0.0.1:8080
+curl -H "Host: api.local.com" http://127.0.0.1:8080
+
+# Check site-specific headers
+curl -I -H "Host: www.local.com" http://127.0.0.1:8080
+```
+
+#### Setting Up Local Testing
+
+For browser testing, add domains to `/etc/hosts`:
+
+```bash
+sudo bash -c 'echo "127.0.0.1 www.local.com blog.local.com api.local.com dev.local.com" >> /etc/hosts'
+```
+
+Then access:
+- http://www.local.com:8080 (Main Site)
+- http://blog.local.com:8080 (Blog)
+- http://api.local.com:8080 (API Docs)
+- http://dev.local.com:8080 (Development)
+
+#### Virtual Hosting Integration Test
+
+```rust
+#[tokio::test]
+async fn test_virtual_hosting_shared_port() {
+    setup_virtual_hosting_sites();
+    
+    let mut child = start_bws_server("test_multisite_shared_port.toml");
+    sleep(Duration::from_secs(2)).await;
+    
+    // Test main site
+    let client = reqwest::Client::new();
+    let response = client
+        .get("http://127.0.0.1:8080/")
+        .header("Host", "www.local.com")
+        .send()
+        .await
+        .unwrap();
+    
+    assert_eq!(response.status(), 200);
+    assert_eq!(response.headers()["x-site-name"], "Main Site");
+    assert_eq!(response.headers()["x-port-sharing"], "enabled");
+    
+    // Test blog site (same port, different hostname)
+    let response = client
+        .get("http://127.0.0.1:8080/")
+        .header("Host", "blog.local.com")
+        .send()
+        .await
+        .unwrap();
+    
+    assert_eq!(response.status(), 200);
+    assert_eq!(response.headers()["x-site-name"], "Blog Site");
+    assert_eq!(response.headers()["x-port-sharing"], "enabled");
+    
+    // Test API site
+    let response = client
+        .get("http://127.0.0.1:8080/")
+        .header("Host", "api.local.com")
+        .send()
+        .await
+        .unwrap();
+    
+    assert_eq!(response.status(), 200);
+    assert_eq!(response.headers()["x-site-name"], "API Documentation");
+    assert_eq!(response.headers()["x-port-sharing"], "enabled");
+    
+    cleanup_virtual_hosting_test(child);
+}
+```
+
 ### WebSocket Proxy Testing
 
 ```rust

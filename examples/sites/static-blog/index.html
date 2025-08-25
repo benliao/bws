@@ -15,7 +15,7 @@
     <div class="container">
         <div class="header">
             <h1>🚀 BWS Blog Site</h1>
-            <p>Served from port 8081 (blog.localhost)</p>
+            <p>Served on shared port 8080 (blog.local.com)</p>
         </div>
         
         <main>
@@ -26,14 +26,14 @@
             </div>
             
             <div class="post">
-                <h2>Multi-Site Architecture</h2>
-                <p><em>Published: August 23, 2025</em></p>
-                <p>The BWS server now supports:</p>
+                <h2>Virtual Hosting Architecture</h2>
+                <p><em>Published: August 26, 2025</em></p>
+                <p>The BWS server now supports virtual hosting where multiple sites share the same port:</p>
                 <ul>
-                    <li>Multiple sites on different ports</li>
-                    <li>Different hostnames for virtual hosting</li>
+                    <li>Multiple sites on the same port (8080)</li>
+                    <li>Different hostnames for site routing</li>
                     <li>Separate static directories per site</li>
-                    <li>Configurable via TOML files</li>
+                    <li>Site-specific headers and configurations</li>
                 </ul>
             </div>
             
@@ -45,7 +45,7 @@
         </main>
         
         <footer style="text-align: center; margin-top: 30px; color: #7f8c8d;">
-            <p>&copy; 2025 BWS Blog. Port: 8081</p>
+            <p>&copy; 2025 BWS Blog. Virtual Hosting on Port: 8080</p>
         </footer>
     </div>
 </body>

@@ -6,6 +6,8 @@ use std::path::Path;
 pub struct SiteConfig {
     pub name: String,
     pub hostname: String,
+    #[serde(default)]
+    pub hostnames: Vec<String>, // Additional hostnames that share the same port and config
     pub port: u16,
     pub static_dir: String,
     #[serde(default)]
@@ -355,6 +357,16 @@ impl SiteConfig {
             return Err(format!("Invalid hostname format: {}", self.hostname).into());
         }
 
+        // Validate additional hostnames
+        for (i, hostname) in self.hostnames.iter().enumerate() {
+            if hostname.is_empty() {
+                return Err(format!("Additional hostname {} cannot be empty", i + 1).into());
+            }
+            if !self.is_hostname_valid(hostname) {
+                return Err(format!("Invalid additional hostname format: {}", hostname).into());
+            }
+        }
+
         // Validate port range
         if self.port < 1 {
             return Err(format!("Invalid port number: {}", self.port).into());
@@ -407,21 +419,25 @@ impl SiteConfig {
     }
 
     fn is_valid_hostname(&self) -> bool {
+        self.is_hostname_valid(&self.hostname)
+    }
+
+    fn is_hostname_valid(&self, hostname: &str) -> bool {
         // Basic hostname validation
-        if self.hostname.is_empty() || self.hostname.len() > 253 {
+        if hostname.is_empty() || hostname.len() > 253 {
             return false;
         }
 
         // Allow localhost and IP addresses for development
-        if self.hostname == "localhost"
-            || self.hostname.starts_with("127.")
-            || self.hostname.starts_with("0.0.0.0")
+        if hostname == "localhost"
+            || hostname.starts_with("127.")
+            || hostname.starts_with("0.0.0.0")
         {
             return true;
         }
 
         // Basic domain name validation
-        self.hostname.split('.').all(|label| {
+        hostname.split('.').all(|label| {
             !label.is_empty()
                 && label.len() <= 63
                 && label.chars().all(|c| c.is_alphanumeric() || c == '-')
@@ -442,9 +458,10 @@ impl SiteConfig {
     pub fn get_all_ssl_domains(&self) -> Vec<&str> {
         if self.ssl.enabled {
             let mut domains = vec![self.hostname.as_str()];
-            for domain in &self.ssl.domains {
-                domains.push(domain.as_str());
-            }
+            // Add additional hostnames
+            domains.extend(self.hostnames.iter().map(|h| h.as_str()));
+            // Add explicit SSL domains from configuration
+            domains.extend(self.ssl.domains.iter().map(|h| h.as_str()));
             domains
         } else {
             Vec::new()
@@ -561,6 +578,29 @@ impl SiteConfig {
         };
         format!("{}://{}{}", protocol, self.hostname, port_suffix)
     }
+
+    /// Check if this site handles the given hostname
+    pub fn handles_hostname(&self, hostname: &str) -> bool {
+        // Check primary hostname
+        if self.hostname == hostname {
+            return true;
+        }
+
+        // Check additional hostnames
+        self.hostnames.iter().any(|h| h == hostname)
+    }
+
+    /// Get all hostnames handled by this site (primary + additional)
+    pub fn get_all_hostnames(&self) -> Vec<&str> {
+        let mut hostnames = vec![self.hostname.as_str()];
+        hostnames.extend(self.hostnames.iter().map(|h| h.as_str()));
+        hostnames
+    }
+
+    /// Check if this site handles the given hostname and port combination
+    pub fn handles_hostname_port(&self, hostname: &str, port: u16) -> bool {
+        self.port == port && self.handles_hostname(hostname)
+    }
 }
 
 impl CompressionConfig {
@@ -624,6 +664,7 @@ mod tests {
         let mut site = SiteConfig {
             name: "test".to_string(),
             hostname: "example.com".to_string(),
+            hostnames: vec![],
             port: 8080,
             static_dir: "/tmp".to_string(),
             default: false,
@@ -660,6 +701,7 @@ mod tests {
         let site = SiteConfig {
             name: "test".to_string(),
             hostname: "localhost".to_string(),
+            hostnames: vec![],
             port: 8080,
             static_dir: "/tmp".to_string(),
             default: false,
@@ -690,6 +732,7 @@ mod tests {
         let site = SiteConfig {
             name: "test".to_string(),
             hostname: "example.com".to_string(),
+            hostnames: vec![],
             port: 8080,
             static_dir: "/tmp".to_string(),
             default: false,
@@ -715,6 +758,7 @@ mod tests {
         let mut site = SiteConfig {
             name: "test".to_string(),
             hostname: "example.com".to_string(),
+            hostnames: vec![],
             port: 8080,
             static_dir: "/tmp".to_string(),
             default: false,
@@ -738,5 +782,117 @@ mod tests {
 
         site.port = 8443;
         assert_eq!(site.url(), "https://example.com:8443");
+    }
+
+    #[test]
+    fn test_multi_hostname_functionality() {
+        let site = SiteConfig {
+            name: "test".to_string(),
+            hostname: "example.com".to_string(),
+            hostnames: vec!["www.example.com".to_string(), "example.org".to_string()],
+            port: 8080,
+            static_dir: "/tmp".to_string(),
+            default: false,
+            api_only: false,
+            headers: HashMap::new(),
+            redirect_to_https: false,
+            index_files: vec![],
+            error_pages: HashMap::new(),
+            compression: CompressionConfig::default(),
+            cache: CacheConfig::default(),
+            access_control: AccessControlConfig::default(),
+            ssl: SiteSslConfig::default(),
+            proxy: ProxyConfig::default(),
+        };
+
+        // Test hostname handling
+        assert!(site.handles_hostname("example.com"));
+        assert!(site.handles_hostname("www.example.com"));
+        assert!(site.handles_hostname("example.org"));
+        assert!(!site.handles_hostname("different.com"));
+
+        // Test hostname:port combination
+        assert!(site.handles_hostname_port("example.com", 8080));
+        assert!(site.handles_hostname_port("www.example.com", 8080));
+        assert!(site.handles_hostname_port("example.org", 8080));
+        assert!(!site.handles_hostname_port("example.com", 8081));
+        assert!(!site.handles_hostname_port("different.com", 8080));
+
+        // Test getting all hostnames
+        let all_hostnames = site.get_all_hostnames();
+        assert_eq!(all_hostnames.len(), 3);
+        assert!(all_hostnames.contains(&"example.com"));
+        assert!(all_hostnames.contains(&"www.example.com"));
+        assert!(all_hostnames.contains(&"example.org"));
+    }
+
+    #[test]
+    fn test_multi_hostname_ssl_domains() {
+        let mut site = SiteConfig {
+            name: "test".to_string(),
+            hostname: "example.com".to_string(),
+            hostnames: vec!["www.example.com".to_string(), "api.example.com".to_string()],
+            port: 443,
+            static_dir: "/tmp".to_string(),
+            default: false,
+            api_only: false,
+            headers: HashMap::new(),
+            redirect_to_https: false,
+            index_files: vec![],
+            error_pages: HashMap::new(),
+            compression: CompressionConfig::default(),
+            cache: CacheConfig::default(),
+            access_control: AccessControlConfig::default(),
+            ssl: SiteSslConfig::default(),
+            proxy: ProxyConfig::default(),
+        };
+
+        // Enable SSL
+        site.ssl.enabled = true;
+        site.ssl.domains = vec!["cdn.example.com".to_string()];
+
+        // Test SSL domain collection
+        let ssl_domains = site.get_all_ssl_domains();
+        assert_eq!(ssl_domains.len(), 4);
+        assert!(ssl_domains.contains(&"example.com"));
+        assert!(ssl_domains.contains(&"www.example.com"));
+        assert!(ssl_domains.contains(&"api.example.com"));
+        assert!(ssl_domains.contains(&"cdn.example.com"));
+    }
+
+    #[test]
+    fn test_hostname_validation_with_additional_hostnames() {
+        let mut site = SiteConfig {
+            name: "test".to_string(),
+            hostname: "example.com".to_string(),
+            hostnames: vec![
+                "www.example.com".to_string(),
+                "valid.example.org".to_string(),
+            ],
+            port: 8080,
+            static_dir: "/tmp".to_string(),
+            default: false,
+            api_only: false,
+            headers: HashMap::new(),
+            redirect_to_https: false,
+            index_files: vec![],
+            error_pages: HashMap::new(),
+            compression: CompressionConfig::default(),
+            cache: CacheConfig::default(),
+            access_control: AccessControlConfig::default(),
+            ssl: SiteSslConfig::default(),
+            proxy: ProxyConfig::default(),
+        };
+
+        // Valid configuration should pass
+        assert!(site.validate().is_ok());
+
+        // Test invalid additional hostname
+        site.hostnames = vec!["invalid..hostname".to_string()];
+        assert!(site.validate().is_err());
+
+        // Test empty additional hostname
+        site.hostnames = vec!["".to_string()];
+        assert!(site.validate().is_err());
     }
 }

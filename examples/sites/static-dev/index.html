@@ -17,8 +17,8 @@
     <div class="container">
         <div class="header">
             <h1>🛠️ BWS Development Site</h1>
-            <p>Served from port 8083 (localhost)</p>
-            <span class="status dev">DEVELOPMENT</span>
+            <p>Served on shared port 8080 (dev.local.com)</p>
+            <span class="status dev">VIRTUAL HOSTING TEST</span>
         </div>
         
         <main>
@@ -28,40 +28,42 @@
             </div>
             
             <div class="feature">
-                <h2>Configuration Testing</h2>
-                <p>Current configuration allows multiple sites:</p>
+                <h2>Virtual Hosting Configuration</h2>
+                <p>All sites now share port 8080 but use different hostnames:</p>
                 <ul>
-                    <li><strong>Main Site:</strong> localhost:8080 → static/</li>
-                    <li><strong>Blog:</strong> blog.localhost:8081 → static-blog/</li>
-                    <li><strong>API Docs:</strong> api.localhost:8082 → static-api/</li>
-                    <li><strong>Development:</strong> localhost:8083 → static-dev/</li>
+                    <li><strong>Main Site:</strong> www.local.com:8080 → examples/sites/static/</li>
+                    <li><strong>Blog:</strong> blog.local.com:8080 → examples/sites/static-blog/</li>
+                    <li><strong>API Docs:</strong> api.local.com:8080 → examples/sites/static-api/</li>
+                    <li><strong>Development:</strong> dev.local.com:8080 → examples/sites/static-dev/</li>
                 </ul>
             </div>
             
             <div class="feature">
                 <h2>Virtual Hosting Features</h2>
                 <ul>
-                    <li>✅ Different ports for different sites</li>
+                    <li>✅ Multiple sites sharing same port (8080)</li>
                     <li>✅ Different hostnames (virtual hosts)</li>
                     <li>✅ Separate static directories</li>
                     <li>✅ TOML configuration</li>
+                    <li>✅ Site-specific headers</li>
                     <li>✅ API-only sites</li>
                 </ul>
             </div>
             
             <div class="feature">
                 <h2>Testing Instructions</h2>
-                <p>To test different sites, you can:</p>
+                <p>To test virtual hosting, you need to:</p>
                 <ol>
-                    <li>Access different ports directly</li>
-                    <li>Add entries to your /etc/hosts file for virtual hosting</li>
-                    <li>Use curl with Host headers</li>
+                    <li>Add domains to /etc/hosts: <code>127.0.0.1 www.local.com blog.local.com api.local.com dev.local.com</code></li>
+                    <li>Start BWS with the test config: <code>./tests/test_multisite_shared_port.sh start</code></li>
+                    <li>Access different hostnames on port 8080</li>
+                    <li>Use curl with Host headers for testing</li>
                 </ol>
             </div>
         </main>
         
         <footer style="text-align: center; margin-top: 30px; color: #636e72;">
-            <p>&copy; 2025 BWS Development. Port: 8083</p>
+            <p>&copy; 2025 BWS Development. Virtual Hosting on Port: 8080</p>
         </footer>
     </div>
 </body>

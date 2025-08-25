@@ -19,8 +19,8 @@
     <div class="container">
         <div class="header">
             <h1>📡 BWS API Documentation</h1>
-            <p>Served from port 8082 (api.localhost)</p>
-            <p>This site focuses on API documentation and testing.</p>
+            <p>Served on shared port 8080 (api.local.com)</p>
+            <p>This site demonstrates virtual hosting with multiple sites sharing the same port.</p>
         </div>
         
         <main>
@@ -44,25 +44,25 @@
                 <pre><code>curl http://api.localhost:8082/api/sites</code></pre>
             </div>
             
-            <h2>Testing Multiple Sites</h2>
+            <h2>Testing Virtual Hosting (Shared Port)</h2>
             <div class="endpoint">
                 <h3>Main Site</h3>
-                <p>Access the main site: <code>http://localhost:8080</code></p>
+                <p>Access the main site: <code>http://www.local.com:8080</code></p>
             </div>
             
             <div class="endpoint">
                 <h3>Blog Site</h3>
-                <p>Access the blog: <code>http://blog.localhost:8081</code></p>
+                <p>Access the blog: <code>http://blog.local.com:8080</code></p>
             </div>
             
             <div class="endpoint">
                 <h3>Dev Site</h3>
-                <p>Access development: <code>http://localhost:8083</code></p>
+                <p>Access development: <code>http://dev.local.com:8080</code></p>
             </div>
         </main>
         
         <footer style="text-align: center; margin-top: 30px; color: #95a5a6;">
-            <p>&copy; 2025 BWS API Docs. Port: 8082</p>
+            <p>&copy; 2025 BWS API Docs. Virtual Hosting on Port: 8080</p>
         </footer>
     </div>
 </body>

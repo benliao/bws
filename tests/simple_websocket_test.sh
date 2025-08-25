@@ -37,7 +37,7 @@ name = "Simple WebSocket Test"
 name = "websocket-test"
 hostname = "localhost"
 port = 8080
-static_dir = "./static"
+static_dir = "./examples/sites/static"
 default = true
 
 [sites.proxy]

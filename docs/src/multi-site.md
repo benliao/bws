@@ -411,6 +411,141 @@ BWS validates configuration on startup:
 - Missing directories → Warning (created automatically)
 - Invalid hostnames → Error
 
+## Virtual Hosting (Shared Port Configuration)
+
+Virtual hosting allows multiple sites to share the same port while being distinguished by hostname. This is ideal for hosting multiple domains on standard ports (80/443).
+
+### Virtual Hosting Example
+
+```toml
+[server]
+name = "BWS Virtual Hosting Server"
+
+# All sites share port 8080
+[[sites]]
+name = "main"
+hostname = "www.example.com"
+port = 8080
+static_dir = "examples/sites/static"
+default = true
+
+[sites.headers]
+"X-Site-Name" = "Main Site"
+"X-Port-Sharing" = "enabled"
+
+[[sites]]
+name = "blog"
+hostname = "blog.example.com"
+port = 8080                    # Same port as main site
+static_dir = "examples/sites/static-blog"
+
+[sites.headers]
+"X-Site-Name" = "Blog Site"
+"X-Content-Type" = "blog-content"
+
+[[sites]]
+name = "api"
+hostname = "api.example.com"
+port = 8080                    # Same port as other sites
+static_dir = "examples/sites/static-api"
+
+[sites.headers]
+"X-Site-Name" = "API Documentation"
+"Access-Control-Allow-Origin" = "*"
+
+[[sites]]
+name = "dev"
+hostname = "dev.example.com"
+port = 8080                    # Same port as other sites
+static_dir = "examples/sites/static-dev"
+
+[sites.headers]
+"X-Site-Name" = "Development Site"
+"X-Environment" = "development"
+```
+
+### Virtual Hosting Features
+
+- **Port Sharing**: Multiple sites on the same port
+- **Host-based Routing**: Routes requests based on the `Host` header
+- **Separate Content**: Each site serves from its own directory
+- **Individual Headers**: Site-specific response headers
+- **Default Site**: Fallback for unmatched hostnames
+
+### Testing Virtual Hosting
+
+BWS includes a comprehensive test for virtual hosting:
+
+```bash
+# Run the virtual hosting test
+./tests/test_multisite_shared_port.sh test
+
+# Start server for manual testing
+./tests/test_multisite_shared_port.sh start
+
+# Test with curl (using Host headers)
+curl -H "Host: www.example.com" http://127.0.0.1:8080
+curl -H "Host: blog.example.com" http://127.0.0.1:8080
+curl -H "Host: api.example.com" http://127.0.0.1:8080
+```
+
+For browser testing, add domains to `/etc/hosts`:
+
+```bash
+sudo bash -c 'echo "127.0.0.1 www.local.com blog.local.com api.local.com dev.local.com" >> /etc/hosts'
+```
+
+### Virtual Hosting vs Multi-Port
+
+| Feature | Virtual Hosting | Multi-Port |
+|---------|----------------|------------|
+| **Port Usage** | Shared (e.g., all on 8080) | Separate (8080, 8081, 8082) |
+| **DNS Setup** | Requires domain configuration | Works with localhost |
+| **Production** | Standard for web hosting | Good for development |
+| **SSL/TLS** | Single certificate with SAN | Separate certificates |
+| **Firewall** | Single port to open | Multiple ports to manage |
+
+### Production Virtual Hosting
+
+For production virtual hosting on standard ports:
+
+```toml
+# Production virtual hosting on port 80/443
+[[sites]]
+name = "main"
+hostname = "company.com"
+port = 443
+static_dir = "/var/www/main"
+default = true
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+domains = ["company.com", "www.company.com"]
+
+[[sites]]
+name = "blog"
+hostname = "blog.company.com"
+port = 443
+static_dir = "/var/www/blog"
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+domains = ["blog.company.com"]
+
+[[sites]]
+name = "api"
+hostname = "api.company.com"
+port = 443
+static_dir = "/var/www/api"
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+domains = ["api.company.com"]
+```
+
 ## Next Steps
 
 - Configure [SSL/TLS Configuration](./ssl-tls.md) for HTTPS setup

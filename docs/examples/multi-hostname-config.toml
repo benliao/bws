@@ -1,0 +1,77 @@
+# BWS Multi-Hostname Configuration Example
+# This example shows how to configure a single site to handle multiple hostnames on the same port
+
+[server]
+name = "BWS Multi-Hostname Server"
+version = "0.3.0"
+description = "Example server with multi-hostname support"
+
+[logging]
+level = "info"
+log_requests = true
+
+[performance]
+worker_threads = 4
+max_connections = 1000
+
+[security]
+hide_server_header = false
+
+# Example 1: Main website handling multiple domains
+[[sites]]
+name = "main-website"
+hostname = "example.com"                           # Primary hostname
+hostnames = ["www.example.com", "example.org"]    # Additional hostnames sharing same config
+port = 8080
+static_dir = "./sites/main"
+default = true
+redirect_to_https = false
+
+[sites.headers]
+"X-Powered-By" = "BWS Multi-Site Server"
+
+[sites.ssl]
+enabled = false
+
+# Example 2: API service with multiple subdomains
+[[sites]]
+name = "api-service"
+hostname = "api.example.com"                       # Primary API hostname
+hostnames = ["api-v1.example.com", "rest.example.com"]  # Additional API hostnames
+port = 8080
+static_dir = "./sites/api"
+api_only = true
+
+[sites.headers]
+"Access-Control-Allow-Origin" = "*"
+"Content-Type" = "application/json"
+
+# Example 3: Secure site with SSL and multiple domains
+[[sites]]
+name = "secure-site"
+hostname = "secure.example.com"
+hostnames = ["ssl.example.com", "https.example.com"]  # Additional secure hostnames
+port = 8443
+static_dir = "./sites/secure"
+redirect_to_https = true
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+domains = ["extra-ssl.example.com"]  # Additional SSL domains beyond hostnames
+
+[sites.ssl.acme]
+enabled = true
+email = "admin@example.com"
+staging = false
+
+# Example 4: Development site with localhost aliases
+[[sites]]
+name = "dev-site"
+hostname = "localhost"
+hostnames = ["127.0.0.1", "dev.local", "test.local"]  # Development aliases
+port = 3000
+static_dir = "./sites/dev"
+
+[sites.headers]
+"X-Environment" = "development"

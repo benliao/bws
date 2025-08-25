@@ -45,7 +45,17 @@ struct Cli {
 }
 
 fn main() {
-    let cli = Cli::parse();
+    let cli = match Cli::try_parse() {
+        Ok(cli) => cli,
+        Err(err) => {
+            // Print help or version and exit
+            err.print().expect("Failed to print help");
+            std::process::exit(match err.kind() {
+                clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion => 0,
+                _ => 1,
+            });
+        }
+    };
 
     // Initialize Rustls crypto provider
     if let Err(e) = rustls::crypto::aws_lc_rs::default_provider().install_default() {

@@ -1,0 +1,143 @@
+# BWS Virtual Hosting Configuration
+# Multiple sites distinguished by hostname, sharing the same port
+
+[server]
+name = "BWS Virtual Host Server"
+version = "0.3.0"
+description = "Example server with multiple sites on the same port"
+
+[logging]
+level = "info"
+log_requests = true
+
+[performance]
+worker_threads = 4
+max_connections = 1000
+
+[security]
+hide_server_header = false
+
+# Site 1: Main company website
+[[sites]]
+name = "company-main"
+hostname = "company.com"
+hostnames = ["www.company.com"]  # Same site, multiple hostnames
+port = 8080
+static_dir = "./sites/company-main"
+default = true
+redirect_to_https = false
+
+[sites.headers]
+"X-Site" = "Company Main"
+"X-Powered-By" = "BWS"
+
+# Site 2: Company blog (different site, same port, different hostname)
+[[sites]]
+name = "company-blog"
+hostname = "blog.company.com"
+port = 8080                     # Same port as main site
+static_dir = "./sites/blog"    # Different content directory
+redirect_to_https = false
+
+[sites.headers]
+"X-Site" = "Company Blog"
+"Content-Security-Policy" = "default-src 'self'"
+
+# Site 3: API service (different site, same port, different hostname)
+[[sites]]
+name = "api-service"
+hostname = "api.company.com"
+port = 8080                     # Same port as main site
+static_dir = "./sites/api"     # Different content directory
+api_only = true
+
+[sites.headers]
+"X-Site" = "API Service"
+"Access-Control-Allow-Origin" = "*"
+
+[sites.proxy]
+enabled = true
+
+[[sites.proxy.upstreams]]
+name = "api-backend"
+url = "http://127.0.0.1:3001"
+
+[[sites.proxy.routes]]
+path = "/api/"
+upstream = "api-backend"
+
+# Site 4: Documentation site (different site, same port, different hostname)
+[[sites]]
+name = "docs-site"
+hostname = "docs.company.com"
+port = 8080                     # Same port as main site
+static_dir = "./sites/docs"    # Different content directory
+
+[sites.headers]
+"X-Site" = "Documentation"
+"Cache-Control" = "public, max-age=3600"
+
+# Site 5: Admin panel (different site, same port, different hostname)
+[[sites]]
+name = "admin-panel"
+hostname = "admin.company.com"
+port = 8080                     # Same port as main site
+static_dir = "./sites/admin"   # Different content directory
+
+[sites.headers]
+"X-Site" = "Admin Panel"
+"X-Frame-Options" = "DENY"
+
+[sites.access_control]
+allow_origins = ["https://company.com"]
+allow_methods = ["GET", "POST", "PUT", "DELETE"]
+
+# Site 6: Customer portal (different site, same port, different hostname)
+[[sites]]
+name = "customer-portal"
+hostname = "portal.company.com"
+port = 8080                     # Same port as main site
+static_dir = "./sites/portal"  # Different content directory
+
+[sites.proxy]
+enabled = true
+
+[[sites.proxy.upstreams]]
+name = "portal-backend"
+url = "http://127.0.0.1:3002"
+
+[[sites.proxy.routes]]
+path = "/"
+upstream = "portal-backend"
+
+# Example with HTTPS (port 443) - Multiple secure sites
+[[sites]]
+name = "secure-main"
+hostname = "secure.company.com"
+port = 443
+static_dir = "./sites/secure"
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+
+[sites.ssl.acme]
+enabled = true
+email = "admin@company.com"
+staging = false
+
+# Another HTTPS site on same port
+[[sites]]
+name = "secure-api"
+hostname = "secure-api.company.com"
+port = 443                      # Same HTTPS port, different hostname
+static_dir = "./sites/secure-api"
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+
+[sites.ssl.acme]
+enabled = true
+email = "admin@company.com"
+staging = false

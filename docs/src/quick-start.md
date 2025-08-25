@@ -303,6 +303,36 @@ bws --daemon \
   --log-file /var/log/bws.log
 ```
 
+## Testing Multi-Site Virtual Hosting
+
+BWS includes comprehensive testing tools for multi-site configurations. Try the virtual hosting test that demonstrates multiple sites sharing a single port:
+
+```bash
+# Run the virtual hosting test
+./tests/test_multisite_shared_port.sh test
+
+# Or start the server for manual testing
+./tests/test_multisite_shared_port.sh start
+```
+
+This test demonstrates:
+- **Virtual Hosting**: Multiple sites (www.local.com, blog.local.com, api.local.com, dev.local.com) on port 8080
+- **Host-based Routing**: BWS routes requests based on the `Host` header
+- **Separate Content**: Each site serves different content from `examples/sites/`
+- **Site-specific Headers**: Each site returns custom headers
+
+For browser testing, add the test domains to your `/etc/hosts`:
+
+```bash
+sudo bash -c 'echo "127.0.0.1 www.local.com blog.local.com api.local.com dev.local.com" >> /etc/hosts'
+```
+
+Then visit:
+- http://www.local.com:8080 (Main site)
+- http://blog.local.com:8080 (Blog)
+- http://api.local.com:8080 (API docs)
+- http://dev.local.com:8080 (Development)
+
 ## Next Steps
 
 - Learn more about [SSL/TLS Configuration](./ssl-tls.md) for HTTPS setup

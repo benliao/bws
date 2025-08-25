@@ -640,6 +640,79 @@ RUST_LOG=debug                        # Override logging.level
 - Test configuration changes in non-production environments
 - Implement configuration validation in CI/CD pipelines
 
+## Example Configurations
+
+BWS includes several example configurations for different use cases:
+
+### Test Configurations
+
+```bash
+# Virtual hosting test (multiple sites on same port)
+tests/test_multisite_shared_port.toml
+
+# Multi-site test (different ports)
+tests/config_test.toml
+
+# Load balancing test
+tests/test_load_balancing.toml
+
+# WebSocket proxy test
+tests/test_websocket_proxy.toml
+```
+
+### Testing Virtual Hosting
+
+The virtual hosting test demonstrates multiple sites sharing port 8080:
+
+```bash
+# Run the virtual hosting test
+./tests/test_multisite_shared_port.sh test
+
+# View the configuration
+cat tests/test_multisite_shared_port.toml
+```
+
+This test includes:
+- **4 virtual hosts**: www.local.com, blog.local.com, api.local.com, dev.local.com
+- **Shared port**: All sites use port 8080
+- **Host-based routing**: Routes based on HTTP Host header
+- **Site-specific content**: Each site serves different static files
+- **Custom headers**: Site-specific response headers
+
+### Development Configurations
+
+```bash
+# Basic single site
+examples/basic-single-site.toml
+
+# Multi-site setup
+examples/basic-multi-site.toml
+
+# SSL with ACME
+examples/ssl-acme.toml
+
+# Production setup
+examples/production-multi-site.toml
+```
+
+### Configuration Templates
+
+Create your own configuration based on these templates:
+
+```bash
+# Copy a template
+cp tests/test_multisite_shared_port.toml my-config.toml
+
+# Customize for your needs
+# - Update hostnames to your domains
+# - Change static_dir paths
+# - Configure SSL settings
+# - Add your custom headers
+
+# Test the configuration
+./target/release/bws --config my-config.toml
+```
+
 ## Next Steps
 
 - Review [Production Setup](./production.md) for deployment configurations
