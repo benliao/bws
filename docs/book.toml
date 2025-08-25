@@ -14,6 +14,7 @@ additional-css = ["theme/custom.css"]
 git-repository-url = "https://github.com/benliao/bws"
 edit-url-template = "https://github.com/benliao/bws/edit/main/docs/{path}"
 site-url = "https://benliao.github.io/bws/"
+favicon = "assets/favicon.svg"
 
 [output.html.search]
 enable = true

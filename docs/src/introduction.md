@@ -1,4 +1,4 @@
-# Introduction
+# <img src="../assets/logo.svg" alt="BWS Logo" width="48" height="48" style="vertical-align: middle;"> Introduction
 
 Welcome to **BWS (Blazing Web Server)** - a production-ready, high-performance, multi-site web server built with [Pingora](https://github.com/cloudflare/pingora), Cloudflare's battle-tested proxy framework.
 
