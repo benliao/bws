@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BWS Compression Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 25px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+        }
+        .code {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+        .feature-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 10px;
+            margin: 5px 0;
+            background-color: #e8f5e8;
+            border-left: 3px solid #28a745;
+        }
+        .compression-demo {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 BWS Web Server - Compression Test Page</h1>
+        
+        <div class="section">
+            <h2>About BWS (Ben's Web Server)</h2>
+            <p>BWS is a high-performance, multi-site web server built with Rust and the Pingora framework. 
+            It provides enterprise-grade features including SSL/TLS support with automatic certificate 
+            management, reverse proxy capabilities, load balancing, and now advanced compression support.</p>
+        </div>
+
+        <div class="section">
+            <h2>🗜️ Compression Features</h2>
+            <ul class="feature-list">
+                <li><strong>Gzip Compression:</strong> Fast and widely supported compression algorithm</li>
+                <li><strong>Brotli Compression:</strong> Modern compression with better ratios than gzip</li>
+                <li><strong>Deflate Compression:</strong> Legacy support for older clients</li>
+                <li><strong>Smart Content-Type Detection:</strong> Only compresses appropriate file types</li>
+                <li><strong>Configurable Compression Levels:</strong> Balance between speed and compression ratio</li>
+                <li><strong>Minimum Size Threshold:</strong> Avoid compressing small files that don't benefit</li>
+            </ul>
+        </div>
+
+        <div class="compression-demo">
+            <h2>🎯 This Page Tests Compression</h2>
+            <p>This HTML page contains significant text content that should compress well. 
+            Check the response headers to see if compression is working!</p>
+            <p>Expected headers:</p>
+            <div class="code">Content-Encoding: gzip|br|deflate
+Vary: Accept-Encoding
+Content-Length: [compressed size]</div>
+        </div>
+
+        <div class="section">
+            <h2>Configuration Example</h2>
+            <p>Here's how to configure compression in your BWS config.toml:</p>
+            <div class="code">[sites.compression]
+enabled = true
+types = [
+    "text/html",
+    "text/css", 
+    "application/javascript",
+    "application/json",
+    "text/xml",
+    "application/xml"
+]
+level = 6        # Compression level (0-9)
+min_size = 1024  # Minimum size to compress (bytes)</div>
+        </div>
+
+        <div class="section">
+            <h2>Technical Details</h2>
+            <p>BWS compression middleware works by:</p>
+            <ol>
+                <li>Analyzing the client's Accept-Encoding header to determine supported algorithms</li>
+                <li>Checking if the content type is in the configured list of compressible types</li>
+                <li>Verifying the content size meets the minimum threshold for compression</li>
+                <li>Selecting the best available compression method (Brotli > Gzip > Deflate)</li>
+                <li>Compressing the content using the selected algorithm at the configured level</li>
+                <li>Adding appropriate response headers (Content-Encoding, Vary)</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>Performance Benefits</h2>
+            <p>Compression can provide significant benefits:</p>
+            <ul>
+                <li><strong>Reduced Bandwidth:</strong> Text files often compress by 60-80%</li>
+                <li><strong>Faster Page Load Times:</strong> Smaller downloads mean faster rendering</li>
+                <li><strong>Lower Server Costs:</strong> Reduced bandwidth usage saves money</li>
+                <li><strong>Better User Experience:</strong> Especially important on mobile networks</li>
+                <li><strong>SEO Benefits:</strong> Google considers page speed in rankings</li>
+            </ul>
+        </div>
+
+        <div class="section">
+            <h2>Benchmarking Results</h2>
+            <p>BWS has been benchmarked against popular web servers like Nginx and Caddy, 
+            showing competitive performance while providing additional features and ease of configuration.</p>
+            <p>Recent benchmark results show BWS achieving 17,721 requests/second compared to 
+            Nginx's 18,076 requests/second - a difference of only ~2%!</p>
+        </div>
+
+        <!-- Add more content to make compression worthwhile -->
+        <div class="section">
+            <h2>Lorem Ipsum Content</h2>
+            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>
+            
+            <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt.</p>
+            
+            <p>At vero eos et accusamus et iusto odio dignissimos ducimus qui blanditiis praesentibus voluptatum deleniti atque corrupti quos dolores et quas molestias excepturi sint occaecati cupiditate non provident, similique sunt in culpa qui officia deserunt mollitia animi, id est laborum et dolorum fuga.</p>
+            
+            <p>Et harum quidem rerum facilis est et expedita distinctio. Nam libero tempore, cum soluta nobis est eligendi optio cumque nihil impedit quo minus id quod maxime placeat facere possimus, omnis voluptas assumenda est, omnis dolor repellendus.</p>
+            
+            <p>Temporibus autem quibusdam et aut officiis debitis aut rerum necessitatibus saepe eveniet ut et voluptates repudiandae sint et molestiae non recusandae. Itaque earum rerum hic tenetur a sapiente delectus, ut aut reiciendis voluptatibus maiores alias consequatur aut perferendis doloribus asperiores repellat.</p>
+        </div>
+
+        <footer style="text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee;">
+            <p>🌟 BWS - High-Performance Multi-Site Web Server with Compression 🌟</p>
+            <p>Built with Rust + Pingora Framework</p>
+        </footer>
+    </div>
+
+    <script>
+        // Add some JavaScript content for compression testing
+        console.log('BWS Compression Test Page Loaded');
+        
+        function testCompression() {
+            const content = document.body.innerHTML;
+            const originalSize = new Blob([content]).size;
+            console.log('Original page content size:', originalSize, 'bytes');
+            
+            // Display compression info if available
+            fetch(window.location.href)
+                .then(response => {
+                    const encoding = response.headers.get('content-encoding');
+                    const length = response.headers.get('content-length');
+                    if (encoding) {
+                        console.log('Compression:', encoding);
+                        console.log('Compressed size:', length, 'bytes');
+                        if (length) {
+                            const ratio = ((originalSize - parseInt(length)) / originalSize * 100).toFixed(1);
+                            console.log('Compression ratio:', ratio + '%');
+                        }
+                    } else {
+                        console.log('No compression detected');
+                    }
+                })
+                .catch(err => console.log('Could not check compression:', err));
+        }
+        
+        // Run test when page loads
+        document.addEventListener('DOMContentLoaded', testCompression);
+    </script>
+</body>
+</html>

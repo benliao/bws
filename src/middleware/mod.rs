@@ -1,3 +1,5 @@
+pub mod compression;
+
 use async_trait::async_trait;
 use pingora::prelude::*;
 use std::collections::HashMap;

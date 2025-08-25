@@ -349,7 +349,18 @@ checksum = "d640d25bc63c50fb1f0b545ffd80207d2e10a4c965530809b40ba3386825c391"
 dependencies = [
  "alloc-no-stdlib",
  "alloc-stdlib",
- "brotli-decompressor",
+ "brotli-decompressor 2.5.1",
+]
+
+[[package]]
+name = "brotli"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74f7971dbd9326d58187408ab83117d8ac1bb9c17b085fdacd1cf2f598719b6b"
+dependencies = [
+ "alloc-no-stdlib",
+ "alloc-stdlib",
+ "brotli-decompressor 4.0.3",
 ]
 
 [[package]]
@@ -363,6 +374,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "brotli-decompressor"
+version = "4.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a334ef7c9e23abf0ce748e8cd309037da93e606ad52eb372e4ce327a0dcfbdfd"
+dependencies = [
+ "alloc-no-stdlib",
+ "alloc-stdlib",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -370,15 +391,18 @@ checksum = "46c5e41b57b8bba42a04676d81cb89e9ee8e859a1a66f80a5a72e1cb76b34d43"
 
 [[package]]
 name = "bws-web-server"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
+ "brotli 6.0.0",
+ "bytes",
  "chrono",
  "clap 4.5.45",
  "daemonize",
  "env_logger",
  "fastrand",
+ "flate2",
  "futures-util",
  "instant-acme",
  "log",
@@ -1970,7 +1994,7 @@ checksum = "76f63d3f67d99c95a1f85623fc43242fd644dd12ccbaa18c38a54e1580c6846a"
 dependencies = [
  "ahash",
  "async-trait",
- "brotli",
+ "brotli 3.5.0",
  "bytes",
  "chrono",
  "clap 3.2.25",

@@ -1,5 +1,6 @@
 use crate::config::site::{ProxyConfig, ProxyRoute, SiteConfig, UpstreamConfig};
 use crate::handlers::websocket_proxy::WebSocketProxyHandler;
+use crate::middleware::compression::{CompressionMethod, CompressionMiddleware};
 use chrono;
 use log::{debug, error, info};
 use pingora::http::{RequestHeader, ResponseHeader};
@@ -231,7 +232,7 @@ impl ProxyHandler {
     pub async fn handle_proxy_request(
         &self,
         session: &mut Session,
-        _site: &SiteConfig,
+        site: &SiteConfig,
         path: &str,
     ) -> Result<bool> {
         // Check if this is a WebSocket upgrade request
@@ -277,7 +278,7 @@ impl ProxyHandler {
 
             // Perform the proxy request
             let proxy_result = self
-                .proxy_to_upstream(session, &upstream_url, &new_path, route)
+                .proxy_to_upstream(session, &upstream_url, &new_path, route, site)
                 .await;
 
             // Always decrement connection count when done
@@ -308,6 +309,7 @@ impl ProxyHandler {
         upstream_url: &Url,
         new_path: &str,
         _route: &ProxyRoute,
+        site: &SiteConfig,
     ) -> Result<()> {
         // Create a new HTTP client for the upstream request
         let client = reqwest::Client::builder()
@@ -411,24 +413,80 @@ impl ProxyHandler {
         }
 
         // Get response body (this consumes the response)
-        let body = response
+        let body_bytes = response
             .bytes()
             .await
             .map_err(|_| Error::new_str("Failed to read upstream response"))?;
 
+        // Check if response should be compressed
+        let content_type = header_map
+            .get("content-type")
+            .unwrap_or(&"application/octet-stream".to_string())
+            .clone();
+
+        let compression_middleware = CompressionMiddleware::new(site.compression.clone());
+
+        let (final_body, encoding) = if compression_middleware
+            .should_compress(&content_type, body_bytes.len())
+        {
+            // Get the best compression method based on Accept-Encoding header
+            let accept_encoding = session
+                .req_header()
+                .headers
+                .get("accept-encoding")
+                .and_then(|h| h.to_str().ok());
+
+            let compression_method = compression_middleware.get_best_compression(accept_encoding);
+
+            match compression_middleware.compress(&body_bytes, compression_method.clone()) {
+                Ok(compressed_content) => {
+                    debug!(
+                        "Compressed proxy response {} bytes to {} bytes using {:?} ({}% reduction)",
+                        body_bytes.len(),
+                        compressed_content.len(),
+                        compression_method,
+                        if !body_bytes.is_empty() {
+                            ((body_bytes.len() - compressed_content.len()) * 100) / body_bytes.len()
+                        } else {
+                            0
+                        }
+                    );
+                    (compressed_content, Some(compression_method))
+                }
+                Err(e) => {
+                    debug!("Compression failed: {}, serving uncompressed", e);
+                    (body_bytes.to_vec().into(), None)
+                }
+            }
+        } else {
+            (body_bytes.to_vec().into(), None)
+        };
+
         // Build response header
         let mut resp_header = ResponseHeader::build(status, Some(4))?;
 
-        // Add collected headers
+        // Add collected headers (except content-length which we'll update)
         for (name, value) in header_map {
-            resp_header.insert_header(name, value)?;
+            if name.to_lowercase() != "content-length" {
+                resp_header.insert_header(name, value)?;
+            }
+        }
+
+        // Update content length and add encoding header
+        resp_header.insert_header("Content-Length", final_body.len().to_string())?;
+
+        if let Some(method) = encoding {
+            if !matches!(method, CompressionMethod::None) {
+                resp_header.insert_header("Content-Encoding", method.as_str())?;
+                resp_header.insert_header("Vary", "Accept-Encoding")?;
+            }
         }
 
         // Send response back to client
         session
             .write_response_header(Box::new(resp_header), false)
             .await?;
-        session.write_response_body(Some(body), true).await?;
+        session.write_response_body(Some(final_body), true).await?;
 
         Ok(())
     }

@@ -1,6 +1,6 @@
 [package]
 name = "bws-web-server"
-version = "0.3.1"
+version = "0.3.2"
 edition = "2021"
 license = "MIT"
 description = "BWS (Ben's Web Server) - A high-performance multi-site web server built with Pingora"
@@ -58,6 +58,10 @@ tokio-tungstenite = { version = "0.23", features = ["rustls-tls-webpki-roots"] }
 tungstenite = "0.24"
 futures-util = "0.3"
 sha1 = "0.10"
+# Compression
+flate2 = "1.0"
+brotli = "6.0"
+bytes = "1.0"
 
 [target.'cfg(unix)'.dependencies]
 daemonize = "0.5"

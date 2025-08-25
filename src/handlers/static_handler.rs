@@ -1,4 +1,5 @@
 use crate::config::SiteConfig;
+use crate::middleware::compression::{CompressionMethod, CompressionMiddleware};
 use pingora::http::ResponseHeader;
 use pingora::prelude::*;
 use std::path::Path;
@@ -145,23 +146,67 @@ impl StaticFileHandler {
 
                 // Check if content should be compressed
                 let content_len = content.len();
-                let should_compress = site.should_compress(mime_type, content_len);
-                let final_content = if should_compress {
-                    // TODO: Implement compression
-                    // For now, just serve uncompressed
-                    content.clone()
+                let compression_middleware = CompressionMiddleware::new(site.compression.clone());
+
+                let (final_content, encoding) = if compression_middleware
+                    .should_compress(mime_type, content_len)
+                {
+                    // Get the best compression method based on Accept-Encoding header
+                    let accept_encoding = session
+                        .req_header()
+                        .headers
+                        .get("accept-encoding")
+                        .and_then(|h| h.to_str().ok());
+
+                    let compression_method =
+                        compression_middleware.get_best_compression(accept_encoding);
+
+                    match compression_middleware.compress(&content, compression_method.clone()) {
+                        Ok(compressed_content) => {
+                            log::debug!(
+                                "Compressed {} bytes to {} bytes using {:?} ({}% reduction)",
+                                content_len,
+                                compressed_content.len(),
+                                compression_method,
+                                ((content_len - compressed_content.len()) * 100) / content_len
+                            );
+                            (compressed_content.to_vec(), Some(compression_method))
+                        }
+                        Err(e) => {
+                            log::warn!("Compression failed: {}, serving uncompressed", e);
+                            (content, None)
+                        }
+                    }
                 } else {
-                    content.clone()
+                    (content, None)
                 };
+
+                // Update content length and add encoding header
+                header.remove_header("Content-Length");
+                header.insert_header("Content-Length", final_content.len().to_string())?;
+
+                if let Some(method) = encoding {
+                    if !matches!(method, CompressionMethod::None) {
+                        header.insert_header("Content-Encoding", method.as_str())?;
+                        header.insert_header("Vary", "Accept-Encoding")?;
+                    }
+                }
 
                 session
                     .write_response_header(Box::new(header), false)
                     .await?;
+
+                let final_content_len = final_content.len();
                 session
                     .write_response_body(Some(final_content.into()), true)
                     .await?;
 
-                log::debug!("Served file: {} ({} bytes)", file_path, content_len);
+                log::debug!(
+                    "Served file: {} ({} -> {} bytes)",
+                    file_path,
+                    content_len,
+                    final_content_len
+                );
             }
             Err(e) => {
                 log::warn!("Failed to read file {}: {}", file_path, e);
