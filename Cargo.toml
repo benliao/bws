@@ -1,9 +1,9 @@
 [package]
 name = "bws-web-server"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2021"
 license = "MIT"
-description = "BWS (Blazing Web Server) - A high-performance multi-site web server built with Pingora"
+description = "BWS - High-performance multi-site web server built with Pingora"
 repository = "https://github.com/benliao/bws"
 homepage = "https://github.com/benliao/bws"
 documentation = "https://benliao.github.io/bws"

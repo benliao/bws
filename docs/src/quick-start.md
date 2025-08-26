@@ -33,41 +33,11 @@ bws my-website --port 8080 --dry-run
 bws my-website --port 8080
 ```
 
-**Validation Output:**
-```
-🔍 BWS Directory Server Validation
-==========================================
-✅ Directory '/path/to/my-website' exists
-✅ Port 8080 is available  
-✅ Found index.html
-📋 Ready to serve 1 files
-
-🚀 Directory server configuration is valid!
-```
-
-**Server Output:**
-```
-🚀 Creating temporary web server:
-   📁 Directory: /path/to/my-website
-   🌐 Port: 8080
-   🔗 URL: http://localhost:8080
-
-🌐 Temporary web server ready!
-   Serving: /path/to/my-website on http://localhost:8080
-```
-  • main - http://localhost:8080
-
-🚀 TEMPORARY SERVER MODE:
-   • Press `Ctrl+C` to stop the server
-   • Files are served directly from: my-website
-   • Simple static file server (no configuration file)
-```
-
 **Features:**
-- ✅ **No configuration file needed**
-- ✅ **Automatic single site as default**  
-- ✅ **Cross-platform path handling**
-- ✅ **Perfect for development and testing**
+- No configuration file needed
+- Automatic single site as default  
+- Cross-platform path handling
+- Perfect for development and testing
 
 ## Option 2: Configuration-Based Setup (Production)
 

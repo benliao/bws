@@ -23,15 +23,11 @@ fn clean_path_for_display(path: &str) -> String {
 }
 
 #[derive(Parser)]
-#[command(name = "bws-web-server")]
-#[command(
-    about = "BWS (Blazing Web Server) - A high-performance multi-site web server built with Pingora"
-)]
+#[command(name = "bws")]
+#[command(about = "BWS - High-performance multi-site web server")]
 #[command(version)]
 #[command(
-    long_about = "BWS is a high-performance, multi-site web server that can host multiple websites \
-on different ports with individual configurations. It supports configurable headers, static file serving, \
-and health monitoring endpoints.
+    long_about = "BWS is a high-performance multi-site web server with SSL/TLS, load balancing, and health monitoring.
 
 Quick start: bws [path]        - Serve directory on port 80
 With config: bws -c config.toml - Use configuration file"
@@ -95,11 +91,10 @@ fn create_temporary_config(directory: &str, port: u16) -> ServerConfig {
         Err(_) => directory.to_string(),
     };
 
-    println!("馃殌 Creating temporary web server:");
-    println!("   馃搧 Directory: {}", absolute_dir);
-    println!("   馃寪 Port: {}", port);
-    println!("   馃敆 URL: http://localhost:{}", port);
-    println!();
+    println!("Creating temporary web server:");
+    println!("  Directory: {}", absolute_dir);
+    println!("  Port: {}", port);
+    println!("  URL: http://localhost:{}", port);
 
     // Create a simple site configuration
     let site = SiteConfig {
@@ -142,18 +137,18 @@ fn create_temporary_config(directory: &str, port: u16) -> ServerConfig {
 
 /// Handle dry-run mode: validate configuration and exit
 fn handle_dry_run(config: &ServerConfig, cli: &Cli) {
-    println!("🔍 BWS Configuration Validation (Dry Run Mode)");
-    println!("==========================================");
+    println!("BWS Configuration Validation");
+    println!("============================");
 
     if cli.directory.is_some() {
-        println!("✅ Temporary directory configuration created successfully");
-        println!("   📁 Directory: {}", cli.directory.as_ref().unwrap());
-        println!("   🌐 Port: {}", cli.port);
+        println!(" Temporary directory configuration created successfully");
+        println!("    Directory: {}", cli.directory.as_ref().unwrap());
+        println!("    Port: {}", cli.port);
     } else {
-        println!("✅ Configuration file '{}' loaded successfully", cli.config);
+        println!(" Configuration file '{}' loaded successfully", cli.config);
     }
 
-    println!("\n📊 Configuration Summary:");
+    println!("\n Configuration Summary:");
     println!(
         "   Server: {} v{}",
         config.server.name, config.server.version
@@ -165,7 +160,7 @@ fn handle_dry_run(config: &ServerConfig, cli: &Cli) {
 
     // Validate each site configuration
     for (index, site) in config.sites.iter().enumerate() {
-        println!("\n🌐 Site {}: {}", index + 1, site.name);
+        println!("\n Site {}: {}", index + 1, site.name);
         println!("   Hostname: {}", site.hostname);
         if !site.hostnames.is_empty() {
             println!("   Additional hostnames: {}", site.hostnames.join(", "));
@@ -185,7 +180,7 @@ fn handle_dry_run(config: &ServerConfig, cli: &Cli) {
                 site.name, site.static_dir
             ));
         } else {
-            println!("   ✅ Static directory exists");
+            println!("    Static directory exists");
         }
 
         // Validate index files exist
@@ -193,7 +188,7 @@ fn handle_dry_run(config: &ServerConfig, cli: &Cli) {
         for index_file in &site.index_files {
             let index_path = std::path::Path::new(&site.static_dir).join(index_file);
             if index_path.exists() {
-                println!("   ✅ Index file found: {}", index_file);
+                println!("    Index file found: {}", index_file);
                 index_found = true;
                 break;
             }
@@ -207,9 +202,9 @@ fn handle_dry_run(config: &ServerConfig, cli: &Cli) {
 
         // Validate SSL configuration
         if site.ssl.enabled {
-            println!("   🔒 SSL enabled");
+            println!("    SSL enabled");
             if site.ssl.auto_cert {
-                println!("   🔄 Auto-certificate (ACME) enabled");
+                println!("    Auto-certificate (ACME) enabled");
                 if let Some(acme) = &site.ssl.acme {
                     if acme.enabled {
                         if acme.email.is_empty() {
@@ -218,7 +213,7 @@ fn handle_dry_run(config: &ServerConfig, cli: &Cli) {
                                 site.name
                             ));
                         } else {
-                            println!("   📧 ACME email: {}", acme.email);
+                            println!("    ACME email: {}", acme.email);
                         }
                     }
                 }
@@ -230,7 +225,7 @@ fn handle_dry_run(config: &ServerConfig, cli: &Cli) {
                 if std::path::Path::new(&cert_path).exists()
                     && std::path::Path::new(&key_path).exists()
                 {
-                    println!("   ✅ SSL certificates found");
+                    println!("    SSL certificates found");
                 } else {
                     warnings.push(format!(
                         "Site '{}': SSL enabled but certificates not found at {} and {}",
@@ -242,14 +237,14 @@ fn handle_dry_run(config: &ServerConfig, cli: &Cli) {
 
         // Validate proxy configuration
         if site.proxy.enabled {
-            println!("   🔀 Proxy enabled");
+            println!("    Proxy enabled");
             if site.proxy.upstreams.is_empty() {
                 validation_errors.push(format!(
                     "Site '{}': Proxy enabled but no upstreams configured",
                     site.name
                 ));
             } else {
-                println!("   📡 Upstreams: {}", site.proxy.upstreams.len());
+                println!("    Upstreams: {}", site.proxy.upstreams.len());
                 for upstream in &site.proxy.upstreams {
                     println!("     - {}: {}", upstream.name, upstream.url);
                 }
@@ -261,13 +256,13 @@ fn handle_dry_run(config: &ServerConfig, cli: &Cli) {
                     site.name
                 ));
             } else {
-                println!("   🛣️  Routes: {}", site.proxy.routes.len());
+                println!("     Routes: {}", site.proxy.routes.len());
             }
         }
 
         // Check for custom headers
         if !site.headers.is_empty() {
-            println!("   📋 Custom headers: {}", site.headers.len());
+            println!("    Custom headers: {}", site.headers.len());
         }
     }
 
@@ -301,7 +296,7 @@ fn handle_dry_run(config: &ServerConfig, cli: &Cli) {
 
             if hostnames.len() == sites.len() || has_default {
                 println!(
-                    "\n✅ Port {} shared by {} sites with virtual hosting",
+                    "\n Port {} shared by {} sites with virtual hosting",
                     port,
                     sites.len()
                 );
@@ -320,26 +315,26 @@ fn handle_dry_run(config: &ServerConfig, cli: &Cli) {
     println!("==========================================");
 
     if !warnings.is_empty() {
-        println!("⚠️  Warnings ({}): ", warnings.len());
+        println!("  Warnings ({}): ", warnings.len());
         for warning in &warnings {
-            println!("   ⚠️  {}", warning);
+            println!("     {}", warning);
         }
         println!();
     }
 
     if validation_errors.is_empty() {
-        println!("✅ Configuration validation passed!");
-        println!("🚀 Configuration is ready for deployment");
+        println!(" Configuration validation passed!");
+        println!(" Configuration is ready for deployment");
         std::process::exit(0);
     } else {
         println!(
-            "❌ Configuration validation failed ({} errors):",
+            " Configuration validation failed ({} errors):",
             validation_errors.len()
         );
         for error in &validation_errors {
-            println!("   ❌ {}", error);
+            println!("    {}", error);
         }
-        println!("\n💡 Fix the errors above and try again");
+        println!("\n Fix the errors above and try again");
         std::process::exit(1);
     }
 }
@@ -425,7 +420,7 @@ fn main() {
     }
 
     if cli.directory.is_some() {
-        println!("馃寪 Temporary web server ready!");
+        println!(" Temporary web server ready!");
     } else {
         println!(
             "Loaded configuration from '{}' for {} sites:",
@@ -471,7 +466,7 @@ fn main() {
             std::process::exit(1);
         });
         rt.block_on(web_service.set_config_path(cli.config.clone()));
-        log::info!("🔄 Config hot reload enabled via API at POST /api/config/reload");
+        log::info!(" Config hot reload enabled via API at POST /api/config/reload");
     }
 
     // Check if any site has ACME enabled and create a dedicated HTTP challenge service on port 80
@@ -582,11 +577,11 @@ fn main() {
         management_proxy_service.add_tcp(&management_addr);
         my_server.add_service(management_proxy_service);
 
-        log::info!("✅ Management API enabled at http://{}", management_addr);
+        log::info!(" Management API enabled at http://{}", management_addr);
         if config.management.api_key.is_some() {
-            log::info!("🔐 API key authentication required for management endpoints");
+            log::info!(" API key authentication required for management endpoints");
         } else {
-            log::warn!("⚠️  Management API has no API key - consider setting one for production");
+            log::warn!("  Management API has no API key - consider setting one for production");
         }
     } else {
         log::info!("Management API disabled");
@@ -635,7 +630,7 @@ fn main() {
             );
 
             // Display clickable URL with site description
-            println!("  鈥?{} - {}", site.name, url);
+            println!("  {} - {}", site.name, url);
 
             // Show certificate status for SSL sites
             if site.ssl.enabled {
@@ -666,24 +661,24 @@ fn main() {
             );
             println!("  Config Reload: {}/api/config/reload", mgmt_url);
             if config.management.api_key.is_some() {
-                println!("    🔑 API key required (use X-API-Key header)");
+                println!("     API key required (use X-API-Key header)");
             } else {
-                println!("    🔑 No authentication (localhost only)");
+                println!("     No authentication (localhost only)");
             }
         }
 
         if cli.directory.is_some() {
-            println!("\n🗂️ TEMPORARY SERVER MODE:");
+            println!("\n TEMPORARY SERVER MODE:");
             println!("   Press `Ctrl+C` to stop the server");
             println!(
                 "   Files are served directly from: {}",
                 cli.directory.as_ref().unwrap()
             );
-            println!("   🗂️ Simple static file server (no configuration file)");
+            println!("    Simple static file server (no configuration file)");
         } else {
-            println!("\n💡 Tip: Use Ctrl+C to stop the server");
+            println!("\n Tip: Use Ctrl+C to stop the server");
             if !cli.verbose {
-                println!("💡 Use --verbose to see health check URLs");
+                println!(" Use --verbose to see health check URLs");
             }
         }
         println!();
