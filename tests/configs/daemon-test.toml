@@ -6,7 +6,7 @@ name = "BWS Hot Reload Test Server"
 name = "test-site"
 hostname = "localhost"
 port = 8080
-static_dir = "/app/static"
+static_dir = "./tests/fixtures/test-site/static"
 default = true
 api_only = false
 

@@ -12,6 +12,7 @@ use tokio::sync::RwLock;
 #[derive(Clone)]
 pub struct WebServerService {
     config: Arc<RwLock<ServerConfig>>,
+    config_path: Arc<RwLock<Option<String>>>,
     ssl_managers: Arc<RwLock<HashMap<String, Arc<SslManager>>>>, // hostname -> SslManager
     static_handler: Arc<StaticFileHandler>,
     api_handler: Arc<ApiHandler>,
@@ -32,12 +33,27 @@ impl WebServerService {
 
         WebServerService {
             config: Arc::new(RwLock::new(config)),
+            config_path: Arc::new(RwLock::new(None)),
             ssl_managers,
             static_handler,
             api_handler,
             health_handler,
             proxy_handler: Arc::new(ProxyHandler::new(crate::config::ProxyConfig::default())),
         }
+    }
+
+    /// Set the configuration file path for hot reloading
+    pub async fn set_config_path(&self, path: String) {
+        let mut config_path = self.config_path.write().await;
+        *config_path = Some(path.clone());
+
+        // Also set it globally for the API handler
+        ApiHandler::set_config_path(path);
+    }
+
+    /// Get the configuration file path
+    pub async fn get_config_path(&self) -> Option<String> {
+        self.config_path.read().await.clone()
     }
 
     /// Initialize SSL managers for all sites with SSL enabled
@@ -837,7 +853,9 @@ impl ProxyHttp for WebServerService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{LoggingConfig, PerformanceConfig, SecurityConfig, ServerInfo};
+    use crate::config::{
+        LoggingConfig, ManagementConfig, PerformanceConfig, SecurityConfig, ServerInfo,
+    };
     use std::collections::HashMap;
 
     fn create_test_config() -> ServerConfig {
@@ -868,6 +886,7 @@ mod tests {
             logging: LoggingConfig::default(),
             performance: PerformanceConfig::default(),
             security: SecurityConfig::default(),
+            management: ManagementConfig::default(),
         }
     }
 

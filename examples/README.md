@@ -89,12 +89,32 @@ static_dir = "examples/sites/static-blog"
 
 ### Using Configuration Examples
 
-Copy any example configuration and modify it according to your needs:
+All example configurations can be validated before use:
 
 ```bash
+# Validate any example configuration
+bws --config examples/basic-single-site.toml --dry-run
+bws --config examples/production-multi-site.toml --dry-run
+
+# Copy and customize for your needs
 cp examples/basic-single-site.toml config.toml
-# Edit config.toml
-./target/release/bws --config config.toml
+# Edit config.toml to match your requirements
+bws --config config.toml --dry-run && bws --config config.toml
 ```
 
-These examples provide starting templates that you can customize for your specific requirements.
+### Validation and Testing
+
+All example configurations are automatically tested in CI/CD:
+
+```bash
+# Test all example configurations
+for config in examples/*.toml; do
+  echo "Validating $config..."
+  bws --config "$config" --dry-run
+done
+
+# Run the validation script
+./tests/scripts/validate-configs.sh --examples-only
+```
+
+These examples provide starting templates that you can customize for your specific requirements. The `--dry-run` flag ensures your modifications are valid before deployment.

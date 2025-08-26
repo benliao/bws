@@ -14,6 +14,8 @@ pub struct ServerConfig {
     pub performance: PerformanceConfig,
     #[serde(default)]
     pub security: SecurityConfig,
+    #[serde(default)]
+    pub management: ManagementConfig,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -77,6 +79,18 @@ pub struct RateLimitConfig {
     pub whitelist: Vec<String>,
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ManagementConfig {
+    #[serde(default = "default_management_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_management_host")]
+    pub host: String,
+    #[serde(default = "default_management_port")]
+    pub port: u16,
+    #[serde(default)]
+    pub api_key: Option<String>,
+}
+
 // Default value functions
 fn default_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
@@ -112,6 +126,18 @@ fn default_buffer_size() -> String {
 
 fn default_max_request_size() -> String {
     "10MB".to_string()
+}
+
+fn default_management_enabled() -> bool {
+    true
+}
+
+fn default_management_host() -> String {
+    "127.0.0.1".to_string()
+}
+
+fn default_management_port() -> u16 {
+    7654
 }
 
 impl Default for LoggingConfig {
@@ -156,6 +182,17 @@ impl Default for SecurityConfig {
             allowed_origins: vec![],
             security_headers,
             rate_limiting: None,
+        }
+    }
+}
+
+impl Default for ManagementConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_management_enabled(),
+            host: default_management_host(),
+            port: default_management_port(),
+            api_key: None,
         }
     }
 }
@@ -486,6 +523,7 @@ mod tests {
             logging: LoggingConfig::default(),
             performance: PerformanceConfig::default(),
             security: SecurityConfig::default(),
+            management: ManagementConfig::default(),
         };
 
         // Before post_process, the site should not be marked as default
@@ -578,6 +616,7 @@ mod tests {
             logging: LoggingConfig::default(),
             performance: PerformanceConfig::default(),
             security: SecurityConfig::default(),
+            management: ManagementConfig::default(),
         };
 
         let temp_file = NamedTempFile::new().unwrap();

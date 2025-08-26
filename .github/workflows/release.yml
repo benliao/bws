@@ -97,9 +97,8 @@ jobs:
           export CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc
           export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
         fi
-        # Build both bws and bws-ctl binaries
+        # Build BWS binary only (bws-ctl has been removed)
         cargo build --release --target ${{ matrix.target }} --bin bws
-        cargo build --release --target ${{ matrix.target }} --bin bws-ctl
         
     - name: Strip binary (Linux and macOS)
       if: matrix.os != 'windows-latest' && matrix.target != 'x86_64-pc-windows-gnu'
@@ -109,12 +108,6 @@ jobs:
       run: |
         mkdir -p release
         cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} release/
-        # Copy bws-ctl binary
-        if [ "${{ matrix.target }}" = "x86_64-pc-windows-gnu" ]; then
-          cp target/${{ matrix.target }}/release/bws-ctl.exe release/
-        else
-          cp target/${{ matrix.target }}/release/bws-ctl release/
-        fi
         cp README.md release/
         cp config.toml release/config.example.toml
         
@@ -242,7 +235,8 @@ jobs:
           - 📁 Static file serving with MIME type detection
           - 🚀 High-performance Pingora framework
           - 📊 REST API endpoints
-          - 🔧 TOML configuration
+          - 🔧 TOML configuration with --dry-run validation
+          - 🔄 Hot reload functionality
           - 🐳 Docker images available at `ghcr.io/benliao/bws:${{ needs.get_version.outputs.version }}`
           
           ### Installation Options
@@ -263,8 +257,9 @@ jobs:
           ### Usage
           1. Download the binary for your platform
           2. Create a `config.toml` file (see README for examples)
-          3. Create static directories for your sites
-          4. Run: `./bws` (Linux/macOS) or `bws.exe` (Windows)
+          3. Validate your configuration: `./bws --config config.toml --dry-run`
+          4. Create static directories for your sites
+          5. Run: `./bws --config config.toml` (Linux/macOS) or `bws.exe --config config.toml` (Windows)
           
           ### Platform Support
           - **Linux**: x86_64 (glibc and musl)

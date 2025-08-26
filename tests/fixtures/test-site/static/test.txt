@@ -1,0 +1,4 @@
+This is a test text file for BWS testing.
+Content-Type: text/plain
+Server: BWS Test Suite
+Status: OK

@@ -14,7 +14,7 @@ This will install the latest stable version from [crates.io](https://crates.io/c
 
 ### Prerequisites
 
-- **Rust**: Version 1.70 or later
+- **Rust**: Version 1.89.0 or later
 - **Cargo**: Comes with Rust installation
 
 ## From Docker (Recommended for Production)
@@ -31,12 +31,18 @@ docker run -d \
   -v $(pwd)/config.toml:/app/config.toml:ro \
   -v $(pwd)/static:/app/static:ro \
   ghcr.io/benliao/bws:latest
+
+# Validate configuration before running
+docker run --rm \
+  -v $(pwd)/config.toml:/app/config.toml:ro \
+  ghcr.io/benliao/bws:latest \
+  bws --config config.toml --dry-run
 ```
 
 ### Available Docker Tags
 
 - `latest` - Latest stable release
-- `v0.1.5` - Specific version (recommended for production)
+- `v0.3.4` - Specific version (recommended for production)
 - `main` - Latest development build
 
 ## From Source
@@ -48,13 +54,38 @@ For development or custom builds:
 git clone https://github.com/benliao/bws.git
 cd bws
 
+# Validate the build configuration
+cargo check
+
 # Build in debug mode
-cargo build
+cargo build --bin bws
 
 # Build optimized release
-cargo build --release
+cargo build --release --bin bws
+
+# Test the binary
+./target/release/bws --version
+./target/release/bws --help
+
+# Validate example configurations
+./target/release/bws --config examples/basic-single-site.toml --dry-run
 
 # The binary will be in target/release/bws
+```
+
+### Testing Your Build
+
+After building from source, run the test suite:
+
+```bash
+# Run unit tests
+cargo test
+
+# Run configuration validation tests
+./tests/scripts/validate-configs.sh
+
+# Run integration tests (if server dependencies available)
+./tests/scripts/test_headers.sh
 ```
 
 ## Pre-built Binaries

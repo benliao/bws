@@ -46,16 +46,32 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
       
-    - name: Check if binary runs
+    - name: Test BWS binary and configuration validation
       run: |
-        # Build both binaries
+        # Build BWS binary
         cargo build --bin bws
-        cargo build --bin bws-ctl
         
-        # Test bws-ctl binary
-        ./target/debug/bws-ctl --help
+        # Test BWS binary help
+        ./target/debug/bws --help
         
-        # Create test static files
+        # Test BWS version
+        ./target/debug/bws --version
+        
+        # Test configuration validation with --dry-run
+        echo "Testing configuration validation..."
+        ./target/debug/bws --config config.toml --dry-run
+        
+        # Test invalid configuration handling
+        echo "Testing invalid configuration handling..."
+        echo "invalid toml content" > invalid.toml
+        if ./target/debug/bws --config invalid.toml --dry-run 2>/dev/null; then
+          echo "❌ Should have failed with invalid config"
+          exit 1
+        else
+          echo "✅ Correctly rejected invalid configuration"
+        fi
+        
+        # Create test static files for basic functionality test
         mkdir -p static static-blog static-api static-dev
         echo "<html><body><h1>Test Main Site</h1></body></html>" > static/index.html
         echo "<html><body><h1>Test Blog Site</h1></body></html>" > static-blog/index.html
@@ -63,7 +79,7 @@ jobs:
         echo "<html><body><h1>Test Dev Site</h1></body></html>" > static-dev/index.html
         
         # Start server in background and test basic functionality
-        timeout 30s ./target/debug/bws &
+        timeout 30s ./target/debug/bws --config config.toml &
         SERVER_PID=$!
         
         # Wait for server to start
@@ -76,13 +92,23 @@ jobs:
         curl -f http://localhost:8080/api/health
         curl -f http://localhost:8080/api/sites
         
-        # Test hot reload capability (create a simple config change)
-        echo "Testing configuration reload capability..."
-        cp config.toml test_reload_config.toml
+        # Test static file serving
+        curl -f http://localhost:8080/ | grep "Test Main Site"
         
         # Kill the server
         kill $SERVER_PID || true
         wait $SERVER_PID || true
+        
+        echo "✅ BWS binary tests completed successfully"
+
+    - name: Upload BWS binary artifact
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: bws-binary-ubuntu-latest
+        path: target/debug/bws
+        retention-days: 7
+        if-no-files-found: error
 
   security_audit:
     name: Security Audit
@@ -110,8 +136,8 @@ jobs:
         # Report on the known vulnerability status
         echo "::notice::Security audit complete. Known vulnerability RUSTSEC-2024-0437 is accepted and documented in SECURITY.md"
 
-  build_matrix:
-    name: Build Matrix
+  cross_platform:
+    name: Cross Platform Build
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -145,7 +171,16 @@ jobs:
           ${{ runner.os }}-${{ matrix.rust }}-cargo-
           
     - name: Build
-      run: cargo build --verbose
+      run: cargo build --verbose --bin bws
       
     - name: Run tests
       run: cargo test --verbose
+
+    - name: Upload build artifacts
+      if: success() && matrix.rust == '1.89.0'
+      uses: actions/upload-artifact@v4
+      with:
+        name: bws-${{ matrix.os }}-${{ matrix.rust }}
+        path: target/debug/bws*
+        retention-days: 3
+        if-no-files-found: error

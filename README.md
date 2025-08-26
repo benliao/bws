@@ -116,10 +116,14 @@ bws -c config.toml
 
 ## 📖 Documentation
 
+- **[Quick Start Guide](docs/src/quick-start.md)** - Get up and running in minutes
+- **[Configuration Guide](docs/src/configuration.md)** - Comprehensive configuration reference
 - **[Hot Reload Guide](docs/src/hot-reload.md)** - Zero-downtime configuration updates
 - **[Architecture Guide](docs/architecture/README.md)** - System design and modules
-- **[Configuration Examples](examples/)** - Ready-to-use configs
+- **[Testing Guide](docs/src/testing.md)** - Testing methodology and scripts
+- **[Configuration Examples](examples/)** - Ready-to-use configurations
 - **[Security Guide](SECURITY.md)** - Security features and best practices
+- **[API Documentation](docs/src/api.md)** - REST API reference
 
 ## 🏗️ Architecture
 
@@ -139,94 +143,164 @@ src/
 ## 🔧 CLI Options
 
 ```bash
-bws                              # Use config.toml
-bws --config custom.toml         # Custom config
-bws --verbose                    # Debug logging
-bws --daemon                     # Background process (Unix)
+bws                                  # Use config.toml  
+bws --config custom.toml             # Custom config file
+bws /path/to/directory               # Serve directory directly
+bws /path/to/directory --port 8080   # Custom port for directory serving
+bws --verbose                        # Enable debug logging
+bws --daemon                         # Run as background process (Unix only)
+bws --dry-run                        # Validate configuration without starting server
+bws --help                           # Show all available options
+bws --version                        # Show version information
 ```
 
-## 🔄 True Hot Reload & Process Management
+### Configuration Validation
 
-BWS implements a production-grade master-worker architecture for true hot reloading without service interruption, inspired by enterprise proxies like HAProxy and nginx.
-
-### Master-Worker Architecture
-
-BWS operates with a master process that spawns and manages worker processes:
-
-- **Master Process**: Monitors configuration changes and manages worker lifecycle
-- **Worker Processes**: Handle actual HTTP traffic and serve requests
-- **Zero-Downtime Reloads**: New workers serve requests while old workers gracefully finish existing connections
-
-### Hot Configuration Reload
-
-Update configuration without restarting or dropping connections:
+BWS now includes comprehensive configuration validation with the `--dry-run` flag:
 
 ```bash
-# Send reload signal to master process
-kill -HUP $(pgrep -f "bws.*master")
+# Validate configuration file without starting server
+bws --config config.toml --dry-run
 
-# Or using process management
-systemctl reload bws
+# Validate before starting server  
+bws --config production.toml --dry-run && bws --config production.toml
+
+# Check example configurations
+bws --config examples/basic-single-site.toml --dry-run
 ```
 
-**Hot Reload Process:**
-1. Master process receives SIGHUP signal
-2. Loads and validates new configuration
-3. Spawns new worker process with updated config
-4. New worker starts serving requests
-5. Old worker gracefully finishes existing connections
-6. Old worker process terminates
+The validator performs comprehensive checks:
+- ✅ **TOML Syntax**: Validates configuration file format
+- ✅ **Required Fields**: Ensures all necessary configuration sections exist
+- ✅ **Static Directories**: Verifies that specified directories exist
+- ✅ **SSL Certificates**: Checks certificate file availability
+- ✅ **Proxy Configuration**: Validates upstream configurations
+- ✅ **Port Conflicts**: Warns about potential virtual hosting issues
+- ✅ **Schema Compliance**: Ensures configuration matches current schema
 
-**What can be hot reloaded:**
+## 🔄 Configuration Reload
+
+BWS supports real-time configuration reloading through a simple API endpoint, allowing you to update configurations without restarting the server.
+
+### API-Based Reload
+
+Update configuration without restarting:
+
+```bash
+# Reload configuration via API
+curl -X POST http://localhost:8080/api/reload
+
+# Or using your configured port
+curl -X POST http://localhost:8081/api/reload
+```
+
+**Reload Process:**
+1. Send POST request to `/api/reload` endpoint
+2. BWS validates new configuration file
+3. If valid, applies new configuration immediately
+4. Returns success/error status
+
+**What can be reloaded:**
 - ✅ Site configurations and hostnames
 - ✅ SSL certificates and ACME settings  
 - ✅ Proxy routes and upstreams
 - ✅ Static file directories
 - ✅ Security headers and middleware
-- ✅ Logging configuration
 - ✅ Multi-hostname configurations
 - ❌ Server ports (requires restart)
-- ❌ Worker count (requires restart)
-
-### Process Management
-
-```bash
-# Check BWS processes
-ps aux | grep bws
-
-# View master and worker processes
-pgrep -a bws
-
-# Monitor process tree
-pstree -p $(pgrep -f "bws.*master")
-
-# Graceful shutdown (stops all workers)
-kill -TERM $(pgrep -f "bws.*master")
-```
 
 ### Production Example
 
 ```bash
-# Start BWS with hot reload capability
+# Start BWS
 bws --config /etc/bws/config.toml
 
 # Edit configuration
 vim /etc/bws/config.toml
 
-# Hot reload configuration
-kill -HUP $(pgrep -f "bws.*master")
+# Validate configuration before applying
+bws --config /etc/bws/config.toml --dry-run
+
+# Reload configuration
+curl -X POST http://localhost:8080/api/reload
 
 # Verify new configuration is active
-curl -I http://localhost:8080/ | grep "X-Config-Version"
+curl -I http://localhost:8080/ | grep "Server:"
+```
+
+### Configuration Validation
+
+BWS includes a built-in configuration validator that checks your configuration files without starting the server:
+
+```bash
+# Validate configuration file
+bws --config config.toml --dry-run
+
+# Validate directory serving setup
+bws /path/to/website --port 8080 --dry-run
+```
+
+The validator checks for:
+- ✅ **TOML Syntax**: Validates configuration file format
+- ✅ **Required Fields**: Ensures all necessary configuration sections exist  
+- ✅ **Static Directories**: Verifies that specified directories exist
+- ✅ **SSL Certificate Files**: Checks certificate file availability
+- ✅ **Proxy Configuration**: Validates upstream configurations
+- ✅ **Schema Compliance**: Ensures configuration matches expected structure
+- ⚠️  **Port Conflicts**: Warns about potential virtual hosting setup issues
+- ⚠️  **Missing Files**: Reports missing index files and referenced paths
+
+**Example validation output:**
+```
+🔍 BWS Configuration Validation (Dry Run Mode)
+==========================================
+✅ Configuration file 'config.toml' loaded successfully
+
+📊 Configuration Summary:
+   Server: BWS Multi-Site Server v0.3.4
+   Sites: 4
+
+🌐 Site 1: main
+   Hostname: localhost
+   Port: 8080
+   Static directory: examples/sites/static
+   ✅ Static directory exists
+   📋 Custom headers: 4
+
+==========================================
+           VALIDATION RESULTS
+==========================================
+✅ Configuration validation passed!
+🚀 Configuration is ready for deployment
 ```
 
 See [Hot Reload Guide](docs/src/hot-reload.md) for detailed documentation.
 
 ## 📊 API Endpoints
 
-- `GET /api/health` - Server health status
-- `GET /api/health/detailed` - Detailed system information
+BWS provides a RESTful API for monitoring and management:
+
+- `GET /api/health` - Basic server health status
+- `GET /api/health/detailed` - Detailed system information  
+- `GET /api/sites` - List all configured sites
+- `POST /api/reload` - Hot reload configuration without restart
 - `GET /` - Static content (when configured)
+
+### API Examples
+
+```bash
+# Check server health
+curl http://localhost:8080/api/health
+
+# Get detailed system information
+curl http://localhost:8080/api/health/detailed | jq
+
+# List all configured sites
+curl http://localhost:8080/api/sites | jq
+
+# Hot reload configuration
+curl -X POST http://localhost:8080/api/reload
+```
 
 ## 🐳 Docker
 

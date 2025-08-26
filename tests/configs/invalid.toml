@@ -1,0 +1,19 @@
+# BWS Invalid Test Configuration
+[server]
+name = "BWS Invalid Test Server"
+
+[[sites]]
+name = "invalid_site"
+hostname = "localhost"
+port = 8080
+static_dir = "/nonexistent/directory"  # This path doesn't exist
+default = true
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+# Missing ACME email - this should cause an error
+
+[sites.proxy]
+enabled = true
+# No upstreams configured - this should cause an error

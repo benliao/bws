@@ -1,6 +1,6 @@
 # Quick Start
 
-Get BWS up and running in just a few minutes! BWS offers two ways to get started quickly.
+Get BWS up and running in just a few minutes! BWS offers multiple ways to get started quickly.
 
 ## Option 1: Instant Directory Server (Fastest)
 
@@ -13,6 +13,9 @@ bws .
 # Serve specific directory on custom port  
 bws /path/to/website --port 8080
 
+# Validate directory setup before starting
+bws /path/to/website --port 8080 --dry-run
+
 # Windows example
 bws.exe C:\websites\mysite --port 8080
 ```
@@ -23,11 +26,26 @@ bws.exe C:\websites\mysite --port 8080
 mkdir my-website
 echo "<h1>Welcome to BWS!</h1>" > my-website/index.html
 
-# Start serving immediately
+# Validate the setup first
+bws my-website --port 8080 --dry-run
+
+# Start serving
 bws my-website --port 8080
 ```
 
-**Output:**
+**Validation Output:**
+```
+🔍 BWS Directory Server Validation
+==========================================
+✅ Directory '/path/to/my-website' exists
+✅ Port 8080 is available  
+✅ Found index.html
+📋 Ready to serve 1 files
+
+🚀 Directory server configuration is valid!
+```
+
+**Server Output:**
 ```
 🚀 Creating temporary web server:
    📁 Directory: /path/to/my-website
@@ -36,9 +54,7 @@ bws my-website --port 8080
 
 🌐 Temporary web server ready!
    Serving: /path/to/my-website on http://localhost:8080
-
-📁 BWS Temporary Directory Server
-📋 Quick Start Server:
+```
   • main - http://localhost:8080
 
 🚀 TEMPORARY SERVER MODE:
@@ -57,7 +73,7 @@ bws my-website --port 8080
 
 For production deployments and advanced features, create a configuration file.
 
-## 1. Create Configuration
+### 1. Create Configuration
 
 Create a `config.toml` file with both HTTP and HTTPS sites:
 
@@ -104,7 +120,7 @@ challenge_dir = "./acme-challenges"
 "Strict-Transport-Security" = "max-age=31536000"
 ```
 
-## 2. Create Static Content
+### 2. Create Static Content
 
 Create your static directory and add some content:
 
@@ -144,15 +160,39 @@ cat > static/index.html << 'EOF'
 EOF
 ```
 
-## 3. Run the Server
+### 3. Validate Configuration
 
-Start BWS with your configuration:
+Before starting the server, validate your configuration:
 
 ```bash
-# Using cargo install
-bws --config config.toml
+# Validate configuration file
+bws --config config.toml --dry-run
 
-# Using Docker
+# Expected output:
+# 🔍 BWS Configuration Validation (Dry Run Mode)
+# ==========================================  
+# ✅ Configuration file 'config.toml' loaded successfully
+# 📊 Configuration Summary:
+#    Server: BWS Multi-Site Server
+#    Sites: 2
+# ✅ Configuration validation passed!
+# 🚀 Configuration is ready for deployment
+```
+
+### 4. Run the Server
+
+After validation, start BWS with your configuration:
+
+```bash
+# Using cargo install (after validation)
+bws --config config.toml --dry-run && bws --config config.toml
+
+# Using Docker with validation
+docker run --rm \
+  -v $(pwd)/config.toml:/app/config.toml:ro \
+  ghcr.io/benliao/bws:latest \
+  bws --config config.toml --dry-run
+
 docker run -d \
   -p 8080:8080 \
   -v $(pwd)/config.toml:/app/config.toml:ro \
@@ -160,7 +200,7 @@ docker run -d \
   ghcr.io/benliao/bws:latest
 
 # From source
-cargo run -- --config config.toml
+cargo run -- --config config.toml --dry-run && cargo run -- --config config.toml
 ```
 
 ## 4. Test Your Server
@@ -182,6 +222,33 @@ curl -k https://secure.localhost:8443/
 
 # Check SSL certificate (if ACME is working)
 openssl s_client -connect localhost:8443 -servername secure.localhost
+```
+
+### Management API
+
+BWS includes a secure Management API for administrative operations:
+
+```bash
+# Configuration reload (localhost only)
+curl -X POST http://127.0.0.1:7654/api/config/reload
+
+# Check if Management API is running
+curl http://127.0.0.1:7654/api/config/reload -X POST
+```
+
+The Management API:
+- 🔒 **Localhost Only**: Restricted to `127.0.0.1` for security
+- 🔄 **Hot Reload**: Reload configuration without restart
+- 🔑 **Optional API Key**: Can be secured with authentication
+- 📊 **Audit Logging**: All operations logged
+
+**Configure API Key (recommended for production):**
+```toml
+[management]
+enabled = true
+host = "127.0.0.1"
+port = 7654
+api_key = "your-secure-api-key"
 ```
 
 ### Setting up hostname resolution

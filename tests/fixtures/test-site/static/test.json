@@ -1,0 +1,20 @@
+{
+  "server": "BWS",
+  "version": "0.3.4",
+  "status": "ok",
+  "test_suite": "v2.0.0",
+  "endpoints": {
+    "health": "/api/health",
+    "config": "/api/config",
+    "reload": "/api/config/reload"
+  },
+  "features": [
+    "multi-site",
+    "ssl",
+    "hot-reload",
+    "load-balancing",
+    "websockets",
+    "compression"
+  ],
+  "timestamp": "2025-08-26T00:00:00Z"
+}

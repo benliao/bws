@@ -2,7 +2,27 @@
 
 BWS uses TOML configuration files to define server behavior and site settings.
 
-## Configuration File Lkey_file = "./certs/manual.crt"
+## Configuration Validation
+
+Before starting BWS, you can validate your configuration using the `--dry-run` flag:
+
+```bash
+# Validate configuration without starting server
+bws --config config.toml --dry-run
+
+# Validate example configurations
+bws --config examples/basic-single-site.toml --dry-run
+bws --config examples/production-multi-site.toml --dry-run
+```
+
+The validator checks:
+- ✅ **TOML Syntax**: Ensures valid TOML format
+- ✅ **Required Fields**: Validates all mandatory configuration sections
+- ✅ **File Paths**: Verifies static directories and certificate files exist  
+- ✅ **Schema Compliance**: Ensures configuration matches expected structure
+- ⚠️  **Warnings**: Reports potential issues without failing validation
+
+## Configuration File Locationkey_file = "./certs/manual.crt"
 ```
 
 ### Reverse Proxy Configuration
@@ -115,6 +135,44 @@ The `[server]` section contains global server settings:
 ```toml
 [server]
 name = "My Production BWS Server"
+```
+
+## Management API Configuration
+
+The `[management]` section configures the secure Management API for administrative operations:
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `enabled` | Boolean | Enable Management API service | `true` |
+| `host` | String | Host to bind to (localhost only for security) | `"127.0.0.1"` |
+| `port` | Integer | Port number for Management API | `7654` |
+| `api_key` | String | Optional API key for authentication | `null` |
+
+```toml
+[management]
+enabled = true
+host = "127.0.0.1"              # Localhost only for security
+port = 7654
+api_key = "your-secure-api-key"  # Optional, recommended for production
+```
+
+**Security Notes:**
+- The Management API always binds to localhost only (`127.0.0.1`) for security
+- The `host` field cannot be changed to prevent external access
+- API key authentication is optional but recommended for production
+- All management requests are logged with client IP addresses
+
+**Available Endpoints:**
+- `POST /api/config/reload` - Reload server configuration
+
+**Usage:**
+```bash
+# Without API key (localhost only)
+curl -X POST http://127.0.0.1:7654/api/config/reload
+
+# With API key
+curl -X POST http://127.0.0.1:7654/api/config/reload \
+  -H "X-API-Key: your-secure-api-key"
 ```
 
 ## Sites Configuration

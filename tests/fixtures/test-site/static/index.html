@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BWS Test Site</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 10px;
+        }
+        .status {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .endpoints {
+            background: #f0f8ff;
+            border: 1px solid #007acc;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 BWS Test Site</h1>
+        
+        <div class="status">
+            <strong>✅ Server Status:</strong> Running and serving content successfully!
+        </div>
+        
+        <h2>Test Endpoints</h2>
+        <div class="endpoints">
+            <p><strong>Static Files:</strong></p>
+            <ul>
+                <li><code>GET /</code> - This page</li>
+                <li><code>GET /test.txt</code> - Plain text file</li>
+                <li><code>GET /test.json</code> - JSON response</li>
+            </ul>
+            
+            <p><strong>API Endpoints:</strong></p>
+            <ul>
+                <li><code>GET /api/health</code> - Health check</li>
+                <li><code>GET /api/config</code> - Server configuration info</li>
+                <li><code>POST /api/config/reload</code> - Reload configuration</li>
+            </ul>
+        </div>
+        
+        <h2>Test Information</h2>
+        <p>This is a test site for BWS (Blazing Web Server) automated testing.</p>
+        <p><strong>Server:</strong> BWS v0.3.4</p>
+        <p><strong>Test Suite:</strong> v2.0.0</p>
+        <p><strong>Timestamp:</strong> <span id="timestamp"></span></p>
+    </div>
+
+    <script>
+        document.getElementById('timestamp').textContent = new Date().toISOString();
+    </script>
+</body>
+</html>

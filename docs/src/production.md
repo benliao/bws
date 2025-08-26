@@ -170,6 +170,62 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
+}
+```
+
+### Management API Security
+
+BWS includes a secure Management API for administrative operations. In production, ensure proper security configuration:
+
+```toml
+# /etc/bws/production.toml
+[management]
+enabled = true
+host = "127.0.0.1"              # Always localhost only
+port = 7654                     # Internal management port
+api_key = "prod-secure-api-key-2024"  # Strong API key required
+```
+
+**Production Security Checklist:**
+
+1. **Enable API Key Authentication:**
+```bash
+# Generate secure API key
+openssl rand -hex 32
+# Add to config: api_key = "generated-key-here"
+```
+
+2. **Firewall Configuration:**
+```bash
+# Ensure management port is NOT exposed externally
+ufw deny 7654                   # Block external access
+iptables -A INPUT -p tcp --dport 7654 -s 127.0.0.1 -j ACCEPT
+iptables -A INPUT -p tcp --dport 7654 -j DROP
+```
+
+3. **Access Logging:**
+```bash
+# Monitor management API access
+tail -f /var/log/bws/bws.log | grep "Management API"
+```
+
+4. **Automated Configuration Reload:**
+```bash
+#!/bin/bash
+# /opt/bws/scripts/reload-config.sh
+curl -X POST http://127.0.0.1:7654/api/config/reload \
+  -H "X-API-Key: ${BWS_MANAGEMENT_API_KEY}" \
+  -s -o /dev/null -w "%{http_code}\n"
+```
+
+**Security Benefits:**
+- 🔒 **Localhost Binding**: No external network access possible
+- 🔒 **IP Validation**: Double-checks request origin
+- 🔒 **API Key Auth**: Additional authentication layer
+- 🔒 **Audit Logging**: All operations logged with client IP
+- 🔒 **Isolated Service**: Separate from main web traffic
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 
     location /health {
         proxy_pass http://bws_backend/health;

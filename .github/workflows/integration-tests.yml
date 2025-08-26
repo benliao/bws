@@ -1,0 +1,321 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  configuration-tests:
+    name: Configuration Validation Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@1.89.0
+      
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+          
+    - name: Build BWS
+      run: cargo build --release --bin bws
+      
+    - name: Run configuration validation tests
+      run: |
+        chmod +x tests/scripts/validate-configs.sh
+        ./tests/scripts/validate-configs.sh
+
+  header-tests:
+    name: HTTP Header Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@1.89.0
+      
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+          
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl jq
+        
+    - name: Build BWS
+      run: cargo build --release --bin bws
+      
+    - name: Run header tests
+      run: |
+        chmod +x tests/scripts/test_headers.sh
+        ./tests/scripts/test_headers.sh
+
+  multisite-tests:
+    name: Multi-Site Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@1.89.0
+      
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+          
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl
+        
+    - name: Build BWS
+      run: cargo build --release --bin bws
+      
+    - name: Run multi-site tests
+      run: |
+        chmod +x tests/scripts/test_multisite.sh
+        ./tests/scripts/test_multisite.sh
+
+  load-balancing-tests:
+    name: Load Balancing Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@1.89.0
+      
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+          
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl netcat-openbsd
+        
+    - name: Build BWS
+      run: cargo build --release --bin bws
+      
+    - name: Run load balancing tests
+      run: |
+        chmod +x tests/scripts/test_load_balance.sh
+        ./tests/scripts/test_load_balance.sh
+
+  websocket-tests:
+    name: WebSocket Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@1.89.0
+      
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+          
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl nodejs npm python3 python3-pip
+        npm install -g websocket
+        pip3 install websockets
+        
+    - name: Build BWS
+      run: cargo build --release --bin bws
+      
+    - name: Run WebSocket tests
+      run: |
+        chmod +x tests/scripts/simple_websocket_test.sh
+        ./tests/scripts/simple_websocket_test.sh
+
+  static-file-tests:
+    name: Static File Serving Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@1.89.0
+      
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+          
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl jq
+        
+    - name: Build BWS
+      run: cargo build --release --bin bws
+      
+    - name: Run static file tests
+      run: |
+        chmod +x tests/scripts/test_static_server.sh
+        ./tests/scripts/test_static_server.sh
+
+  github-actions-simulation:
+    name: GitHub Actions Environment Simulation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@1.89.0
+      
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+          
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl jq
+        
+    - name: Build BWS
+      run: cargo build --release --bin bws
+      
+    - name: Run GitHub Actions simulation
+      run: |
+        chmod +x tests/scripts/github_actions_simulation.sh
+        ./tests/scripts/github_actions_simulation.sh
+
+  integration-summary:
+    name: Integration Test Summary
+    runs-on: ubuntu-latest
+    needs: [configuration-tests, header-tests, multisite-tests, load-balancing-tests, websocket-tests, static-file-tests, github-actions-simulation]
+    if: always()
+    
+    steps:
+    - name: Check all test results
+      run: |
+        echo "🧪 Integration Test Results Summary"
+        echo "=================================="
+        
+        # Check each job result
+        if [ "${{ needs.configuration-tests.result }}" = "success" ]; then
+          echo "✅ Configuration Tests: PASSED"
+        else
+          echo "❌ Configuration Tests: FAILED"
+        fi
+        
+        if [ "${{ needs.header-tests.result }}" = "success" ]; then
+          echo "✅ Header Tests: PASSED"
+        else
+          echo "❌ Header Tests: FAILED"
+        fi
+        
+        if [ "${{ needs.multisite-tests.result }}" = "success" ]; then
+          echo "✅ Multi-Site Tests: PASSED"
+        else
+          echo "❌ Multi-Site Tests: FAILED"
+        fi
+        
+        if [ "${{ needs.load-balancing-tests.result }}" = "success" ]; then
+          echo "✅ Load Balancing Tests: PASSED"
+        else
+          echo "❌ Load Balancing Tests: FAILED"
+        fi
+        
+        if [ "${{ needs.websocket-tests.result }}" = "success" ]; then
+          echo "✅ WebSocket Tests: PASSED"
+        else
+          echo "❌ WebSocket Tests: FAILED"
+        fi
+        
+        if [ "${{ needs.static-file-tests.result }}" = "success" ]; then
+          echo "✅ Static File Tests: PASSED"
+        else
+          echo "❌ Static File Tests: FAILED"
+        fi
+        
+        if [ "${{ needs.github-actions-simulation.result }}" = "success" ]; then
+          echo "✅ GitHub Actions Simulation: PASSED"
+        else
+          echo "❌ GitHub Actions Simulation: FAILED"
+        fi
+        
+        # Fail if any required tests failed
+        if [ "${{ needs.configuration-tests.result }}" != "success" ] || \
+           [ "${{ needs.header-tests.result }}" != "success" ] || \
+           [ "${{ needs.multisite-tests.result }}" != "success" ]; then
+          echo ""
+          echo "❌ Critical tests failed!"
+          exit 1
+        fi
+        
+        echo ""
+        echo "🎉 All integration tests completed successfully!"

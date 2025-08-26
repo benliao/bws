@@ -18,6 +18,7 @@
 - [Hot Reload & Zero-Downtime Updates](./hot-reload.md)
 - [Custom Headers](./headers.md)
 - [Health Monitoring](./health.md)
+- [Security](./security.md)
 
 # Deployment
 - [Docker Deployment](./docker.md)

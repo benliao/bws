@@ -5,18 +5,52 @@ This guide covers testing strategies, tools, and best practices for BWS developm
 ## Testing Overview
 
 BWS includes multiple layers of testing:
-- **Unit Tests**: Test individual functions and modules
-- **Integration Tests**: Test component interactions
-- **End-to-End Tests**: Test complete workflows
-- **Performance Tests**: Measure performance characteristics
-- **Security Tests**: Validate security measures
+- **Unit Tests**: Test individual functions and modules using Rust's built-in test framework
+- **Integration Tests**: Test component interactions and API endpoints
+- **Configuration Tests**: Validate configuration files using `--dry-run`
+- **End-to-End Tests**: Test complete workflows including hot reload and multi-site functionality
+- **Performance Tests**: Measure performance characteristics under load
+- **Security Tests**: Validate security measures and headers
+
+## Configuration Validation Testing
+
+BWS includes comprehensive configuration validation that can be used for testing:
+
+### Using --dry-run for Testing
+
+```bash
+# Validate configuration files without starting server
+bws --config config.toml --dry-run
+
+# Test all example configurations
+for config in examples/*.toml; do
+  echo "Testing $config..."
+  bws --config "$config" --dry-run
+done
+
+# Test production configurations
+bws --config production.toml --dry-run
+```
+
+### Automated Configuration Testing
+
+BWS includes automated test scripts for comprehensive configuration validation:
+
+```bash
+# Run comprehensive configuration validation
+./tests/scripts/validate-configs.sh
+
+# Test specific configuration categories
+./tests/scripts/validate-configs.sh --examples-only
+./tests/scripts/validate-configs.sh --tests-only
+```
 
 ## Running Tests
 
 ### Basic Test Commands
 
 ```bash
-# Run all tests
+# Run all Rust unit tests
 cargo test
 
 # Run tests with output
@@ -33,6 +67,33 @@ cargo test -- --ignored
 
 # Run tests in single thread (for debugging)
 cargo test -- --test-threads=1
+```
+
+### Integration Test Scripts
+
+BWS includes organized test scripts for comprehensive testing:
+
+```bash
+# Configuration validation tests
+./tests/scripts/validate-configs.sh
+
+# HTTP header functionality tests  
+./tests/scripts/test_headers.sh
+
+# Multi-site hosting tests
+./tests/scripts/test_multisite.sh
+
+# Load balancing tests
+./tests/scripts/test_load_balance.sh
+
+# WebSocket proxy tests
+./tests/scripts/simple_websocket_test.sh
+
+# Hot reload functionality tests
+./tests/scripts/test_hot_reload.sh
+
+# Static file serving tests
+./tests/scripts/test_static_server.sh
 ```
 
 ### Test Categories

@@ -1,0 +1,46 @@
+# BWS Basic Test Configuration
+# This is a minimal configuration for basic functionality testing
+
+[server]
+name = "BWS Basic Test Server"
+
+# Single test site
+[[sites]]
+name = "test_basic"
+hostname = "localhost"
+port = 8080
+static_dir = "./tests/fixtures/test-site/static"
+default = true
+api_only = false
+redirect_to_https = false
+index_files = ["index.html", "index.htm"]
+
+# Basic security headers
+[sites.headers]
+"X-Frame-Options" = "DENY"
+"X-Content-Type-Options" = "nosniff"
+
+# Enable compression for testing
+[sites.compression]
+enabled = true
+level = 6
+min_size = 1000
+types = ["text/html", "text/css", "application/javascript", "application/json"]
+
+# Basic caching
+[sites.cache]
+enabled = true
+max_age = 3600
+public = true
+
+# No access control for testing
+[sites.access_control]
+enabled = false
+allowed_ips = []
+blocked_ips = []
+
+# No SSL for basic testing
+[sites.ssl]
+enabled = false
+auto_cert = false
+domains = []

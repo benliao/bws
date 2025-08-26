@@ -23,6 +23,14 @@ image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:edge"
 # ARMv7 static linking (for older ARM devices)
 image = "ghcr.io/cross-rs/armv7-unknown-linux-musleabihf:edge"
 
+[target.x86_64-pc-windows-gnu]
+# Windows 64-bit cross-compilation
+image = "ghcr.io/cross-rs/x86_64-pc-windows-gnu:edge"
+
+[target.i686-pc-windows-gnu]
+# Windows 32-bit cross-compilation
+image = "ghcr.io/cross-rs/i686-pc-windows-gnu:edge"
+
 # Build environment variables
 [build.env]
 passthrough = [

@@ -1,0 +1,12 @@
+[server]
+name = "Hot Reload Test Server"
+
+[[sites]]
+name = "test-site"
+hostname = "localhost"
+port = 8080
+static_dir = "tests/fixtures/test-site/static"
+default = true
+
+[sites.headers]
+"X-Test-Header" = "original-value"

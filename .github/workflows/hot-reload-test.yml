@@ -109,32 +109,32 @@ jobs:
         # Update content
         echo "<html><body><h1>Updated Content</h1></body></html>" > test-site/static/index.html
         
-        # Send SIGUSR1 for hot reload (simulate config change detection)
+        # Send SIGUSR1 for hot reload
         echo "Triggering hot reload..."
         kill -USR1 $BWS_PID
         
         # Wait for reload to complete
-        sleep 3
+        sleep 5
         
         # Test updated configuration
         echo "Testing updated configuration..."
         RESPONSE=$(curl -s -H "Host: localhost" http://localhost:8080/ | grep "Updated Content")
         if [ -z "$RESPONSE" ]; then
-          echo "❌ Updated content not found"
+          echo "❌ Updated content not found after hot reload"
           kill $BWS_PID
           exit 1
         fi
         
         HEADER=$(curl -s -I -H "Host: localhost" http://localhost:8080/ | grep "X-Test-Header: updated-value")
         if [ -z "$HEADER" ]; then
-          echo "❌ Updated header not found"
+          echo "❌ Updated header not found after hot reload"
           kill $BWS_PID
           exit 1
         fi
         
         NEW_HEADER=$(curl -s -I -H "Host: localhost" http://localhost:8080/ | grep "X-New-Header: new-value")
         if [ -z "$NEW_HEADER" ]; then
-          echo "❌ New header not found"
+          echo "❌ New header not found after hot reload"
           kill $BWS_PID
           exit 1
         fi
@@ -146,8 +146,8 @@ jobs:
         
         echo "🎉 Hot reload test completed successfully!"
 
-  bws-ctl-test:
-    name: BWS-CTL Binary Test
+  configuration-validation:
+    name: Configuration Validation Test  
     runs-on: ubuntu-latest
     
     steps:
@@ -168,18 +168,54 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-cargo-
           
-    - name: Build bws-ctl
-      run: cargo build --release --bin bws-ctl
+    - name: Build BWS
+      run: cargo build --release --bin bws
       
-    - name: Test bws-ctl functionality
+    - name: Test configuration validation with --dry-run
       run: |
-        # Test help command
-        ./target/release/bws-ctl --help
+        echo "🧪 Testing BWS configuration validation..."
         
-        # Test version command
-        ./target/release/bws-ctl --version || true
+        # Test valid configuration files
+        echo "Testing valid configurations..."
+        ./target/release/bws --config config.toml --dry-run
         
-        # Test validate command (should handle missing config gracefully)
-        ./target/release/bws-ctl validate --config non-existent.toml 2>&1 || true
+        # Test example configurations
+        for config in examples/*.toml; do
+          echo "Validating $config..."
+          ./target/release/bws --config "$config" --dry-run
+        done
         
-        echo "✅ bws-ctl binary tests completed"
+        # Test test configurations  
+        for config in tests/configs/*.toml; do
+          echo "Validating $config..."
+          ./target/release/bws --config "$config" --dry-run
+        done
+        
+        # Test invalid configuration
+        echo "Testing invalid configuration handling..."
+        cat > invalid-test.toml << 'EOF'
+        [server]
+        invalid_field = "should fail"
+        
+        [[sites]]
+        # Missing required fields
+        EOF
+        
+        if ./target/release/bws --config invalid-test.toml --dry-run 2>/dev/null; then
+          echo "❌ Should have failed with invalid config"
+          exit 1
+        else
+          echo "✅ Correctly rejected invalid configuration"
+        fi
+        
+        # Test malformed TOML
+        echo "Testing malformed TOML handling..."
+        echo "invalid toml [[[" > malformed.toml
+        if ./target/release/bws --config malformed.toml --dry-run 2>/dev/null; then
+          echo "❌ Should have failed with malformed TOML"
+          exit 1
+        else
+          echo "✅ Correctly rejected malformed TOML"
+        fi
+        
+        echo "✅ Configuration validation tests completed successfully!"

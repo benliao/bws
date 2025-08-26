@@ -1,8 +1,7 @@
 use bws_web_server::config::{
     LoggingConfig, PerformanceConfig, SecurityConfig, ServerConfig, ServerInfo, SiteConfig,
 };
-use bws_web_server::core::{HotReloadManager, SignalHandler};
-use bws_web_server::server::WebServerService;
+use bws_web_server::server::{ManagementApiService, WebServerService};
 use clap::Parser;
 #[cfg(unix)]
 use daemonize::Daemonize;
@@ -68,6 +67,10 @@ struct Cli {
     #[cfg(unix)]
     #[arg(long, default_value = "/tmp/bws-web-server.log")]
     log_file: String,
+
+    /// Validate configuration and exit (do not start server)
+    #[arg(long)]
+    dry_run: bool,
 }
 
 /// Create a temporary configuration for serving a single directory
@@ -133,6 +136,211 @@ fn create_temporary_config(directory: &str, port: u16) -> ServerConfig {
         logging: LoggingConfig::default(),
         performance: PerformanceConfig::default(),
         security: SecurityConfig::default(),
+        management: Default::default(),
+    }
+}
+
+/// Handle dry-run mode: validate configuration and exit
+fn handle_dry_run(config: &ServerConfig, cli: &Cli) {
+    println!("🔍 BWS Configuration Validation (Dry Run Mode)");
+    println!("==========================================");
+
+    if cli.directory.is_some() {
+        println!("✅ Temporary directory configuration created successfully");
+        println!("   📁 Directory: {}", cli.directory.as_ref().unwrap());
+        println!("   🌐 Port: {}", cli.port);
+    } else {
+        println!("✅ Configuration file '{}' loaded successfully", cli.config);
+    }
+
+    println!("\n📊 Configuration Summary:");
+    println!(
+        "   Server: {} v{}",
+        config.server.name, config.server.version
+    );
+    println!("   Sites: {}", config.sites.len());
+
+    let mut validation_errors = Vec::new();
+    let mut warnings = Vec::new();
+
+    // Validate each site configuration
+    for (index, site) in config.sites.iter().enumerate() {
+        println!("\n🌐 Site {}: {}", index + 1, site.name);
+        println!("   Hostname: {}", site.hostname);
+        if !site.hostnames.is_empty() {
+            println!("   Additional hostnames: {}", site.hostnames.join(", "));
+        }
+        println!("   Port: {}", site.port);
+        println!("   Static directory: {}", site.static_dir);
+
+        // Validate static directory exists
+        if !std::path::Path::new(&site.static_dir).exists() {
+            validation_errors.push(format!(
+                "Site '{}': Static directory '{}' does not exist",
+                site.name, site.static_dir
+            ));
+        } else if !std::path::Path::new(&site.static_dir).is_dir() {
+            validation_errors.push(format!(
+                "Site '{}': Static path '{}' is not a directory",
+                site.name, site.static_dir
+            ));
+        } else {
+            println!("   ✅ Static directory exists");
+        }
+
+        // Validate index files exist
+        let mut index_found = false;
+        for index_file in &site.index_files {
+            let index_path = std::path::Path::new(&site.static_dir).join(index_file);
+            if index_path.exists() {
+                println!("   ✅ Index file found: {}", index_file);
+                index_found = true;
+                break;
+            }
+        }
+        if !index_found && !site.index_files.is_empty() {
+            warnings.push(format!(
+                "Site '{}': No index files found in static directory",
+                site.name
+            ));
+        }
+
+        // Validate SSL configuration
+        if site.ssl.enabled {
+            println!("   🔒 SSL enabled");
+            if site.ssl.auto_cert {
+                println!("   🔄 Auto-certificate (ACME) enabled");
+                if let Some(acme) = &site.ssl.acme {
+                    if acme.enabled {
+                        if acme.email.is_empty() {
+                            validation_errors.push(format!(
+                                "Site '{}': ACME email is required when auto_cert is enabled",
+                                site.name
+                            ));
+                        } else {
+                            println!("   📧 ACME email: {}", acme.email);
+                        }
+                    }
+                }
+            } else {
+                // Check for manual certificates
+                let cert_path = format!("./certs/{}.crt", site.hostname);
+                let key_path = format!("./certs/{}.key", site.hostname);
+
+                if std::path::Path::new(&cert_path).exists()
+                    && std::path::Path::new(&key_path).exists()
+                {
+                    println!("   ✅ SSL certificates found");
+                } else {
+                    warnings.push(format!(
+                        "Site '{}': SSL enabled but certificates not found at {} and {}",
+                        site.name, cert_path, key_path
+                    ));
+                }
+            }
+        }
+
+        // Validate proxy configuration
+        if site.proxy.enabled {
+            println!("   🔀 Proxy enabled");
+            if site.proxy.upstreams.is_empty() {
+                validation_errors.push(format!(
+                    "Site '{}': Proxy enabled but no upstreams configured",
+                    site.name
+                ));
+            } else {
+                println!("   📡 Upstreams: {}", site.proxy.upstreams.len());
+                for upstream in &site.proxy.upstreams {
+                    println!("     - {}: {}", upstream.name, upstream.url);
+                }
+            }
+
+            if site.proxy.routes.is_empty() {
+                warnings.push(format!(
+                    "Site '{}': Proxy enabled but no routes configured",
+                    site.name
+                ));
+            } else {
+                println!("   🛣️  Routes: {}", site.proxy.routes.len());
+            }
+        }
+
+        // Check for custom headers
+        if !site.headers.is_empty() {
+            println!("   📋 Custom headers: {}", site.headers.len());
+        }
+    }
+
+    // Check for port conflicts
+    let mut port_usage = std::collections::HashMap::new();
+    for site in &config.sites {
+        port_usage
+            .entry(site.port)
+            .or_insert_with(Vec::new)
+            .push(&site.name);
+    }
+
+    for (port, sites) in &port_usage {
+        if sites.len() > 1 {
+            // Multiple sites on same port - check if they have different hostnames
+            let mut hostnames = std::collections::HashSet::new();
+            let mut has_default = false;
+
+            for site_name in sites {
+                let site = config.sites.iter().find(|s| &s.name == *site_name).unwrap();
+                hostnames.insert(&site.hostname);
+                hostnames.extend(&site.hostnames);
+                if site.default {
+                    if has_default {
+                        validation_errors
+                            .push(format!("Port {}: Multiple sites marked as default", port));
+                    }
+                    has_default = true;
+                }
+            }
+
+            if hostnames.len() == sites.len() || has_default {
+                println!(
+                    "\n✅ Port {} shared by {} sites with virtual hosting",
+                    port,
+                    sites.len()
+                );
+            } else {
+                warnings.push(format!(
+                    "Port {}: Multiple sites with overlapping hostnames",
+                    port
+                ));
+            }
+        }
+    }
+
+    // Print validation results
+    println!("\n==========================================");
+    println!("           VALIDATION RESULTS");
+    println!("==========================================");
+
+    if !warnings.is_empty() {
+        println!("⚠️  Warnings ({}): ", warnings.len());
+        for warning in &warnings {
+            println!("   ⚠️  {}", warning);
+        }
+        println!();
+    }
+
+    if validation_errors.is_empty() {
+        println!("✅ Configuration validation passed!");
+        println!("🚀 Configuration is ready for deployment");
+        std::process::exit(0);
+    } else {
+        println!(
+            "❌ Configuration validation failed ({} errors):",
+            validation_errors.len()
+        );
+        for error in &validation_errors {
+            println!("   ❌ {}", error);
+        }
+        println!("\n💡 Fix the errors above and try again");
+        std::process::exit(1);
     }
 }
 
@@ -211,6 +419,11 @@ fn main() {
         })
     };
 
+    // Handle dry-run mode: validate configuration and exit
+    if cli.dry_run {
+        return handle_dry_run(&config, &cli);
+    }
+
     if cli.directory.is_some() {
         println!("馃寪 Temporary web server ready!");
     } else {
@@ -250,6 +463,16 @@ fn main() {
 
     // Create the main web service instance
     let web_service = WebServerService::new(config.clone());
+
+    // Set the config path for hot reload (only if not in temporary directory mode)
+    if cli.directory.is_none() {
+        let rt = tokio::runtime::Runtime::new().unwrap_or_else(|e| {
+            log::error!("Failed to create runtime for config path setup: {e}");
+            std::process::exit(1);
+        });
+        rt.block_on(web_service.set_config_path(cli.config.clone()));
+        log::info!("🔄 Config hot reload enabled via API at POST /api/config/reload");
+    }
 
     // Check if any site has ACME enabled and create a dedicated HTTP challenge service on port 80
     let has_acme_enabled = config.sites.iter().any(|site| {
@@ -344,6 +567,31 @@ fn main() {
         my_server.add_service(proxy_service);
     }
 
+    // Add management API service if enabled
+    if config.management.enabled {
+        log::info!(
+            "Starting Management API service on {}:{}",
+            config.management.host,
+            config.management.port
+        );
+        let management_service =
+            ManagementApiService::new(Arc::new(web_service.clone()), config.management.clone());
+        let mut management_proxy_service =
+            pingora::proxy::http_proxy_service(&my_server.configuration, management_service);
+        let management_addr = format!("{}:{}", config.management.host, config.management.port);
+        management_proxy_service.add_tcp(&management_addr);
+        my_server.add_service(management_proxy_service);
+
+        log::info!("✅ Management API enabled at http://{}", management_addr);
+        if config.management.api_key.is_some() {
+            log::info!("🔐 API key authentication required for management endpoints");
+        } else {
+            log::warn!("⚠️  Management API has no API key - consider setting one for production");
+        }
+    } else {
+        log::info!("Management API disabled");
+    }
+
     log::info!("Starting BWS multi-site server...");
     my_server.bootstrap();
 
@@ -409,6 +657,21 @@ fn main() {
             }
         }
 
+        // Show management API information
+        if config.management.enabled {
+            println!("\n馃洜锔?Management API:");
+            let mgmt_url = format!(
+                "http://{}:{}",
+                config.management.host, config.management.port
+            );
+            println!("  鈥?Config Reload: {}/api/config/reload", mgmt_url);
+            if config.management.api_key.is_some() {
+                println!("    鈹斺攢 馃敁 API key required (use X-API-Key header)");
+            } else {
+                println!("    鈹斺攢 鈿狅笍  No authentication (localhost only)");
+            }
+        }
+
         if cli.directory.is_some() {
             println!("\n馃殌 TEMPORARY SERVER MODE:");
             println!("   鈥?Press `Ctrl+C` to stop the server");
@@ -467,29 +730,5 @@ fn main() {
     }
 
     // Initialize hot reload functionality if not in temporary directory mode
-    if cli.directory.is_none() {
-        log::info!("🔄 Initializing hot reload manager...");
-        let config_path = cli.config;
-        let signal_handler = Arc::new(SignalHandler::new());
-
-        // Start hot reload manager
-        let reload_manager = HotReloadManager::new(
-            config_path.clone(),
-            config.clone(),
-            Arc::clone(&signal_handler),
-        );
-
-        // Start as master process (this will handle the hot reload monitoring)
-        tokio::spawn(async move {
-            if let Err(e) = reload_manager.start_as_master().await {
-                log::error!("Hot reload manager failed: {}", e);
-            }
-        });
-
-        log::info!("✅ Hot reload manager started - send SIGUSR1 or modify config to reload");
-    } else {
-        log::info!("🔄 Hot reload disabled (temporary directory mode)");
-    }
-
     my_server.run_forever();
 }

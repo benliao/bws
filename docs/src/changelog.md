@@ -5,6 +5,38 @@ All notable changes to BWS will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4] - 2025-08-26
+
+### Added
+- **🔍 Configuration Validation**: Comprehensive `--dry-run` feature for validating configurations without starting server
+- **📊 Enhanced API Endpoints**: Added `/api/health/detailed` and `/api/sites` endpoints for better monitoring  
+- **🔄 Hot Reload API**: Added `/api/reload` endpoint for real-time configuration reloading
+- **🔒 Secure Management API**: Localhost-only Management API on port 7654 for administrative operations
+  - Restricted to `127.0.0.1` binding for security
+  - Optional API key authentication
+  - Comprehensive audit logging with client IP tracking
+  - Configuration reload endpoint: `POST /api/config/reload`
+- **🧪 Professional Test Suite**: Organized test scripts in `tests/scripts/` directory with comprehensive coverage
+- **📚 Enhanced Documentation**: Updated all documentation to reflect current codebase and new features
+- **⚙️ Simplified Architecture**: Removed deprecated `bws-ctl` binary, focusing on single `bws` binary
+- **🎯 GitHub Actions Integration**: Professional CI/CD workflows with comprehensive testing and validation
+
+### Changed
+- **🔧 Configuration Schema**: Enhanced validation with detailed error reporting and warnings
+- **📁 Test Organization**: Reorganized test infrastructure with proper script categorization
+- **🏗️ Build Process**: Streamlined build process focusing on single binary output
+- **📖 Documentation Structure**: Comprehensive documentation updates reflecting current features
+
+### Removed
+- **❌ bws-ctl Binary**: Deprecated control binary, functionality integrated into main `bws` binary
+- **🧹 Legacy Code**: Removed unused and deprecated code paths
+- **📂 Outdated Tests**: Cleaned up redundant and non-functional test files
+
+### Fixed
+- **✅ Configuration Validation**: Robust error handling and validation throughout configuration system
+- **🔧 Script Permissions**: All test scripts now have proper executable permissions
+- **📊 API Consistency**: Standardized API response formats and error handling
+
 ## [Unreleased]
 
 ### Added

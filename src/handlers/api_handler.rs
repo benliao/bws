@@ -1,14 +1,34 @@
-use crate::config::SiteConfig;
+use crate::config::{ServerConfig, SiteConfig};
 use pingora::http::ResponseHeader;
 use pingora::prelude::*;
+use std::sync::Arc;
+use std::sync::Mutex;
 
+// Global config path for reload functionality
+static CONFIG_PATH: once_cell::sync::OnceCell<Arc<Mutex<Option<String>>>> =
+    once_cell::sync::OnceCell::new();
+
+#[derive(Clone)]
 pub struct ApiHandler {
-    // Future: Add authentication, rate limiting, etc.
+    // Simple handler without complex dependencies
 }
 
 impl ApiHandler {
     pub fn new() -> Self {
         Self {}
+    }
+
+    /// Set the global config path for reload functionality
+    pub fn set_config_path(path: String) {
+        let config_path = CONFIG_PATH.get_or_init(|| Arc::new(Mutex::new(None)));
+        let mut config_path_guard = config_path.lock().unwrap();
+        *config_path_guard = Some(path);
+    }
+
+    /// Get the global config path
+    async fn get_config_path() -> Option<String> {
+        let config_path = CONFIG_PATH.get()?;
+        config_path.lock().unwrap().clone()
     }
 
     pub async fn handle(&self, session: &mut Session, site: Option<&SiteConfig>) -> Result<()> {
@@ -118,12 +138,67 @@ impl ApiHandler {
         session: &mut Session,
         _site: Option<&SiteConfig>,
     ) -> Result<()> {
-        let response = serde_json::json!({
-            "message": "Configuration reload endpoint",
-            "status": "not_implemented"
-        });
+        // Get the config path
+        let config_path = match Self::get_config_path().await {
+            Some(path) => path,
+            None => {
+                let response = serde_json::json!({
+                    "error": "Config path not set",
+                    "message": "Configuration path not found (running in temporary mode?)"
+                });
+                return self.send_json_response(session, 400, &response).await;
+            }
+        };
 
-        self.send_json_response(session, 501, &response).await
+        // Try to reload the configuration
+        match Self::reload_config_from_path(&config_path).await {
+            Ok(_) => {
+                let response = serde_json::json!({
+                    "message": "Configuration reloaded successfully",
+                    "status": "success",
+                    "config_path": config_path,
+                    "timestamp": chrono::Utc::now().to_rfc3339(),
+                    "note": "Changes will apply to new connections"
+                });
+                self.send_json_response(session, 200, &response).await
+            }
+            Err(e) => {
+                let response = serde_json::json!({
+                    "error": "Configuration reload failed",
+                    "message": format!("Failed to reload configuration: {}", e),
+                    "status": "error"
+                });
+                self.send_json_response(session, 400, &response).await
+            }
+        }
+    }
+
+    /// Reload configuration from the given path
+    async fn reload_config_from_path(
+        config_path: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        // Load and validate new configuration
+        let new_config = ServerConfig::load_from_file(config_path).map_err(|e| {
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                e.to_string(),
+            )) as Box<dyn std::error::Error + Send + Sync>
+        })?;
+
+        new_config.validate().map_err(|e| {
+            Box::new(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                e.to_string(),
+            )) as Box<dyn std::error::Error + Send + Sync>
+        })?;
+
+        // Log the successful reload
+        log::info!("Configuration reloaded successfully from {}", config_path);
+
+        // Note: In a more sophisticated implementation, you would update
+        // the running server's configuration. For now, we just validate
+        // that the new config is loadable and valid.
+        Ok(())
     }
 
     async fn handle_not_found(

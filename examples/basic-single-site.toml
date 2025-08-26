@@ -10,7 +10,7 @@ name = "BWS Single Site Server"
 name = "main"
 hostname = "localhost"
 port = 8080
-static_dir = "public"
+static_dir = "examples/sites/static"
 default = true
 
 # Optional custom headers

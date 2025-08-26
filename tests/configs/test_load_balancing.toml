@@ -48,6 +48,7 @@ add_forwarded = true
 name = "weighted.example.com"
 hostname = "localhost"
 port = 8081
+static_dir = "examples/sites/static-api"
 
 [sites.proxy]
 enabled = true
@@ -75,6 +76,7 @@ method = "weighted"
 name = "leastconn.example.com"
 hostname = "localhost"
 port = 8082
+static_dir = "examples/sites/static-blog"
 
 [sites.proxy]
 enabled = true
@@ -97,12 +99,12 @@ upstream = "app-backends"
 method = "least_connections"
 
 [logging]
-log_level = "info"
-log_format = "json"
+level = "info"
+format = "json"
 log_requests = true
 
 [performance]
-workers = 2
+worker_threads = 2
 max_connections = 1000
 
 [security]

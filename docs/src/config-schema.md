@@ -50,6 +50,33 @@ daemonize = true                       # Run as daemon (boolean)
 - `working_directory` (string, optional): Change to this directory on startup
 - `daemonize` (boolean, optional): Fork and run in background. Default: `false`
 
+### Management API Configuration
+
+Controls the secure Management API for administrative operations.
+
+```toml
+[management]
+enabled = true                         # Enable Management API (boolean)
+host = "127.0.0.1"                    # Host to bind to (string)
+port = 7654                           # Port number (integer)
+api_key = "your-secure-api-key"       # API key for authentication (string)
+```
+
+**Parameters:**
+- `enabled` (boolean, optional): Enable the Management API service. Default: `true`
+- `host` (string, optional): Host address to bind to. Always `127.0.0.1` for security. Default: `"127.0.0.1"`
+- `port` (integer, optional): Port number for the Management API. Default: `7654`
+- `api_key` (string, optional): API key for authentication. If not set, no authentication required. Default: `null`
+
+**Security Features:**
+- Management API always binds to localhost only for security
+- IP address validation ensures requests come from localhost
+- Optional API key authentication for additional security
+- All management operations are logged with client IP
+
+**Available Endpoints:**
+- `POST /api/config/reload`: Reload server configuration
+
 ### Logging Configuration
 
 Controls logging behavior and output.
