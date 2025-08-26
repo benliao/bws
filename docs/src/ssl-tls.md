@@ -1,29 +1,14 @@
 # SSL/TLS Configuration
 
-BWS provides robust, production-ready SSL/TLS support with automatic certificate management, comprehensive error handling, and thread-safe operations. Each site can have its own HTTPS configuration, enabling mixed HTTP/HTTPS deployments with different certificates per domain.
+BWS supports both automatic (Let's Encrypt) and manual SSL certificates with per-site configuration.
 
-## Overview
+## Automatic SSL (Let's Encrypt)
 
-BWS supports two types of SSL/TLS configuration:
-
-1. **Automatic SSL Certificates** - Using ACME (Let's Encrypt) with automatic renewal monitoring
-2. **Manual SSL Certificates** - Using your own SSL certificate files
-
-### Production-Ready Features
-
-- **Automatic Certificate Renewal**: Background monitoring service checks and renews certificates
-- **Thread-Safe Operations**: All SSL operations are safe for concurrent access
-- **Comprehensive Error Handling**: Graceful error propagation with detailed logging
-- **Zero-Downtime Renewal**: Certificates renewed without service interruption
-- **Robust Monitoring**: Certificate expiration tracking and proactive renewal
-
-## Automatic SSL Certificates (ACME)
-
-### Basic ACME Configuration
+### Basic Setup
 
 ```toml
 [[sites]]
-name = "auto_ssl_site"
+name = "secure"
 hostname = "example.com"
 port = 443
 static_dir = "static"
@@ -36,424 +21,201 @@ domains = ["example.com", "www.example.com"]
 [sites.ssl.acme]
 enabled = true
 email = "admin@example.com"
-staging = false
+staging = false                        # Use true for testing
 challenge_dir = "./acme-challenges"
 ```
 
-### ACME Configuration Options
+### ACME Options
 
-| Field | Type | Description | Default |
-|-------|------|-------------|---------|
-| `enabled` | Boolean | Enable ACME certificate generation | `false` |
-| `email` | String | Email address for ACME registration | Required |
-| `staging` | Boolean | Use Let's Encrypt staging environment | `false` |
-| `challenge_dir` | String | Directory for ACME HTTP-01 challenges | `"./acme-challenges"` |
+| Field | Description | Default |
+|-------|-------------|---------|
+| `email` | Contact email for Let's Encrypt | Required |
+| `staging` | Use staging environment for testing | `false` |
+| `challenge_dir` | Directory for HTTP-01 challenges | `"./acme-challenges"` |
 
-### ACME Challenge Handling
-
-BWS automatically handles ACME HTTP-01 challenges with robust error handling:
-
-1. **Challenge Directory**: Configure `challenge_dir` where ACME challenges will be served
-2. **Automatic Routing**: BWS automatically serves files from `/.well-known/acme-challenge/` 
-3. **Directory Creation**: The challenge directory is created automatically if it doesn't exist
-4. **Error Handling**: Comprehensive error reporting for challenge failures
+### Challenge Setup
 
 ```bash
 # Create challenge directory
 mkdir -p ./acme-challenges
 
-# BWS will automatically serve challenges from:
-# http://yourdomain.com/.well-known/acme-challenge/TOKEN
+# BWS automatically serves challenges at:
+# http://yourdomain.com/.well-known/acme-challenge/
 ```
 
-### Automatic Certificate Renewal
-
-BWS includes a production-ready certificate monitoring system:
-
-```rust
-// Background service automatically monitors certificates
-// - Checks certificate expiration every hour
-// - Renews certificates when needed (before 30 days expiration)
-// - Handles renewal failures gracefully with logging
-// - Thread-safe operations prevent race conditions
-```
-
-**Renewal Features**:
-- **Automatic Monitoring**: Background service checks certificates hourly
-- **Proactive Renewal**: Renews certificates 30 days before expiration
-- **Error Recovery**: Comprehensive error handling with detailed logging
-- **Zero Downtime**: Renewals happen without service interruption
-- **Thread Safety**: All operations are safe for concurrent access
-
-### Production vs Staging
-
-**Staging Environment** (`staging = true`):
-- Use for testing and development
-- Higher rate limits
-- Certificates are not trusted by browsers
-- Recommended for initial setup
-
-**Production Environment** (`staging = false`):
-- Use for live websites
-- Lower rate limits (5 certificates per domain per week)
-- Certificates are trusted by browsers
-- Use only after testing with staging
-
-```toml
-# Testing configuration
-[sites.ssl.acme]
-enabled = true
-email = "test@example.com"
-staging = true  # Use staging environment
-challenge_dir = "./acme-challenges"
-
-# Production configuration
-[sites.ssl.acme]
-enabled = true
-email = "admin@example.com"
-staging = false  # Use production environment
-challenge_dir = "./acme-challenges"
-```
+**Requirements:**
+- Domain must be publicly accessible on port 80
+- DNS must point to your server
+- Challenge directory must be readable
 
 ## Manual SSL Certificates
 
-### Basic Manual SSL Configuration
+### Configuration
 
 ```toml
 [[sites]]
-name = "manual_ssl_site"
+name = "manual-ssl"
+hostname = "secure.local"
+port = 8443
+static_dir = "static"
+
+[sites.ssl]
+enabled = true
+auto_cert = false
+cert_file = "./certs/secure.local.crt"
+key_file = "./certs/secure.local.key"
+```
+
+### Generate Self-Signed Certificate
+
+```bash
+# Create certificates directory
+mkdir -p certs
+
+# Generate self-signed certificate
+openssl req -x509 -newkey rsa:4096 \
+  -keyout certs/secure.local.key \
+  -out certs/secure.local.crt \
+  -days 365 -nodes \
+  -subj "/CN=secure.local"
+
+# Set proper permissions
+chmod 600 certs/secure.local.key
+chmod 644 certs/secure.local.crt
+```
+
+### Use Existing Certificates
+
+```bash
+# Copy your existing certificates
+cp /path/to/your.crt certs/
+cp /path/to/your.key certs/
+
+# Update permissions
+chmod 600 certs/your.key
+chmod 644 certs/your.crt
+```
+
+## Mixed HTTP/HTTPS Setup
+
+Host different sites with different SSL configurations:
+
+```toml
+# HTTP site
+[[sites]]
+name = "http"
+hostname = "example.com"
+port = 80
+static_dir = "static"
+
+# HTTPS site with auto SSL
+[[sites]]
+name = "https-auto"
 hostname = "secure.example.com"
 port = 443
 static_dir = "static"
 
 [sites.ssl]
 enabled = true
-auto_cert = false
-cert_file = "/etc/ssl/certs/secure.example.com.crt"
-key_file = "/etc/ssl/private/secure.example.com.key"
-```
-
-### Certificate File Requirements
-
-**Certificate File** (`cert_file`):
-- Must contain the SSL certificate in PEM format
-- Can include intermediate certificates (certificate chain)
-- File must be readable by the BWS process
-
-**Private Key File** (`key_file`):
-- Must contain the private key in PEM format
-- Should be protected with appropriate file permissions (600)
-- Must correspond to the certificate
-
-### Certificate Generation
-
-You can generate certificates using various methods:
-
-#### Self-Signed Certificates (Development)
-
-```bash
-# Generate private key
-openssl genrsa -out server.key 2048
-
-# Generate certificate
-openssl req -new -x509 -key server.key -out server.crt -days 365 -subj "/CN=localhost"
-
-# Use in configuration
-[sites.ssl]
-enabled = true
-auto_cert = false
-cert_file = "./server.crt"
-key_file = "./server.key"
-```
-
-#### Commercial SSL Certificates
-
-```bash
-# Generate private key
-openssl genrsa -out example.com.key 2048
-
-# Generate certificate signing request
-openssl req -new -key example.com.key -out example.com.csr
-
-# Submit CSR to certificate authority
-# Download certificate and intermediate certificates
-
-# Combine certificate with intermediate certificates
-cat example.com.crt intermediate.crt > example.com-chain.crt
-
-# Use in configuration
-[sites.ssl]
-enabled = true
-auto_cert = false
-cert_file = "/etc/ssl/certs/example.com-chain.crt"
-key_file = "/etc/ssl/private/example.com.key"
-```
-
-## Per-Site SSL Configuration
-
-### Configuration Structure
-
-Each site has its own SSL configuration section:
-
-```toml
-[[sites]]
-name = "site_name"
-hostname = "example.com"
-port = 443
-static_dir = "static"
-
-[sites.ssl]
-enabled = true           # Enable SSL for this site
-auto_cert = true         # Use automatic certificates
-domains = ["example.com", "www.example.com"]  # Additional domains
-cert_file = "path/to/cert.pem"    # Manual certificate file
-key_file = "path/to/key.pem"      # Manual private key file
-
-[sites.ssl.acme]
-enabled = true
-email = "admin@example.com"
-staging = false
-challenge_dir = "./acme-challenges"
-```
-
-### SSL Configuration Options
-
-| Field | Type | Description | Required |
-|-------|------|-------------|----------|
-| `enabled` | Boolean | Enable SSL for this site | Yes |
-| `auto_cert` | Boolean | Use ACME for automatic certificates | Yes |
-| `domains` | Array | Additional domains for the certificate | No |
-| `cert_file` | String | Path to certificate file (manual SSL) | If `auto_cert = false` |
-| `key_file` | String | Path to private key file (manual SSL) | If `auto_cert = false` |
-
-## Multi-Site SSL Examples
-
-### Mixed HTTP and HTTPS Sites
-
-```toml
-[server]
-name = "Mixed Protocol Server"
-
-# HTTP site on port 80
-[[sites]]
-name = "http_site"
-hostname = "example.com"
-port = 80
-static_dir = "static"
-
-[sites.ssl]
-enabled = false
-
-# HTTPS site on port 443 with auto SSL
-[[sites]]
-name = "https_site"
-hostname = "example.com"
-port = 443
-static_dir = "static"
-
-[sites.ssl]
-enabled = true
 auto_cert = true
-domains = ["example.com", "www.example.com"]
+domains = ["secure.example.com"]
 
 [sites.ssl.acme]
 enabled = true
 email = "admin@example.com"
-staging = false
-challenge_dir = "./acme-challenges"
 
-# API site with manual SSL
+# HTTPS site with manual SSL
 [[sites]]
-name = "api_site"
-hostname = "api.example.com"
+name = "https-manual"
+hostname = "internal.example.com"
 port = 8443
-static_dir = "api-static"
-
-[sites.ssl]
-enabled = true
-auto_cert = false
-cert_file = "/etc/ssl/certs/api.example.com.crt"
-key_file = "/etc/ssl/private/api.example.com.key"
-```
-
-### Different SSL Configurations per Site
-
-```toml
-# Main website with Let's Encrypt
-[[sites]]
-name = "main"
-hostname = "example.com"
-port = 443
 static_dir = "static"
 
 [sites.ssl]
 enabled = true
-auto_cert = true
-domains = ["example.com", "www.example.com"]
-
-[sites.ssl.acme]
-enabled = true
-email = "admin@example.com"
-staging = false
-challenge_dir = "./acme-challenges"
-
-# Corporate subdomain with commercial certificate
-[[sites]]
-name = "corporate"
-hostname = "corp.example.com"
-port = 443
-static_dir = "corp-static"
-
-[sites.ssl]
-enabled = true
 auto_cert = false
-cert_file = "/etc/ssl/certs/corp.example.com.crt"
-key_file = "/etc/ssl/private/corp.example.com.key"
-
-# Development site without SSL
-[[sites]]
-name = "dev"
-hostname = "dev.example.com"
-port = 8080
-static_dir = "dev-static"
-
-[sites.ssl]
-enabled = false
+cert_file = "./certs/internal.crt"
+key_file = "./certs/internal.key"
 ```
 
-## Security Best Practices
+## SSL Security Headers
 
-### File Permissions
-
-Ensure proper file permissions for SSL files:
-
-```bash
-# Certificate files can be world-readable
-chmod 644 /etc/ssl/certs/*.crt
-
-# Private keys should be readable only by the owner
-chmod 600 /etc/ssl/private/*.key
-
-# Ensure BWS can read the files
-chown bws:bws /etc/ssl/private/*.key
-```
-
-### Security Headers
-
-Use security headers with HTTPS sites:
+Add security headers for HTTPS sites:
 
 ```toml
-[[sites]]
-name = "secure_site"
-hostname = "example.com"
-port = 443
-static_dir = "static"
-
-[sites.ssl]
-enabled = true
-auto_cert = true
-domains = ["example.com"]
-
-[sites.ssl.acme]
-enabled = true
-email = "admin@example.com"
-staging = false
-challenge_dir = "./acme-challenges"
-
 [sites.headers]
-"Strict-Transport-Security" = "max-age=31536000; includeSubDomains; preload"
-"X-Frame-Options" = "DENY"
+"Strict-Transport-Security" = "max-age=31536000; includeSubDomains"
 "X-Content-Type-Options" = "nosniff"
-"Referrer-Policy" = "strict-origin-when-cross-origin"
-"Content-Security-Policy" = "default-src 'self'; script-src 'self' 'unsafe-inline'"
+"X-Frame-Options" = "DENY"
 ```
 
-### Certificate Monitoring
+## Certificate Renewal
 
-Monitor certificate expiration:
+### Automatic Renewal
+- Certificates are automatically renewed before expiration
+- No manual intervention required
+- Renewal status logged to server logs
 
+### Manual Renewal
 ```bash
 # Check certificate expiration
-openssl x509 -in /etc/ssl/certs/example.com.crt -noout -dates
+openssl x509 -in certs/your.crt -text -noout | grep "Not After"
 
-# For ACME certificates, BWS handles renewal automatically
-# Check ACME certificate status in logs
-tail -f /var/log/bws.log | grep -i acme
+# Replace expired certificates
+cp /path/to/new.crt certs/
+cp /path/to/new.key certs/
+
+# Reload BWS configuration
+curl -X POST http://127.0.0.1:7654/api/config/reload
 ```
+
+## Testing SSL Configuration
+
+### Verify Certificate
+```bash
+# Check certificate details
+openssl x509 -in certs/your.crt -text -noout
+
+# Test SSL connection
+openssl s_client -connect yourdomain.com:443 -servername yourdomain.com
+
+# Check certificate chain
+curl -I https://yourdomain.com/
+```
+
+### SSL Labs Test
+Use [SSL Labs](https://www.ssllabs.com/ssltest/) to test your SSL configuration for security issues.
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### ACME Challenge Failures
+**ACME Challenge Fails:**
+- Verify domain points to your server
+- Check port 80 is accessible
+- Ensure challenge directory exists and is readable
 
-```toml
-# Ensure challenge directory is accessible
-[sites.ssl.acme]
-enabled = true
-email = "admin@example.com"
-staging = true  # Use staging for debugging
-challenge_dir = "./acme-challenges"
-```
+**Certificate Not Loading:**
+- Check file paths in configuration
+- Verify file permissions (key file should be 600)
+- Check BWS logs for error messages
 
-Check that:
-1. Domain resolves to your server
-2. Port 80 is accessible for HTTP-01 challenges
-3. Challenge directory exists and is writable
-4. No firewall blocking HTTP traffic
+**Mixed Content Warnings:**
+- Ensure all resources use HTTPS URLs
+- Add security headers to prevent mixed content
 
-#### Certificate File Errors
+### Debug Commands
 
 ```bash
-# Verify certificate file format
-openssl x509 -in cert.pem -text -noout
+# Validate SSL configuration
+bws --config config.toml --dry-run
 
-# Verify private key format
-openssl rsa -in key.pem -check
+# Check file permissions
+ls -la certs/
 
-# Check if certificate and key match
-openssl x509 -noout -modulus -in cert.pem | openssl md5
-openssl rsa -noout -modulus -in key.pem | openssl md5
+# Test certificate
+curl -v https://yourdomain.com/
+
+# Check server logs
+tail -f /var/log/bws.log
 ```
-
-#### Port Binding Issues
-
-```bash
-# Check if port is already in use
-sudo lsof -i :443
-
-# Ensure BWS has permission to bind to privileged ports
-sudo setcap CAP_NET_BIND_SERVICE=+eip /usr/local/bin/bws
-```
-
-### Debug Mode
-
-Enable verbose logging for SSL debugging:
-
-```bash
-# Start BWS with verbose logging
-RUST_LOG=debug bws --config config.toml --verbose
-```
-
-### Validation
-
-Test SSL configuration:
-
-```bash
-# Test HTTPS connectivity
-curl -I https://example.com
-
-# Check SSL certificate
-openssl s_client -connect example.com:443 -servername example.com
-
-# Test with specific protocol versions
-curl --tlsv1.2 -I https://example.com
-curl --tlsv1.3 -I https://example.com
-```
-
-## Next Steps
-
-- Configure [Custom Headers](./headers.md) for enhanced security
-- Set up [Health Monitoring](./health.md) for SSL sites
-- Learn about [Production Deployment](./production.md) with SSL
-- Review [Multi-Site Setup](./multi-site.md) for complex configurations

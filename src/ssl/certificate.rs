@@ -155,10 +155,13 @@ impl Certificate {
             .unwrap_or("Unknown")
             .to_string();
 
-        // Extract SAN domains - simplified for now
+        // SAN parsing would require more complex ASN.1 parsing
+        // For now, we rely on subject CN which covers most use cases
+        // Multi-domain certificates would need proper x509-parser SAN extension parsing
         let san_domains = Vec::new();
-        // TODO: Implement proper SAN parsing
-        log::debug!("Certificate SAN parsing not implemented - using subject CN only");
+        log::debug!(
+            "Using subject CN for certificate validation; SAN extension parsing not implemented"
+        );
 
         Ok(CertificateInfo {
             issued_at,

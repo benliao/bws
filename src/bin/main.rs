@@ -282,15 +282,18 @@ fn handle_dry_run(config: &ServerConfig, cli: &Cli) {
             let mut has_default = false;
 
             for site_name in sites {
-                let site = config.sites.iter().find(|s| &s.name == *site_name).unwrap();
-                hostnames.insert(&site.hostname);
-                hostnames.extend(&site.hostnames);
-                if site.default {
-                    if has_default {
-                        validation_errors
-                            .push(format!("Port {}: Multiple sites marked as default", port));
+                if let Some(site) = config.sites.iter().find(|s| &s.name == *site_name) {
+                    hostnames.insert(&site.hostname);
+                    hostnames.extend(&site.hostnames);
+                    if site.default {
+                        if has_default {
+                            validation_errors
+                                .push(format!("Port {}: Multiple sites marked as default", port));
+                        }
+                        has_default = true;
                     }
-                    has_default = true;
+                } else {
+                    validation_errors.push(format!("Invalid site reference: {}", site_name));
                 }
             }
 
@@ -344,7 +347,9 @@ fn main() {
         Ok(cli) => cli,
         Err(err) => {
             // Print help or version and exit
-            err.print().expect("Failed to print help");
+            if let Err(print_err) = err.print() {
+                eprintln!("Failed to print help: {}", print_err);
+            }
             std::process::exit(match err.kind() {
                 clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion => 0,
                 _ => 1,
@@ -669,12 +674,11 @@ fn main() {
 
         if cli.directory.is_some() {
             println!("\n TEMPORARY SERVER MODE:");
-            println!("   Press `Ctrl+C` to stop the server");
-            println!(
-                "   Files are served directly from: {}",
-                cli.directory.as_ref().unwrap()
-            );
-            println!("    Simple static file server (no configuration file)");
+            println!("  Press Ctrl+C to stop the server");
+            if let Some(directory) = &cli.directory {
+                println!("  Files served from: {}", directory);
+            }
+            println!("  Simple static file server (no configuration file)");
         } else {
             println!("\n Tip: Use Ctrl+C to stop the server");
             if !cli.verbose {

@@ -1,25 +1,20 @@
-# BWS (Blazing Web Server)
+# BWS Web Server
 
 [![CI](https://github.com/benliao/bws/workflows/CI/badge.svg)](https://github.com/benliao/bws/actions)
 [![Security](https://github.com/benliao/bws/workflows/Security/badge.svg)](https://github.com/benliao/bws/actions)
 [![Crates.io](https://img.shields.io/crates/v/bws-web-server.svg)](https://crates.io/crates/bws-web-server)
-[![Downloads](https://img.shields.io/crates/d/bws-web-server.svg)](https://crates.io/crates/bws-web-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A high-performance, memory-safe web server and reverse proxy built with Rust and Cloudflare's Pingora framework.
+High-performance, multi-site web server built with Rust and Cloudflare's Pingora framework.
 
 ## Features
 
 - **Multi-Site Hosting** - Multiple websites with individual configurations
-- **Multi-Hostname Support** - Handle multiple domains per site
 - **Automatic SSL/TLS** - Let's Encrypt integration with auto-renewal
-- **Load Balancing** - Round-robin, weighted, and least-connections algorithms
-- **WebSocket Proxy** - Full WebSocket support with load balancing
-- **HTTP Compression** - Gzip, Brotli, and Deflate compression support
-- **Health Monitoring** - Built-in health checks and metrics
-- **Memory Safety** - Rust eliminates buffer overflows and memory leaks
+- **Reverse Proxy & Load Balancing** - Multiple algorithms and WebSocket support
 - **Hot Reload** - Zero-downtime configuration updates
-- **Enterprise Management** - Production-ready process management
+- **Memory Safety** - Rust eliminates buffer overflows and memory leaks
+- **Enterprise Ready** - Production-grade reliability and management
 
 ## Quick Start
 

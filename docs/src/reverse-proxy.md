@@ -1,417 +1,307 @@
-# Reverse Proxy Configuration
+# Reverse Proxy
 
-BWS now supports comprehensive Caddy-style reverse proxy functionality on a per-site basis. Each site can be configured to proxy specific routes to upstream servers with flexible routing, load balancing, and head🚀 **Future Enhancements:**
-- Health check system with automatic failover
-- Connection pooling optimization
-- Circuit breaker pattern for failing upstreams
-- ✅ **WebSocket proxy support** - Real-time bidirectional communication proxying
-- Request body streaming for large payloads
-- Detailed metrics and monitoringgement.
+BWS provides comprehensive reverse proxy functionality with load balancing and WebSocket support.
 
-## Configuration Structure
-
-### Basic Proxy Configuration
+## Basic Configuration
 
 ```toml
+[[sites]]
+name = "proxy"
+hostname = "api.example.com"
+port = 80
+static_dir = "static"
+
 [sites.proxy]
 enabled = true
 
-# Multiple backend servers (same name for load balancing)
+# Backend servers
 [[sites.proxy.upstreams]]
-name = "backend-pool"
+name = "backend"
 url = "http://127.0.0.1:3001"
 weight = 1
 
 [[sites.proxy.upstreams]]
-name = "backend-pool"
+name = "backend" 
 url = "http://127.0.0.1:3002"
 weight = 2
 
-# Route configuration
+# Routes
 [[sites.proxy.routes]]
 path = "/api/"
-upstream = "backend-pool"
+upstream = "backend"
 strip_prefix = false
 
-# Load balancing configuration
+# Load balancing
 [sites.proxy.load_balancing]
-method = "round_robin"  # Options: round_robin, weighted, least_connections
+method = "round_robin"
+```
 
-# Timeout configuration
+## Load Balancing Methods
+
+### Round Robin
+```toml
+[sites.proxy.load_balancing]
+method = "round_robin"    # Distribute requests evenly
+```
+
+### Weighted Round Robin
+```toml
+[[sites.proxy.upstreams]]
+name = "backend"
+url = "http://server1:3001"
+weight = 3               # Gets 3x more requests
+
+[[sites.proxy.upstreams]]
+name = "backend"
+url = "http://server2:3001"
+weight = 1               # Gets 1x requests
+
+[sites.proxy.load_balancing]
+method = "weighted"
+```
+
+### Least Connections
+```toml
+[sites.proxy.load_balancing]
+method = "least_connections"  # Route to server with fewest active connections
+```
+
+## Route Configuration
+
+### Path-Based Routing
+```toml
+# API routes to backend
+[[sites.proxy.routes]]
+path = "/api/"
+upstream = "api-backend"
+strip_prefix = false     # Keep /api/ in forwarded path
+
+# Admin routes to different backend
+[[sites.proxy.routes]]
+path = "/admin/"
+upstream = "admin-backend"
+strip_prefix = true      # Remove /admin/ from forwarded path
+```
+
+### WebSocket Proxying
+```toml
+[[sites.proxy.routes]]
+path = "/ws"
+upstream = "websocket-backend"
+websocket = true         # Enable WebSocket support
+strip_prefix = false
+
+[[sites.proxy.upstreams]]
+name = "websocket-backend"
+url = "http://127.0.0.1:3001"  # Will proxy WebSocket connections
+```
+
+## Header Management
+
+### Automatic Headers
+```toml
+[sites.proxy.headers]
+add_x_forwarded = true   # Add X-Forwarded-For, X-Forwarded-Proto
+add_forwarded = true     # Add standard Forwarded header
+```
+
+### Custom Headers
+```toml
+[sites.proxy.headers.add]
+"X-API-Gateway" = "BWS"
+"X-Request-ID" = "auto"
+
+[sites.proxy.headers.remove]
+"Server" = true
+"X-Powered-By" = true
+```
+
+## Timeout Configuration
+
+```toml
+[sites.proxy.timeout]
+read = 30               # Read timeout in seconds
+write = 30              # Write timeout in seconds
+connect = 5             # Connection timeout in seconds
+```
+
+## Complete Example
+
+```toml
+[server]
+name = "BWS Proxy Server"
+
+# Main site with mixed static/proxy
+[[sites]]
+name = "main"
+hostname = "example.com"
+port = 80
+static_dir = "static"
+
+[sites.proxy]
+enabled = true
+
+# API backend cluster
+[[sites.proxy.upstreams]]
+name = "api-cluster"
+url = "http://api1.internal:3001"
+weight = 2
+
+[[sites.proxy.upstreams]]
+name = "api-cluster"
+url = "http://api2.internal:3001"
+weight = 1
+
+# WebSocket backend
+[[sites.proxy.upstreams]]
+name = "websocket-backend"
+url = "http://ws.internal:3002"
+
+# Route API requests
+[[sites.proxy.routes]]
+path = "/api/"
+upstream = "api-cluster"
+strip_prefix = false
+
+# Route WebSocket connections
+[[sites.proxy.routes]]
+path = "/ws"
+upstream = "websocket-backend"
+websocket = true
+
+# Load balancing
+[sites.proxy.load_balancing]
+method = "weighted"
+
+# Timeouts
 [sites.proxy.timeout]
 read = 30
 write = 30
+connect = 5
 
-# Header management
+# Headers
 [sites.proxy.headers]
 add_x_forwarded = true
 add_forwarded = true
 
 [sites.proxy.headers.add]
-"X-Powered-By" = "BWS"
-
-[sites.proxy.headers.remove]
-"X-Internal-Header" = true
+"X-Gateway" = "BWS"
 ```
 
-## Load Balancing Algorithms
+## Testing Proxy Setup
 
-### 1. Round Robin (`round_robin`)
-Distributes requests evenly across all available backend servers.
-
-```toml
-[sites.proxy.load_balancing]
-method = "round_robin"
-```
-
-- **How it works**: Cycles through servers in order
-- **Best for**: Servers with similar performance characteristics
-- **Provides**: Fair distribution when all servers have equal capacity
-
-### 2. Weighted (`weighted`)
-Distributes requests based on assigned weights.
-
-```toml
-[sites.proxy.load_balancing]
-method = "weighted"
-
-# Configure weights per server
-[[sites.proxy.upstreams]]
-name = "backend-pool"
-url = "http://127.0.0.1:3001"
-weight = 3  # Gets 3x traffic
-
-[[sites.proxy.upstreams]]
-name = "backend-pool"
-url = "http://127.0.0.1:3002"
-weight = 1  # Gets 1x traffic
-```
-
-- **How it works**: Random selection weighted by server capacity
-- **Best for**: Servers with different capacities or performance
-- **Provides**: Performance-based load distribution
-
-### 3. Least Connections (`least_connections`)
-Routes requests to the server with the fewest active connections.
-
-```toml
-[sites.proxy.load_balancing]
-method = "least_connections"
-```
-
-- **How it works**: Tracks active connections per server using atomic counters
-- **Best for**: Long-running requests or varying response times
-- **Provides**: Optimal connection distribution
-
-## Features
-
-### **Multiple Upstream Servers**
-Group multiple backend servers under the same upstream name for automatic load balancing.
-
-### **Flexible Routing**
-- **Path-based routing**: Route requests based on URL paths
-- **Prefix stripping**: Remove path prefixes before forwarding to upstream
-- **Pattern matching**: Match specific paths and route accordingly
-
-### **Thread-Safe Load Balancing**
-- **Atomic Counters**: Thread-safe request distribution
-- **Connection Tracking**: Real-time monitoring of active connections
-- **Zero Locks**: High-performance concurrent access
-
-### **Header Management**
-- **Standard Proxy Headers**: X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host
-- **RFC 7239 Forwarded Header**: Modern standard forwarded header support
-- **Custom Headers**: Add or remove custom headers per site
-- **Header Preservation**: Configure which headers to preserve or modify
-
-### **Request/Response Handling**
-- **Full HTTP Support**: All HTTP methods (GET, POST, PUT, DELETE, etc.)
-- **Body Forwarding**: Complete request and response body forwarding
-- **Status Code Preservation**: Maintains original response status codes
-- **Error Handling**: Graceful fallback with proper error responses
-
-### **Timeout Configuration**
-- **Read Timeout**: Configurable upstream read timeouts
-- **Write Timeout**: Configurable upstream write timeouts
-- **Per-Site Settings**: Individual timeout settings per site
-
-## Example Configurations
-
-### Basic API Proxy
-```toml
-[[sites]]
-name = "api.example.com"
-hostname = "api.example.com"
-port = 80
-
-[sites.proxy]
-enabled = true
-
-[[sites.proxy.upstreams]]
-name = "api-backend"
-url = "http://127.0.0.1:3000"
-
-[[sites.proxy.routes]]
-path = "/v1/"
-upstream = "api-backend"
-```
-
-### Load Balanced Application
-```toml
-[[sites]]
-name = "app.example.com"
-hostname = "app.example.com"
-port = 80
-
-[sites.proxy]
-enabled = true
-
-[[sites.proxy.upstreams]]
-name = "app-server-1"
-url = "http://10.0.1.10:8080"
-weight = 2
-
-[[sites.proxy.upstreams]]
-name = "app-server-2"
-url = "http://10.0.1.11:8080"
-weight = 1
-
-[[sites.proxy.routes]]
-path = "/"
-upstream = "app-servers"
-
-[sites.proxy.load_balancing]
-method = "weighted"
-
-[sites.proxy.health_check]
-enabled = true
-interval_seconds = 15
-path = "/health"
-```
-
-### Mixed Static and Proxy
-```toml
-[[sites]]
-name = "example.com"
-hostname = "example.com"
-port = 80
-static_dir = "/var/www/example.com"
-
-[sites.proxy]
-enabled = true
-
-[[sites.proxy.upstreams]]
-name = "api"
-url = "http://127.0.0.1:3000"
-
-[[sites.proxy.upstreams]]
-name = "admin"
-url = "http://127.0.0.1:4000"
-
-# Proxy API requests
-[[sites.proxy.routes]]
-path = "/api/"
-upstream = "api"
-strip_prefix = true
-
-# Proxy admin interface
-[[sites.proxy.routes]]
-path = "/admin/"
-upstream = "admin"
-strip_prefix = false
-
-# Static files are served for all other paths
-```
-
-## Route Priority
-
-When a request comes in, BWS checks routes in this order:
-
-1. **API routes** (`/api/health`, `/api/config`, etc.) - BWS internal APIs
-2. **Proxy routes** - Configured reverse proxy routes (most specific path first)
-3. **Static files** - Files from the site's static directory
-
-## Implementation Status
-
-✅ **Fully Implemented:**
-- ✅ **Per-site proxy configuration** - Complete TOML configuration parsing
-- ✅ **Route detection and matching** - Intelligent path-based routing
-- ✅ **Full HTTP proxy implementation** - Complete request/response forwarding using reqwest
-- ✅ **Three load balancing algorithms** - Round-robin, weighted, and least-connections
-- ✅ **Connection tracking** - Atomic counters for least-connections algorithm
-- ✅ **Path transformation** - Prefix stripping and URL rewriting
-- ✅ **Header management** - X-Forwarded-*, Forwarded, and custom headers
-- ✅ **Error handling** - Graceful fallback with 502 Bad Gateway responses
-- ✅ **Response forwarding** - Complete status code, header, and body forwarding
-- ✅ **Timeout configuration** - Configurable read/write timeouts
-- ✅ **Thread safety** - Concurrent request handling with atomic operations
-- ✅ **Mixed mode operation** - Static files and proxy routes work together
-
-� **Future Enhancements:**
-- Health check system with automatic failover
-- Connection pooling optimization
-- Circuit breaker pattern for failing upstreams
-- WebSocket proxy support
-- Request body streaming for large payloads
-- Detailed metrics and monitoring
-
-## WebSocket Proxy Support
-
-BWS supports proxying WebSocket connections to upstream servers with the same load balancing capabilities as HTTP requests.
-
-### WebSocket Configuration
-
-To enable WebSocket proxying for a route, set the `websocket` flag to `true`:
-
-```toml
-[[sites.proxy.routes]]
-path = "/ws"
-upstream = "websocket_backend"
-strip_prefix = true
-websocket = true  # Enable WebSocket proxying
-```
-
-### WebSocket Features
-
-- **Automatic Detection**: BWS automatically detects WebSocket upgrade requests
-- **Load Balancing**: WebSocket connections are distributed using the same algorithms as HTTP requests
-- **Bidirectional Communication**: Full support for real-time message forwarding
-- **Protocol Upgrade**: Automatic handling of HTTP to WebSocket protocol upgrade
-- **Header Forwarding**: Proper forwarding of WebSocket-specific headers
-
-### Example WebSocket Configuration
-
-```toml
-[[sites]]
-name = "websocket-app"
-hostname = "ws.example.com" 
-port = 8080
-static_dir = "./static"
-
-[sites.proxy]
-enabled = true
-
-# WebSocket upstream servers
-[[sites.proxy.upstreams]]
-name = "chat_servers"
-url = "http://localhost:3001"  # Will be converted to ws://localhost:3001
-weight = 1
-
-[[sites.proxy.upstreams]]
-name = "chat_servers"
-url = "http://localhost:3002"  # Will be converted to ws://localhost:3002
-weight = 1
-
-# WebSocket routes
-[[sites.proxy.routes]]
-path = "/ws/chat"
-upstream = "chat_servers"
-strip_prefix = true
-websocket = true
-
-[[sites.proxy.routes]]
-path = "/ws/notifications"
-upstream = "chat_servers"
-strip_prefix = false
-websocket = true
-
-# Load balancing for WebSocket connections
-[sites.proxy.load_balancing]
-method = "round_robin"  # or "weighted", "least_connections"
-```
-
-### WebSocket URL Transformation
-
-BWS automatically converts HTTP upstream URLs to WebSocket URLs:
-- `http://localhost:3001` → `ws://localhost:3001`
-- `https://localhost:3001` → `wss://localhost:3001`
-
-### Testing WebSocket Proxy
-
-Use the included test script to verify WebSocket proxy functionality:
-
+### Start Backend Services
 ```bash
-./tests/test_websocket_proxy.sh
-```
-
-This will:
-1. Start multiple WebSocket test servers
-2. Configure BWS with WebSocket proxy routes
-3. Provide a web interface for testing connections
-4. Demonstrate load balancing between upstream servers
-
-## Testing
-
-The reverse proxy functionality is fully operational with comprehensive load balancing! Here's how to test it:
-
-### Quick Test
-
-```bash
-# 1. Start multiple backend servers
+# Start test backends
 python3 -m http.server 3001 &
 python3 -m http.server 3002 &
-python3 -m http.server 3003 &
 
-# 2. Start BWS with load balancing configuration
-cargo run -- --config tests/test_load_balancing.toml
-
-# 3. Test load balancing
-curl http://localhost:8080/api/test  # Round-robin distribution
-curl http://localhost:8081/         # Weighted distribution
-curl http://localhost:8082/         # Least connections distribution
+# Or use Node.js
+npx http-server -p 3001 &
+npx http-server -p 3002 &
 ```
 
-### Comprehensive Load Balancing Test
-
-Use the included test script to verify all load balancing algorithms:
-
+### Test Load Balancing
 ```bash
-./tests/test_load_balance.sh
+# Test multiple requests to see load balancing
+for i in {1..10}; do
+  curl -H "X-Request-ID: $i" http://localhost/api/test
+done
+
+# Check which backend handled each request
+curl -v http://localhost/api/test
 ```
 
-This script will:
-- Start mock backend servers
-- Test round-robin distribution
-- Test weighted distribution (60%/40%)
-- Test least connections balancing
-- Verify proper request distribution
-
-### Manual Testing
-
+### WebSocket Testing
 ```bash
-# Test specific load balancing methods
-curl -H "Host: roundrobin.example.com" http://localhost:8080/api/test
-curl -H "Host: weighted.example.com" http://localhost:8081/
-curl -H "Host: leastconn.example.com" http://localhost:8082/
+# Test WebSocket connection
+npx wscat -c ws://localhost/ws
 
-# Test header forwarding
-curl -v -H "Host: proxy.localhost" http://localhost:8080/api/data
-# Look for X-Forwarded-For, X-Forwarded-Proto headers
-
-# Test static file serving still works
-curl http://localhost:8080/
-# Returns: static HTML content from BWS
+# Test through proxy
+curl --upgrade websocket http://localhost/ws
 ```
 
-### Verified Features:
+## Monitoring
 
-- ✅ **Load Balancing**: All three algorithms (round-robin, weighted, least-connections) working
-- ✅ **Connection Tracking**: Least-connections properly tracks active connections
-- ✅ **Route Detection**: Correctly identifies proxy vs static routes
-- ✅ **Path Transformation**: Prefix stripping and rewriting work as configured
-- ✅ **HTTP Proxying**: Full request/response proxying with all HTTP methods
-- ✅ **Header Forwarding**: Request and response headers properly forwarded
-- ✅ **Error Handling**: Returns 502 Bad Gateway when upstream is unavailable
-- ✅ **Thread Safety**: Concurrent requests handled safely with atomic operations
-- ✅ **Timeouts**: Configurable request timeouts prevent hanging
-- ✅ **Mixed Mode**: Static files and proxy routes work together seamlessly
+### Health Checks
+```bash
+# Check proxy status
+curl http://localhost/api/health
 
-### Performance Characteristics
+# Monitor backend connectivity
+curl -v http://localhost/api/test
+```
 
-- **Round-Robin**: O(1) selection complexity
-- **Weighted**: O(n) selection complexity where n = number of servers
-- **Least Connections**: O(n) selection complexity with atomic counters
-- **Thread Safety**: Lock-free operations using atomic primitives
-- **Memory Efficiency**: Minimal overhead with efficient data structures
+### Log Analysis
+```bash
+# Monitor proxy logs
+tail -f /var/log/bws.log | grep proxy
 
-This reverse proxy implementation makes BWS a complete web server solution, capable of serving static content, providing APIs, and proxying requests to backend services with enterprise-grade load balancing - just like Caddy!
+# Check upstream connections
+netstat -an | grep :3001
+```
+
+## Production Considerations
+
+### High Availability
+```toml
+# Multiple backend servers
+[[sites.proxy.upstreams]]
+name = "production-api"
+url = "http://api1.prod:3001"
+weight = 1
+
+[[sites.proxy.upstreams]]
+name = "production-api"
+url = "http://api2.prod:3001"
+weight = 1
+
+[[sites.proxy.upstreams]]
+name = "production-api"
+url = "http://api3.prod:3001"
+weight = 1
+
+# Conservative timeouts
+[sites.proxy.timeout]
+read = 60
+write = 60
+connect = 10
+```
+
+### Security Headers
+```toml
+[sites.proxy.headers.add]
+"X-Content-Type-Options" = "nosniff"
+"X-Frame-Options" = "DENY"
+"X-XSS-Protection" = "1; mode=block"
+
+[sites.proxy.headers.remove]
+"Server" = true
+"X-Powered-By" = true
+```
+
+### SSL Termination
+```toml
+# Terminate SSL at BWS, HTTP to backends
+[[sites]]
+name = "ssl-proxy"
+hostname = "api.example.com"
+port = 443
+static_dir = "static"
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+domains = ["api.example.com"]
+
+[sites.ssl.acme]
+enabled = true
+email = "admin@example.com"
+
+[sites.proxy]
+enabled = true
+
+[[sites.proxy.upstreams]]
+name = "backend"
+url = "http://internal-api:3001"  # HTTP to internal backend
+```

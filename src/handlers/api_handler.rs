@@ -2,10 +2,9 @@ use crate::config::{ServerConfig, SiteConfig};
 use pingora::http::ResponseHeader;
 use pingora::prelude::*;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 // Global config path for reload functionality
-static CONFIG_PATH: once_cell::sync::OnceCell<Arc<Mutex<Option<String>>>> =
+static CONFIG_PATH: once_cell::sync::OnceCell<Arc<std::sync::RwLock<Option<String>>>> =
     once_cell::sync::OnceCell::new();
 
 #[derive(Clone)]
@@ -20,15 +19,16 @@ impl ApiHandler {
 
     /// Set the global config path for reload functionality
     pub fn set_config_path(path: String) {
-        let config_path = CONFIG_PATH.get_or_init(|| Arc::new(Mutex::new(None)));
-        let mut config_path_guard = config_path.lock().unwrap();
-        *config_path_guard = Some(path);
+        let config_path = CONFIG_PATH.get_or_init(|| Arc::new(std::sync::RwLock::new(None)));
+        if let Ok(mut config_path_guard) = config_path.write() {
+            *config_path_guard = Some(path);
+        }
     }
 
     /// Get the global config path
     async fn get_config_path() -> Option<String> {
         let config_path = CONFIG_PATH.get()?;
-        config_path.lock().unwrap().clone()
+        config_path.read().ok()?.clone()
     }
 
     pub async fn handle(&self, session: &mut Session, site: Option<&SiteConfig>) -> Result<()> {

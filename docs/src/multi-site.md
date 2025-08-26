@@ -1,16 +1,14 @@
 # Multi-Site Setup
 
-BWS excels at hosting multiple websites on different ports with individual configurations. This guide shows you how to set up and manage multiple sites.
+BWS hosts multiple websites with individual configurations on different ports or hostnames.
 
 ## Basic Multi-Site Configuration
-
-Here's a complete example with four different sites including SSL configurations:
 
 ```toml
 [server]
 name = "BWS Multi-Site Server"
 
-# Main website (HTTP)
+# Main HTTP site
 [[sites]]
 name = "main"
 hostname = "localhost"
@@ -18,15 +16,10 @@ port = 8080
 static_dir = "static"
 default = true
 
-[sites.ssl]
-enabled = false
-
 [sites.headers]
 "X-Site-Name" = "Main Website"
-"X-Powered-By" = "BWS/1.0"
-"X-Environment" = "production"
 
-# Blog subdomain (HTTPS with auto SSL)
+# HTTPS blog site
 [[sites]]
 name = "blog"
 hostname = "blog.localhost"
@@ -36,519 +29,310 @@ static_dir = "static-blog"
 [sites.ssl]
 enabled = true
 auto_cert = true
-domains = ["blog.localhost", "www.blog.localhost"]
+domains = ["blog.localhost"]
 
 [sites.ssl.acme]
 enabled = true
 email = "admin@example.com"
-staging = false
-challenge_dir = "./acme-challenges"
 
-[sites.headers]
-"X-Site-Name" = "Blog"
-"X-Content-Type" = "blog-content"
-"X-Author" = "BWS Team"
-"Strict-Transport-Security" = "max-age=31536000"
-
-# API documentation (HTTPS with manual SSL)
-[[sites]]
-name = "docs"
-hostname = "docs.localhost"
-port = 8444
-static_dir = "static-docs"
-
-[sites.ssl]
-enabled = true
-auto_cert = false
-cert_file = "./certs/docs.localhost.crt"
-key_file = "./certs/docs.localhost.key"
-
-[sites.headers]
-"X-Site-Name" = "API Documentation"
-"Access-Control-Allow-Origin" = "*"
-"Access-Control-Allow-Methods" = "GET, OPTIONS"
-"Strict-Transport-Security" = "max-age=31536000"
-
-# Development environment (HTTP)
-[[sites]]
-name = "dev"
-hostname = "localhost"
-port = 8083
-static_dir = "static-dev"
-
-[sites.ssl]
-enabled = false
-
-[sites.headers]
-"X-Site-Name" = "Development Environment"
-"X-Environment" = "development"
-"X-Debug-Mode" = "enabled"
-```
-
-## Directory Structure
-
-Create the corresponding directory structure including SSL certificate directories:
-
-```bash
-mkdir -p static static-blog static-docs static-dev acme-challenges certs
-
-# Main site
-cat > static/index.html << 'EOF'
-<!DOCTYPE html>
-<html>
-<head><title>Main Site</title></head>
-<body>
-    <h1>🌐 Main Website</h1>
-    <p>Welcome to the main BWS site!</p>
-    <nav>
-        <a href="https://blog.localhost:8443">Blog (HTTPS)</a> |
-        <a href="https://docs.localhost:8444">Docs (HTTPS)</a> |
-        <a href="http://localhost:8083">Dev (HTTP)</a>
-    </nav>
-</body>
-</html>
-EOF
-
-# Blog site
-cat > static-blog/index.html << 'EOF'
-<!DOCTYPE html>
-<html>
-<head><title>BWS Blog</title></head>
-<body>
-    <h1>📝 BWS Blog (HTTPS)</h1>
-    <p>Latest news and updates - Secured with SSL</p>
-    <article>
-        <h2>Welcome to BWS Blog</h2>
-        <p>This is our blog powered by BWS multi-site hosting with automatic SSL.</p>
-    </article>
-</body>
-</html>
-EOF
-
-# Documentation site
-cat > static-docs/index.html << 'EOF'
-<!DOCTYPE html>
-<html>
-<head><title>BWS Documentation</title></head>
-<body>
-    <h1>📚 BWS Documentation (HTTPS)</h1>
-    <p>Complete API and user documentation - Secured with manual SSL</p>
-    <ul>
-        <li><a href="/api/health">Health Check</a></li>
-        <li><a href="/api/sites">Sites Info</a></li>
-    </ul>
-</body>
-</html>
-EOF
-
-# Development site
-cat > static-dev/index.html << 'EOF'
-<!DOCTYPE html>
-<html>
-<head><title>BWS Development</title></head>
-<body>
-    <h1>🚧 BWS Development</h1>
-    <p>Development and testing environment (HTTP only)</p>
-    <p><strong>Debug Mode:</strong> Enabled</p>
-</body>
-</html>
-EOF
-```
-
-## Site Types
-
-### Default Site
-
-One site should be marked as `default = true`. This site handles requests that don't match other hostnames:
-
-```toml
-[[sites]]
-name = "main"
-hostname = "localhost"
-port = 8080
-static_dir = "static"
-default = true  # This is the default site
-
-[sites.ssl]
-enabled = false
-```
-
-### HTTPS Sites
-
-Sites can be configured with SSL/TLS for secure connections:
-
-```toml
-# Automatic SSL with ACME (Let's Encrypt)
-[[sites]]
-name = "secure_auto"
-hostname = "secure.example.com"
-port = 443
-static_dir = "static"
-
-[sites.ssl]
-enabled = true
-auto_cert = true
-domains = ["secure.example.com", "www.secure.example.com"]
-
-[sites.ssl.acme]
-enabled = true
-email = "admin@example.com"
-staging = false
-challenge_dir = "./acme-challenges"
-
-# Manual SSL certificates
-[[sites]]
-name = "secure_manual"
-hostname = "manual.example.com"
-port = 443
-static_dir = "static"
-
-[sites.ssl]
-enabled = true
-auto_cert = false
-cert_file = "/etc/ssl/certs/manual.example.com.crt"
-key_file = "/etc/ssl/private/manual.example.com.key"
-```
-
-### API-Only Sites
-
-For sites that only serve API endpoints without static files:
-
-```toml
+# API proxy site
 [[sites]]
 name = "api"
 hostname = "api.localhost"
-port = 8084
-static_dir = "api-static"
-api_only = true  # Only serve /api/* endpoints
+port = 8080
+static_dir = "static"
+
+[sites.proxy]
+enabled = true
+
+[[sites.proxy.upstreams]]
+name = "backend"
+url = "http://127.0.0.1:3001"
+
+[[sites.proxy.routes]]
+path = "/v1/"
+upstream = "backend"
+```
+
+## Setup Multi-Site Content
+
+Create directories and content for each site:
+
+```bash
+# Create directories
+mkdir -p static static-blog acme-challenges
+
+# Main site content
+cat > static/index.html << 'EOF'
+<h1>Main Website</h1>
+<p>Welcome to the main site</p>
+<a href="https://blog.localhost:8443">Visit Blog</a>
+EOF
+
+# Blog content
+cat > static-blog/index.html << 'EOF'
+<h1>Blog Site</h1>
+<p>This is the blog running on HTTPS</p>
+<a href="http://localhost:8080">Back to Main</a>
+EOF
+```
+
+## Virtual Hosting (Same Port)
+
+Host multiple sites on the same port using hostname routing:
+
+```toml
+[server]
+name = "Virtual Hosting Server"
+
+# Main site
+[[sites]]
+name = "main"
+hostname = "www.example.com"
+port = 80
+static_dir = "sites/main"
+default = true
+
+# Blog site (same port, different hostname)
+[[sites]]
+name = "blog"
+hostname = "blog.example.com"
+port = 80
+static_dir = "sites/blog"
+
+# API site (same port, different hostname)
+[[sites]]
+name = "api"
+hostname = "api.example.com"
+port = 80
+static_dir = "sites/api"
+```
+
+### Testing Virtual Hosting
+
+Add entries to `/etc/hosts` for local testing:
+
+```bash
+# Add to /etc/hosts
+echo "127.0.0.1 www.example.com blog.example.com api.example.com" | sudo tee -a /etc/hosts
+```
+
+Test with curl:
+```bash
+curl -H "Host: www.example.com" http://localhost/
+curl -H "Host: blog.example.com" http://localhost/
+curl -H "Host: api.example.com" http://localhost/
+```
+
+## Multi-Port Configuration
+
+Run different services on different ports:
+
+```toml
+# HTTP on port 80
+[[sites]]
+name = "web"
+hostname = "example.com"
+port = 80
+static_dir = "web"
+
+# HTTPS on port 443
+[[sites]]
+name = "secure"
+hostname = "example.com"
+port = 443
+static_dir = "web"
 
 [sites.ssl]
 enabled = true
 auto_cert = true
-domains = ["api.localhost"]
+domains = ["example.com"]
 
 [sites.ssl.acme]
 enabled = true
 email = "admin@example.com"
-staging = false
-challenge_dir = "./acme-challenges"
+
+# API on port 8080
+[[sites]]
+name = "api"
+hostname = "api.example.com"
+port = 8080
+static_dir = "api"
+
+# Admin panel on port 9000
+[[sites]]
+name = "admin"
+hostname = "admin.example.com"
+port = 9000
+static_dir = "admin"
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+domains = ["admin.example.com"]
+
+[sites.ssl.acme]
+enabled = true
+email = "admin@example.com"
+```
+
+## Site-Specific Configuration
+
+Each site can have unique settings:
+
+### Headers
+```toml
+# Different headers per site
+[[sites]]
+name = "api"
+hostname = "api.example.com"
+port = 80
+static_dir = "api"
 
 [sites.headers]
 "Access-Control-Allow-Origin" = "*"
-"Content-Type" = "application/json"
-```
-
-### Hostname Patterns
-
-BWS supports various hostname patterns:
-
-```toml
-# Localhost with different ports
-[[sites]]
-hostname = "localhost"
-port = 8080
-
-# Subdomain
-[[sites]]
-hostname = "blog.example.com"
-port = 8081
-
-# Different domain
-[[sites]]
-hostname = "api.myservice.com"
-port = 8082
-
-# IP address
-[[sites]]
-hostname = "192.168.1.100"
-port = 8083
-```
-
-## Load Balancing
-
-You can run multiple BWS instances and use a load balancer:
-
-```nginx
-# nginx.conf
-upstream bws_main {
-    server localhost:8080;
-    server localhost:8090;  # Second BWS instance
-}
-
-upstream bws_blog {
-    server localhost:8081;
-    server localhost:8091;  # Second BWS instance
-}
-
-server {
-    listen 80;
-    server_name example.com;
-    location / {
-        proxy_pass http://bws_main;
-    }
-}
-
-server {
-    listen 80;
-    server_name blog.example.com;
-    location / {
-        proxy_pass http://bws_blog;
-    }
-}
-```
-
-## Testing Multi-Site Setup
-
-1. **Start BWS:**
-```bash
-bws --config config.toml
-```
-
-2. **Test each site:**
-```bash
-# HTTP Main site
-curl http://localhost:8080/
-
-# HTTPS Blog (requires host header or /etc/hosts entry)
-curl -k -H "Host: blog.localhost" https://localhost:8443/
-
-# HTTPS Docs (manual SSL)
-curl -k -H "Host: docs.localhost" https://localhost:8444/
-
-# HTTP Dev site
-curl http://localhost:8083/
-```
-
-3. **Check SSL certificates:**
-```bash
-# Check auto SSL certificate
-openssl s_client -connect localhost:8443 -servername blog.localhost
-
-# Check manual SSL certificate
-openssl s_client -connect localhost:8444 -servername docs.localhost
-```
-
-4. **Check site information:**
-```bash
-curl http://localhost:8080/api/sites
-```
-
-## Best Practices
-
-### Port Management
-- Use sequential ports for easy management
-- Document port assignments
-- Avoid common service ports (22, 80, 443, etc.)
-
-### Directory Organization
-```
-project/
-├── config.toml
-├── static/           # Main site
-├── static-blog/      # Blog content
-├── static-docs/      # Documentation
-├── static-api/       # API documentation
-└── shared-assets/    # Common files (CSS, JS, images)
-```
-
-### Security Considerations
-- Use different headers for different environments
-- Implement CORS properly for API sites
-- Consider IP restrictions for development sites
-
-### Monitoring
-Each site can be monitored independently:
-```bash
-# Check health of each site
-curl http://localhost:8080/api/health
-curl http://localhost:8081/api/health
-curl http://localhost:8082/api/health
-```
-
-## Troubleshooting
-
-### Port Conflicts
-```bash
-# Check if port is in use
-lsof -i :8080
-
-# Kill process using port
-kill $(lsof -t -i:8080)
-```
-
-### Hostname Resolution
-Add entries to `/etc/hosts` for testing:
-```
-127.0.0.1 blog.localhost
-127.0.0.1 docs.localhost
-127.0.0.1 api.localhost
-```
-
-Then access sites via:
-- http://localhost:8080 (HTTP main site)
-- https://blog.localhost:8443 (HTTPS blog with auto SSL)
-- https://docs.localhost:8444 (HTTPS docs with manual SSL)
-
-### SSL Certificate Setup
-For manual SSL sites, generate test certificates:
-
-```bash
-# Create certificate directory
-mkdir -p certs
-
-# Generate self-signed certificate for docs.localhost
-openssl req -x509 -newkey rsa:4096 -keyout certs/docs.localhost.key -out certs/docs.localhost.crt -days 365 -nodes -subj "/CN=docs.localhost"
-
-# Set proper permissions
-chmod 600 certs/docs.localhost.key
-chmod 644 certs/docs.localhost.crt
-```
-
-### Configuration Validation
-BWS validates configuration on startup:
-- Duplicate site names → Error
-- Port conflicts → Error
-- Missing directories → Warning (created automatically)
-- Invalid hostnames → Error
-
-## Virtual Hosting (Shared Port Configuration)
-
-Virtual hosting allows multiple sites to share the same port while being distinguished by hostname. This is ideal for hosting multiple domains on standard ports (80/443).
-
-### Virtual Hosting Example
-
-```toml
-[server]
-name = "BWS Virtual Hosting Server"
-
-# All sites share port 8080
-[[sites]]
-name = "main"
-hostname = "www.example.com"
-port = 8080
-static_dir = "examples/sites/static"
-default = true
-
-[sites.headers]
-"X-Site-Name" = "Main Site"
-"X-Port-Sharing" = "enabled"
+"X-API-Version" = "v1"
 
 [[sites]]
 name = "blog"
 hostname = "blog.example.com"
-port = 8080                    # Same port as main site
-static_dir = "examples/sites/static-blog"
+port = 80
+static_dir = "blog"
 
 [sites.headers]
-"X-Site-Name" = "Blog Site"
-"X-Content-Type" = "blog-content"
+"X-Content-Type" = "blog"
+"Cache-Control" = "public, max-age=3600"
+```
+
+### Security Settings
+```toml
+# Secure admin site
+[[sites]]
+name = "admin"
+hostname = "admin.example.com"
+port = 443
+static_dir = "admin"
+
+[sites.headers]
+"Strict-Transport-Security" = "max-age=31536000"
+"X-Frame-Options" = "DENY"
+"X-Content-Type-Options" = "nosniff"
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+domains = ["admin.example.com"]
+```
+
+## Start Multi-Site Server
+
+```bash
+# Validate configuration
+bws --config multi-site.toml --dry-run
+
+# Start server
+bws --config multi-site.toml
+```
+
+## Testing Multiple Sites
+
+```bash
+# Test different sites
+curl http://localhost:8080/                    # Main site
+curl https://blog.localhost:8443/              # Blog site  
+curl http://api.localhost:8080/v1/health       # API site
+
+# Check site information
+curl http://localhost:8080/api/sites
+
+# Test virtual hosting
+curl -H "Host: www.example.com" http://localhost/
+curl -H "Host: blog.example.com" http://localhost/
+```
+
+## Management
+
+### Hot Reload
+Update configuration without stopping the server:
+
+```bash
+# Edit configuration file
+nano multi-site.toml
+
+# Reload configuration
+curl -X POST http://127.0.0.1:7654/api/config/reload
+```
+
+### Monitoring
+```bash
+# Check all sites health
+curl http://localhost:8080/api/health
+
+# Monitor logs for all sites
+tail -f /var/log/bws.log | grep -E "(site:|error:|ssl:)"
+```
+
+## Production Deployment
+
+### Directory Structure
+```
+/var/www/
+├── sites/
+│   ├── main/
+│   ├── blog/
+│   ├── api/
+│   └── admin/
+├── certs/
+├── acme-challenges/
+└── config/
+    └── multi-site.toml
+```
+
+### Service Configuration
+```toml
+[server]
+name = "Production Multi-Site"
+
+[[sites]]
+name = "main"
+hostname = "example.com"
+port = 443
+static_dir = "/var/www/sites/main"
+default = true
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+domains = ["example.com", "www.example.com"]
+
+[sites.ssl.acme]
+enabled = true
+email = "admin@example.com"
+challenge_dir = "/var/www/acme-challenges"
 
 [[sites]]
 name = "api"
 hostname = "api.example.com"
-port = 8080                    # Same port as other sites
-static_dir = "examples/sites/static-api"
+port = 443
+static_dir = "/var/www/sites/api"
 
-[sites.headers]
-"X-Site-Name" = "API Documentation"
-"Access-Control-Allow-Origin" = "*"
+[sites.ssl]
+enabled = true
+auto_cert = true
+domains = ["api.example.com"]
 
-[[sites]]
-name = "dev"
-hostname = "dev.example.com"
-port = 8080                    # Same port as other sites
-static_dir = "examples/sites/static-dev"
-
-[sites.headers]
-"X-Site-Name" = "Development Site"
-"X-Environment" = "development"
+[sites.ssl.acme]
+enabled = true
+email = "admin@example.com"
+challenge_dir = "/var/www/acme-challenges"
 ```
 
-### Virtual Hosting Features
-
-- **Port Sharing**: Multiple sites on the same port
-- **Host-based Routing**: Routes requests based on the `Host` header
-- **Separate Content**: Each site serves from its own directory
-- **Individual Headers**: Site-specific response headers
-- **Default Site**: Fallback for unmatched hostnames
-
-### Testing Virtual Hosting
-
-BWS includes a comprehensive test for virtual hosting:
-
+### Firewall Setup
 ```bash
-# Run the virtual hosting test
-./tests/test_multisite_shared_port.sh test
+# Allow HTTP and HTTPS
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
 
-# Start server for manual testing
-./tests/test_multisite_shared_port.sh start
-
-# Test with curl (using Host headers)
-curl -H "Host: www.example.com" http://127.0.0.1:8080
-curl -H "Host: blog.example.com" http://127.0.0.1:8080
-curl -H "Host: api.example.com" http://127.0.0.1:8080
+# Allow management API (localhost only)
+sudo ufw allow from 127.0.0.1 to any port 7654
 ```
-
-For browser testing, add domains to `/etc/hosts`:
-
-```bash
-sudo bash -c 'echo "127.0.0.1 www.local.com blog.local.com api.local.com dev.local.com" >> /etc/hosts'
-```
-
-### Virtual Hosting vs Multi-Port
-
-| Feature | Virtual Hosting | Multi-Port |
-|---------|----------------|------------|
-| **Port Usage** | Shared (e.g., all on 8080) | Separate (8080, 8081, 8082) |
-| **DNS Setup** | Requires domain configuration | Works with localhost |
-| **Production** | Standard for web hosting | Good for development |
-| **SSL/TLS** | Single certificate with SAN | Separate certificates |
-| **Firewall** | Single port to open | Multiple ports to manage |
-
-### Production Virtual Hosting
-
-For production virtual hosting on standard ports:
-
-```toml
-# Production virtual hosting on port 80/443
-[[sites]]
-name = "main"
-hostname = "company.com"
-port = 443
-static_dir = "/var/www/main"
-default = true
-
-[sites.ssl]
-enabled = true
-auto_cert = true
-domains = ["company.com", "www.company.com"]
-
-[[sites]]
-name = "blog"
-hostname = "blog.company.com"
-port = 443
-static_dir = "/var/www/blog"
-
-[sites.ssl]
-enabled = true
-auto_cert = true
-domains = ["blog.company.com"]
-
-[[sites]]
-name = "api"
-hostname = "api.company.com"
-port = 443
-static_dir = "/var/www/api"
-
-[sites.ssl]
-enabled = true
-auto_cert = true
-domains = ["api.company.com"]
-```
-
-## Next Steps
-
-- Configure [SSL/TLS Configuration](./ssl-tls.md) for HTTPS setup
-- Set up [Custom Headers](./headers.md) for each site
-- Configure [Health Monitoring](./health.md) for production monitoring
-- Learn about [Static File Serving](./static-files.md) optimization

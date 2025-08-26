@@ -391,13 +391,6 @@ impl WebSocketProxyHandler {
         Ok(ws_url)
     }
 
-    /// Legacy proxy WebSocket connection (kept for backward compatibility)
-    #[allow(dead_code)]
-    async fn proxy_websocket(&self, session: &mut Session, ws_url: &str) -> Result<()> {
-        // This is the original implementation, kept for reference
-        self.proxy_websocket_with_relay(session, ws_url).await
-    }
-
     /// Connect to upstream WebSocket server
     async fn connect_upstream_websocket(
         &self,

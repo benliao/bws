@@ -17,8 +17,6 @@ pub struct WebServerService {
     static_handler: Arc<StaticFileHandler>,
     api_handler: Arc<ApiHandler>,
     health_handler: Arc<HealthHandler>,
-    #[allow(dead_code)]
-    proxy_handler: Arc<ProxyHandler>,
 }
 
 impl WebServerService {
@@ -38,7 +36,6 @@ impl WebServerService {
             static_handler,
             api_handler,
             health_handler,
-            proxy_handler: Arc::new(ProxyHandler::new(crate::config::ProxyConfig::default())),
         }
     }
 

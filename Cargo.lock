@@ -391,7 +391,7 @@ checksum = "46c5e41b57b8bba42a04676d81cb89e9ee8e859a1a66f80a5a72e1cb76b34d43"
 
 [[package]]
 name = "bws-web-server"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -405,7 +405,6 @@ dependencies = [
  "flate2",
  "futures-util",
  "instant-acme",
- "libc",
  "log",
  "notify",
  "num_cpus",

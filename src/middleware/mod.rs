@@ -96,7 +96,7 @@ impl Middleware for LoggingMiddleware {
     }
 }
 
-// Rate limiting middleware
+// Rate limiting middleware (currently unused)
 #[allow(dead_code)]
 pub struct RateLimitMiddleware {
     requests_per_minute: u32,
@@ -112,6 +112,7 @@ struct ClientInfo {
     tokens: u32,
 }
 
+#[allow(dead_code)]
 impl RateLimitMiddleware {
     pub fn new(requests_per_minute: u32, burst_size: u32) -> Self {
         Self {
@@ -143,7 +144,6 @@ impl RateLimitMiddleware {
             .unwrap_or_else(|| "unknown".to_string())
     }
 
-    #[allow(dead_code)]
     fn is_allowed(&mut self, client_ip: &str) -> bool {
         let now = Instant::now();
         let client_info = self

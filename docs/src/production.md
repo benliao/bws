@@ -1,951 +1,405 @@
 # Production Setup
 
-This guide covers deploying BWS in production environments with security, performance, and reliability best practices.
+Deploy BWS in production with security, performance, and reliability best practices.
 
-## Production Readiness
+## Quick Production Setup
 
-BWS has been significantly hardened for production use with comprehensive improvements:
-
-### Reliability Enhancements
-- **Zero Panic Policy**: All `.unwrap()` calls replaced with proper error handling
-- **Comprehensive Error Handling**: Graceful error propagation throughout the codebase
-- **Thread-Safe Operations**: Fixed all race conditions and concurrency issues
-- **Automatic Certificate Renewal**: Background monitoring service for SSL certificates
-- **Memory Safety**: Rust's ownership system prevents memory corruption and data races
-
-### Code Quality Assurance
-- **Lint-Free Codebase**: Passes all Clippy warnings for maximum code quality
-- **Modern Rust Patterns**: Updated to use latest async/await and error handling patterns
-- **Resource Management**: Proper cleanup of connections and certificate operations
-- **Production-Grade Logging**: Structured logging with comprehensive error documentation
-
-## Master-Worker Process Architecture
-
-BWS uses a production-grade master-worker architecture for zero-downtime operations:
-
-### Process Model
-- **Master Process**: Manages configuration, handles signals, coordinates workers
-- **Worker Processes**: Handle HTTP traffic, SSL termination, proxy operations
-- **Hot Reload**: Zero-downtime configuration updates via worker replacement
-- **Graceful Operations**: No dropped connections during updates or restarts
-
-### Process Management
+### 1. Install BWS
 ```bash
-# Check BWS process tree
-pstree -p $(pgrep -f "bws.*master")
+# Install from crates.io
+cargo install bws-web-server
 
-# View all BWS processes
-ps aux | grep bws | grep -v grep
-
-# Master process operations
-kill -HUP $(pgrep -f "bws.*master")   # Hot reload
-kill -TERM $(pgrep -f "bws.*master")  # Graceful shutdown
-
-# Monitor process status
-watch "pgrep -a bws"
+# Or use Docker
+docker pull ghcr.io/benliao/bws:latest
 ```
 
-### Service Configuration
+### 2. Create Production Configuration
+```toml
+[server]
+name = "BWS Production"
+
+# Main HTTPS site
+[[sites]]
+name = "main"
+hostname = "example.com"
+port = 443
+static_dir = "/var/www/html"
+default = true
+
+[sites.ssl]
+enabled = true
+auto_cert = true
+domains = ["example.com", "www.example.com"]
+
+[sites.ssl.acme]
+enabled = true
+email = "admin@example.com"
+staging = false
+
+[sites.headers]
+"Strict-Transport-Security" = "max-age=31536000"
+"X-Frame-Options" = "DENY"
+"X-Content-Type-Options" = "nosniff"
+
+# Management API
+[management]
+enabled = true
+port = 7654
+api_key = "secure-random-key-here"
+
+# Performance tuning
+[performance]
+worker_threads = 8
+max_connections = 2000
+
+# Security
+[security]
+hide_server_header = true
+max_request_size = "50MB"
+
+# Logging
+[logging]
+level = "info"
+log_requests = true
+```
+
+### 3. System Setup
+```bash
+# Create user and directories
+sudo useradd -r -s /bin/false bws
+sudo mkdir -p /var/www/html /var/log/bws /etc/bws
+sudo chown -R bws:bws /var/www /var/log/bws
+
+# Copy configuration
+sudo cp config.toml /etc/bws/
+
+# Set permissions
+sudo chmod 600 /etc/bws/config.toml
+sudo chown bws:bws /etc/bws/config.toml
+```
+
+## Systemd Service
+
+### Create Service File
 ```ini
 # /etc/systemd/system/bws.service
 [Unit]
-Description=BWS Multi-Site Web Server (Master-Worker)
-Documentation=https://github.com/benliao/bws
+Description=BWS Web Server
 After=network.target
 Wants=network.target
 
 [Service]
-Type=simple
+Type=forking
 User=bws
 Group=bws
-WorkingDirectory=/opt/bws
-ExecStart=/usr/local/bin/bws --config /etc/bws/config.toml
+ExecStart=/usr/local/bin/bws --config /etc/bws/config.toml --daemon
 ExecReload=/bin/kill -HUP $MAINPID
+PIDFile=/var/run/bws.pid
 Restart=always
 RestartSec=5
-TimeoutStartSec=60
-TimeoutStopSec=30
+LimitNOFILE=65535
 
-# Security settings
-NoNewPrivileges=true
-PrivateTmp=true
+# Security
+NoNewPrivileges=yes
 ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/var/log/bws /var/lib/bws
-
-# Resource limits
-LimitNOFILE=65536
-LimitNPROC=4096
+ProtectHome=yes
+ReadWritePaths=/var/www /var/log/bws /var/run
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-### Hot Reload in Production
+### Service Management
 ```bash
-# Validate configuration before reload
-bws --config-check /etc/bws/config.toml
+# Enable and start service
+sudo systemctl enable bws
+sudo systemctl start bws
 
-# Trigger hot reload
-systemctl reload bws
+# Check status
+sudo systemctl status bws
 
-# Monitor reload process
-journalctl -u bws -f | grep -E "(reload|worker|master)"
+# View logs
+sudo journalctl -u bws -f
 
-# Verify new configuration
-curl -I http://localhost:8080/health
+# Reload configuration
+sudo systemctl reload bws
 ```
 
-## Production Architecture
+## Docker Production Deployment
 
-### Recommended Infrastructure
+### Docker Compose
+```yaml
+# docker-compose.prod.yml
+version: '3.8'
+
+services:
+  bws:
+    image: ghcr.io/benliao/bws:v0.3.5
+    container_name: bws-prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./config.toml:/app/config.toml:ro
+      - ./static:/app/static:ro
+      - ./acme-challenges:/app/acme-challenges
+      - ./logs:/app/logs
+    environment:
+      - BWS_LOG_LEVEL=info
+    networks:
+      - bws-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  bws-network:
+    driver: bridge
 ```
-Internet → Load Balancer → Reverse Proxy → BWS Instances
-                                       ↓
-                              Monitoring & Logging
+
+### Deploy with Docker
+```bash
+# Start production stack
+docker-compose -f docker-compose.prod.yml up -d
+
+# View logs
+docker-compose -f docker-compose.prod.yml logs -f
+
+# Update deployment
+docker-compose -f docker-compose.prod.yml pull
+docker-compose -f docker-compose.prod.yml up -d
 ```
 
-### High Availability Setup
-```
-                    Load Balancer (HAProxy/Nginx)
-                           /              \
-                    BWS Instance 1    BWS Instance 2
-                         |                    |
-                    Static Files        Static Files
-                    (NFS/S3)           (NFS/S3)
-                         |                    |
-                    Health Monitor     Health Monitor
-```
+## Reverse Proxy Setup
 
-## Security Configuration
-
-### SSL/TLS Termination
-BWS is typically deployed behind a reverse proxy that handles SSL termination:
-
+### Nginx Frontend (Optional)
 ```nginx
-# /etc/nginx/sites-available/bws-production
-server {
-    listen 443 ssl http2;
-    server_name example.com www.example.com;
-
-    # SSL Configuration
-    ssl_certificate /etc/ssl/certs/example.com.crt;
-    ssl_certificate_key /etc/ssl/private/example.com.key;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512;
-    ssl_prefer_server_ciphers off;
-    ssl_session_cache shared:SSL:10m;
-    ssl_session_timeout 1d;
-
-    # Security Headers
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Content-Type-Options nosniff always;
-    add_header X-Frame-Options DENY always;
-    add_header X-XSS-Protection "1; mode=block" always;
-    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-
-    # Rate Limiting
-    limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
-    limit_req_zone $binary_remote_addr zone=static:10m rate=50r/s;
-
-    location / {
-        limit_req zone=static burst=20 nodelay;
-        proxy_pass http://bws_backend;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        
-        # Timeouts
-        proxy_connect_timeout 5s;
-        proxy_send_timeout 10s;
-        proxy_read_timeout 10s;
-    }
-
-    location /api/ {
-        limit_req zone=api burst=5 nodelay;
-        proxy_pass http://bws_backend;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-### Management API Security
-
-BWS includes a secure Management API for administrative operations. In production, ensure proper security configuration:
-
-```toml
-# /etc/bws/production.toml
-[management]
-enabled = true
-host = "127.0.0.1"              # Always localhost only
-port = 7654                     # Internal management port
-api_key = "prod-secure-api-key-2024"  # Strong API key required
-```
-
-**Production Security Checklist:**
-
-1. **Enable API Key Authentication:**
-```bash
-# Generate secure API key
-openssl rand -hex 32
-# Add to config: api_key = "generated-key-here"
-```
-
-2. **Firewall Configuration:**
-```bash
-# Ensure management port is NOT exposed externally
-ufw deny 7654                   # Block external access
-iptables -A INPUT -p tcp --dport 7654 -s 127.0.0.1 -j ACCEPT
-iptables -A INPUT -p tcp --dport 7654 -j DROP
-```
-
-3. **Access Logging:**
-```bash
-# Monitor management API access
-tail -f /var/log/bws/bws.log | grep "Management API"
-```
-
-4. **Automated Configuration Reload:**
-```bash
-#!/bin/bash
-# /opt/bws/scripts/reload-config.sh
-curl -X POST http://127.0.0.1:7654/api/config/reload \
-  -H "X-API-Key: ${BWS_MANAGEMENT_API_KEY}" \
-  -s -o /dev/null -w "%{http_code}\n"
-```
-
-**Security Benefits:**
-- 🔒 **Localhost Binding**: No external network access possible
-- 🔒 **IP Validation**: Double-checks request origin
-- 🔒 **API Key Auth**: Additional authentication layer
-- 🔒 **Audit Logging**: All operations logged with client IP
-- 🔒 **Isolated Service**: Separate from main web traffic
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /health {
-        proxy_pass http://bws_backend/health;
-        access_log off;
-        allow 127.0.0.1;
-        allow 10.0.0.0/8;
-        deny all;
-    }
-}
-
+# /etc/nginx/sites-available/bws
 upstream bws_backend {
-    least_conn;
-    server 127.0.0.1:8080 max_fails=3 fail_timeout=30s;
-    server 127.0.0.1:8081 max_fails=3 fail_timeout=30s backup;
+    server 127.0.0.1:8080;
     keepalive 32;
 }
 
-# Redirect HTTP to HTTPS
 server {
     listen 80;
     server_name example.com www.example.com;
     return 301 https://$server_name$request_uri;
 }
+
+server {
+    listen 443 ssl http2;
+    server_name example.com www.example.com;
+
+    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
+
+    location / {
+        proxy_pass http://bws_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
 ```
+
+## Security
 
 ### Firewall Configuration
 ```bash
-# UFW (Ubuntu Firewall) example
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
-sudo ufw allow ssh
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw allow from 10.0.0.0/8 to any port 8080  # Internal BWS access
+# UFW setup
+sudo ufw allow 22/tcp      # SSH
+sudo ufw allow 80/tcp      # HTTP
+sudo ufw allow 443/tcp     # HTTPS
 sudo ufw enable
 
-# iptables example
-iptables -A INPUT -p tcp --dport 22 -j ACCEPT    # SSH
-iptables -A INPUT -p tcp --dport 80 -j ACCEPT    # HTTP
-iptables -A INPUT -p tcp --dport 443 -j ACCEPT   # HTTPS
-iptables -A INPUT -s 10.0.0.0/8 -p tcp --dport 8080 -j ACCEPT  # BWS internal
-iptables -A INPUT -j DROP
+# Restrict management API
+sudo ufw allow from 127.0.0.1 to any port 7654
 ```
 
-## Production Configuration
-
-### Optimized BWS Configuration
+### SSL/TLS Security
 ```toml
-# /etc/bws/production.toml
-[daemon]
-user = "bws"
-group = "bws"
-pid_file = "/var/run/bws.pid"
-working_directory = "/opt/bws"
-
-[logging]
-level = "info"
-output = "file"
-file_path = "/var/log/bws/bws.log"
-max_size = "100MB"
-max_files = 10
-compress = true
-format = "json"
-
-[monitoring]
+# Strong SSL configuration
+[sites.ssl]
 enabled = true
-health_endpoint = "/health"
-detailed_endpoint = "/health/detailed"
-metrics_endpoint = "/metrics"
-
-[monitoring.checks]
-disk_threshold = 85
-memory_threshold = 80
-response_time_threshold = 1000
-
-[performance]
-max_connections = 10000
-worker_threads = 8
-keep_alive_timeout = 30
-request_timeout = 30
-max_request_size = "10MB"
-
-# Production site
-[[sites]]
-name = "production"
-hostname = "127.0.0.1"  # Behind reverse proxy
-port = 8080
-static_dir = "/opt/bws/static"
+auto_cert = true
+min_tls_version = "1.2"
 
 [sites.headers]
-"Cache-Control" = "public, max-age=31536000"
-"X-Content-Type-Options" = "nosniff"
+"Strict-Transport-Security" = "max-age=31536000; includeSubDomains; preload"
+"Content-Security-Policy" = "default-src 'self'"
 "X-Frame-Options" = "DENY"
-"X-Served-By" = "BWS-Production"
-"Vary" = "Accept-Encoding"
-
-# API site
-[[sites]]
-name = "api"
-hostname = "127.0.0.1"
-port = 8081
-static_dir = "/opt/bws/api-docs"
-
-[sites.headers]
-"Cache-Control" = "no-cache, no-store, must-revalidate"
-"Content-Type" = "application/json"
-"Access-Control-Allow-Origin" = "https://example.com"
-"X-API-Version" = "v1.0.0"
+"X-Content-Type-Options" = "nosniff"
+"Referrer-Policy" = "strict-origin-when-cross-origin"
 ```
 
-### Environment Variables
+## Monitoring
+
+### Health Checks
 ```bash
-# /etc/environment.d/bws.conf
-BWS_CONFIG=/etc/bws/production.toml
-BWS_LOG_FILE=/var/log/bws/bws.log
-BWS_PID_FILE=/var/run/bws.pid
-RUST_LOG=info
-RUST_BACKTRACE=0
-BWS_ENV=production
+# Basic health check
+curl -f http://localhost/api/health
+
+# Detailed health information
+curl http://localhost/api/health/detailed
+
+# Check SSL certificate
+echo | openssl s_client -connect example.com:443 2>/dev/null | openssl x509 -noout -dates
 ```
 
-## Performance Optimization
-
-### System Tuning
+### Log Monitoring
 ```bash
-# /etc/sysctl.d/99-bws.conf
-# Network performance
-net.core.somaxconn = 65535
-net.core.netdev_max_backlog = 5000
-net.ipv4.tcp_max_syn_backlog = 65535
-net.ipv4.tcp_keepalive_time = 600
-net.ipv4.tcp_keepalive_intvl = 60
-net.ipv4.tcp_keepalive_probes = 3
+# Monitor access logs
+tail -f /var/log/bws/access.log
 
-# File descriptor limits
-fs.file-max = 1048576
+# Monitor error logs
+tail -f /var/log/bws/error.log
 
-# Apply settings
-sysctl -p /etc/sysctl.d/99-bws.conf
+# System resource monitoring
+htop
+iostat -x 1
 ```
+
+### Alerting Setup
+```bash
+# Check certificate expiration
+#!/bin/bash
+# check-ssl.sh
+DOMAIN="example.com"
+EXPIRY=$(echo | openssl s_client -connect $DOMAIN:443 2>/dev/null | openssl x509 -noout -enddate | cut -d= -f2)
+EXPIRY_DATE=$(date -d "$EXPIRY" +%s)
+CURRENT_DATE=$(date +%s)
+DAYS_UNTIL_EXPIRY=$(( ($EXPIRY_DATE - $CURRENT_DATE) / 86400 ))
+
+if [ $DAYS_UNTIL_EXPIRY -lt 30 ]; then
+    echo "SSL certificate for $DOMAIN expires in $DAYS_UNTIL_EXPIRY days!"
+    # Send alert (email, Slack, etc.)
+fi
+```
+
+## Performance Tuning
 
 ### System Limits
 ```bash
-# /etc/security/limits.d/bws.conf
-bws soft nofile 65536
-bws hard nofile 65536
-bws soft nproc 4096
-bws hard nproc 4096
+# /etc/security/limits.conf
+bws soft nofile 65535
+bws hard nofile 65535
+
+# /etc/sysctl.conf
+net.core.somaxconn = 65535
+net.ipv4.tcp_max_syn_backlog = 65535
+net.core.netdev_max_backlog = 5000
 ```
 
-### File System Optimization
-```bash
-# Mount options for static files (add to /etc/fstab)
-/dev/sdb1 /opt/bws/static ext4 defaults,noatime,nodiratime 0 0
-
-# For high-performance scenarios, consider tmpfs for cache
-tmpfs /opt/bws/cache tmpfs defaults,size=1G,mode=755,uid=bws,gid=bws 0 0
+### BWS Configuration
+```toml
+[performance]
+worker_threads = 16              # 2x CPU cores
+max_connections = 10000          # Per worker
+keep_alive_timeout = 75          # Seconds
+request_timeout = 30             # Seconds
+max_header_size = "16KB"
 ```
 
-## Monitoring and Alerting
-
-### Prometheus Configuration
-```yaml
-# /etc/prometheus/prometheus.yml
-global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
-
-rule_files:
-  - "bws_rules.yml"
-
-scrape_configs:
-  - job_name: 'bws'
-    static_configs:
-      - targets: ['localhost:8080', 'localhost:8081']
-    metrics_path: '/metrics'
-    scrape_interval: 5s
-
-alerting:
-  alertmanagers:
-    - static_configs:
-        - targets:
-          - alertmanager:9093
-```
-
-### Alert Rules
-```yaml
-# /etc/prometheus/bws_rules.yml
-groups:
-- name: bws.rules
-  rules:
-  - alert: BWS_Down
-    expr: up{job="bws"} == 0
-    for: 1m
-    labels:
-      severity: critical
-    annotations:
-      summary: "BWS instance is down"
-      description: "BWS instance {{ $labels.instance }} has been down for more than 1 minute."
-
-  - alert: BWS_HighResponseTime
-    expr: histogram_quantile(0.95, bws_response_time_seconds) > 1
-    for: 5m
-    labels:
-      severity: warning
-    annotations:
-      summary: "BWS high response time"
-      description: "95th percentile response time is {{ $value }}s"
-
-  - alert: BWS_HighErrorRate
-    expr: rate(bws_requests_total{status=~"5.."}[5m]) > 0.1
-    for: 5m
-    labels:
-      severity: critical
-    annotations:
-      summary: "BWS high error rate"
-      description: "Error rate is {{ $value }} errors per second"
-
-  - alert: BWS_HighMemoryUsage
-    expr: bws_memory_usage_bytes / bws_memory_limit_bytes > 0.8
-    for: 5m
-    labels:
-      severity: warning
-    annotations:
-      summary: "BWS high memory usage"
-      description: "Memory usage is {{ $value }}%"
-```
-
-### Grafana Dashboard
-```json
-{
-  "dashboard": {
-    "id": null,
-    "title": "BWS Production Dashboard",
-    "tags": ["bws", "production"],
-    "timezone": "browser",
-    "panels": [
-      {
-        "id": 1,
-        "title": "Request Rate",
-        "type": "graph",
-        "targets": [
-          {
-            "expr": "rate(bws_requests_total[5m])",
-            "legendFormat": "{{ instance }}"
-          }
-        ],
-        "yAxes": [
-          {
-            "label": "Requests/sec",
-            "min": 0
-          }
-        ]
-      },
-      {
-        "id": 2,
-        "title": "Response Time",
-        "type": "graph",
-        "targets": [
-          {
-            "expr": "histogram_quantile(0.50, bws_response_time_seconds)",
-            "legendFormat": "50th percentile"
-          },
-          {
-            "expr": "histogram_quantile(0.95, bws_response_time_seconds)",
-            "legendFormat": "95th percentile"
-          }
-        ]
-      },
-      {
-        "id": 3,
-        "title": "Error Rate",
-        "type": "singlestat",
-        "targets": [
-          {
-            "expr": "rate(bws_requests_total{status=~\"5..\"}[5m])",
-            "legendFormat": "5xx errors/sec"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-## Backup and Disaster Recovery
+## Backup and Recovery
 
 ### Configuration Backup
 ```bash
+# Backup script
 #!/bin/bash
-# /usr/local/bin/backup-bws-config.sh
-BACKUP_DIR="/backup/bws"
-DATE=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="bws-config-$DATE.tar.gz"
-
-mkdir -p "$BACKUP_DIR"
+BACKUP_DIR="/backups/bws/$(date +%Y%m%d)"
+mkdir -p $BACKUP_DIR
 
 # Backup configuration
-tar -czf "$BACKUP_DIR/$BACKUP_FILE" \
-    /etc/bws/ \
-    /opt/bws/static/ \
-    /var/log/bws/ \
-    /etc/systemd/system/bws.service
+cp /etc/bws/config.toml $BACKUP_DIR/
+cp -r /var/www $BACKUP_DIR/
+cp -r /etc/letsencrypt $BACKUP_DIR/
 
-# Keep only last 30 backups
-find "$BACKUP_DIR" -name "bws-config-*.tar.gz" -mtime +30 -delete
-
-echo "Backup completed: $BACKUP_DIR/$BACKUP_FILE"
+# Create archive
+tar -czf $BACKUP_DIR.tar.gz $BACKUP_DIR
+rm -rf $BACKUP_DIR
 ```
 
-### Log Backup and Rotation
+### Recovery Procedure
 ```bash
-# /etc/logrotate.d/bws
-/var/log/bws/*.log {
-    daily
-    missingok
-    rotate 90
-    compress
-    delaycompress
-    notifempty
-    copytruncate
-    postrotate
-        systemctl reload bws
-        # Archive to S3 or backup system
-        aws s3 cp /var/log/bws/bws.log.1.gz s3://backup-bucket/logs/bws/$(date +%Y/%m/%d)/
-    endscript
-}
+# Restore from backup
+tar -xzf /backups/bws/20250827.tar.gz -C /
+
+# Restore permissions
+sudo chown -R bws:bws /var/www /etc/bws
+sudo chmod 600 /etc/bws/config.toml
+
+# Restart service
+sudo systemctl restart bws
 ```
 
-### Health Check and Recovery
+## Troubleshooting
+
+### Common Issues
 ```bash
-#!/bin/bash
-# /usr/local/bin/bws-recovery.sh
-BWS_HEALTH_URL="http://localhost:8080/health"
-LOG_FILE="/var/log/bws/recovery.log"
-SLACK_WEBHOOK="https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+# Check BWS status
+sudo systemctl status bws
 
-log_message() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
-}
+# Validate configuration
+bws --config /etc/bws/config.toml --dry-run
 
-send_alert() {
-    curl -X POST -H 'Content-type: application/json' \
-        --data "{\"text\":\"BWS Alert: $1\"}" \
-        "$SLACK_WEBHOOK"
-}
+# Check logs
+sudo journalctl -u bws --since "1 hour ago"
 
-# Check BWS health
-if ! curl -f -s "$BWS_HEALTH_URL" > /dev/null; then
-    log_message "BWS health check failed, attempting recovery"
-    send_alert "BWS is down, attempting automatic recovery"
-    
-    # Try graceful restart
-    systemctl restart bws
-    sleep 10
-    
-    # Check if restart was successful
-    if curl -f -s "$BWS_HEALTH_URL" > /dev/null; then
-        log_message "BWS recovered successfully"
-        send_alert "BWS recovery successful"
-    else
-        log_message "BWS recovery failed"
-        send_alert "BWS recovery FAILED - manual intervention required"
-        exit 1
-    fi
-else
-    log_message "BWS is healthy"
-fi
+# Test configuration reload
+curl -X POST http://127.0.0.1:7654/api/config/reload \
+  -H "X-API-Key: your-api-key"
+
+# Check process tree
+pstree -p $(pgrep -f bws)
 ```
 
-## Deployment Strategies
-
-### Blue-Green Deployment
+### Performance Debugging
 ```bash
-#!/bin/bash
-# /usr/local/bin/deploy-bws.sh
-BLUE_PORT=8080
-GREEN_PORT=8081
-HEALTH_CHECK_URL="http://localhost"
+# Check resource usage
+top -p $(pgrep bws)
 
-deploy_to_port() {
-    local PORT=$1
-    local VERSION=$2
-    
-    echo "Deploying BWS $VERSION to port $PORT"
-    
-    # Stop existing service
-    systemctl stop bws-$PORT
-    
-    # Update binary
-    cp /tmp/bws-$VERSION /usr/local/bin/bws-$PORT
-    
-    # Update configuration
-    sed "s/port = .*/port = $PORT/" /etc/bws/config.toml > /etc/bws/config-$PORT.toml
-    
-    # Start service
-    systemctl start bws-$PORT
-    
-    # Health check
-    sleep 5
-    if curl -f -s "$HEALTH_CHECK_URL:$PORT/health" > /dev/null; then
-        echo "Deployment to port $PORT successful"
-        return 0
-    else
-        echo "Deployment to port $PORT failed"
-        return 1
-    fi
-}
+# Network connections
+ss -tulpn | grep bws
 
-# Get current active port from load balancer
-CURRENT_PORT=$(nginx -T 2>/dev/null | grep "server 127.0.0.1:" | head -1 | awk '{print $2}' | cut -d: -f2)
-
-if [ "$CURRENT_PORT" = "$BLUE_PORT" ]; then
-    DEPLOY_PORT=$GREEN_PORT
-    SWITCH_FROM=$BLUE_PORT
-else
-    DEPLOY_PORT=$BLUE_PORT
-    SWITCH_FROM=$GREEN_PORT
-fi
-
-echo "Deploying to $DEPLOY_PORT (current: $SWITCH_FROM)"
-
-# Deploy to inactive port
-if deploy_to_port $DEPLOY_PORT $1; then
-    # Switch load balancer
-    sed -i "s/server 127.0.0.1:$SWITCH_FROM/server 127.0.0.1:$DEPLOY_PORT/" /etc/nginx/sites-available/bws-production
-    nginx -s reload
-    
-    echo "Switched load balancer to port $DEPLOY_PORT"
-    
-    # Stop old instance after delay
-    sleep 30
-    systemctl stop bws-$SWITCH_FROM
-    
-    echo "Deployment completed successfully"
-else
-    echo "Deployment failed"
-    exit 1
-fi
+# File descriptors
+lsof -p $(pgrep bws) | wc -l
 ```
+
+## Updates and Maintenance
 
 ### Rolling Updates
 ```bash
-#!/bin/bash
-# /usr/local/bin/rolling-update.sh
-INSTANCES=("server1" "server2" "server3")
-VERSION=$1
-
-for instance in "${INSTANCES[@]}"; do
-    echo "Updating $instance..."
-    
-    # Remove from load balancer
-    ssh $instance "nginx -s reload"  # Remove from upstream
-    
-    # Wait for connections to drain
-    sleep 30
-    
-    # Deploy new version
-    ssh $instance "systemctl stop bws && cp /tmp/bws-$VERSION /usr/local/bin/bws && systemctl start bws"
-    
-    # Health check
-    if ssh $instance "curl -f -s http://localhost:8080/health"; then
-        echo "$instance updated successfully"
-        # Add back to load balancer
-        ssh $instance "nginx -s reload"  # Add to upstream
-    else
-        echo "Update failed on $instance"
-        exit 1
-    fi
-    
-    sleep 10
-done
-
-echo "Rolling update completed"
-```
-
-## Security Best Practices
-
-### Access Control
-```bash
-# Restrict access to BWS configuration
-chmod 600 /etc/bws/config.toml
-chown root:bws /etc/bws/config.toml
-
-# Secure log files
-chmod 640 /var/log/bws/*.log
-chown bws:adm /var/log/bws/*.log
-
-# Secure binary
-chmod 755 /usr/local/bin/bws
-chown root:root /usr/local/bin/bws
-```
-
-### Network Security
-```bash
-# Disable unnecessary services
-systemctl disable telnet
-systemctl disable ftp
-systemctl disable rsh
-
-# Configure fail2ban for SSH protection
-cat > /etc/fail2ban/jail.local << EOF
-[DEFAULT]
-bantime = 3600
-findtime = 600
-maxretry = 3
-
-[sshd]
-enabled = true
-port = ssh
-filter = sshd
-logpath = /var/log/auth.log
-maxretry = 3
-EOF
-
-systemctl enable fail2ban
-systemctl start fail2ban
-```
-
-### Regular Security Updates
-```bash
-#!/bin/bash
-# /usr/local/bin/security-updates.sh
-# Run via cron: 0 2 * * 0 /usr/local/bin/security-updates.sh
-
-# Update system packages
-apt update && apt upgrade -y
-
-# Update BWS if new version available
-CURRENT_VERSION=$(bws --version | awk '{print $2}')
-LATEST_VERSION=$(curl -s https://api.github.com/repos/yourusername/bws/releases/latest | jq -r .tag_name)
-
-if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
-    echo "BWS update available: $CURRENT_VERSION -> $LATEST_VERSION"
-    # Implement update process
-fi
-
-# Restart services if needed
-if [ -f /var/run/reboot-required ]; then
-    echo "Reboot required after updates"
-    # Schedule maintenance window reboot
-fi
-```
-
-## Troubleshooting Production Issues
-
-### Common Issues and Solutions
-
-#### High CPU Usage
-```bash
-# Monitor CPU usage
-top -p $(pgrep bws)
-htop -p $(pgrep bws)
-
-# Check system load
-uptime
-iostat 1
-
-# Review configuration
-grep -E "worker_threads|max_connections" /etc/bws/config.toml
-```
-
-#### Memory Leaks
-```bash
-# Monitor memory usage over time
-while true; do
-    ps -o pid,ppid,cmd,%mem,%cpu -p $(pgrep bws)
-    sleep 60
-done > /tmp/bws-memory.log
-
-# Check for memory leaks
-valgrind --tool=memcheck --leak-check=full /usr/local/bin/bws
-```
-
-#### Network Issues
-```bash
-# Check port bindings
-netstat -tulpn | grep bws
-
-# Monitor connections
-ss -tuln | grep :8080
-lsof -i :8080
-
-# Check network performance
-iftop
-nethogs
-```
-
-#### Disk Space Issues
-```bash
-# Check disk usage
-df -h
-du -sh /var/log/bws/
-du -sh /opt/bws/
-
-# Clean up logs
-journalctl --vacuum-time=7d
-logrotate -f /etc/logrotate.d/bws
-```
-
-## Maintenance Procedures
-
-### Regular Maintenance Tasks
-```bash
-#!/bin/bash
-# /usr/local/bin/bws-maintenance.sh
-# Run weekly via cron
-
-LOG_FILE="/var/log/bws/maintenance.log"
-
-log_message() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
-}
-
-log_message "Starting BWS maintenance"
-
-# Check disk space
-DISK_USAGE=$(df /opt/bws | tail -1 | awk '{print $5}' | sed 's/%//')
-if [ "$DISK_USAGE" -gt 85 ]; then
-    log_message "WARNING: Disk usage is ${DISK_USAGE}%"
-fi
-
-# Rotate logs
-logrotate -f /etc/logrotate.d/bws
-
-# Check configuration
-if bws --config-check /etc/bws/config.toml; then
-    log_message "Configuration is valid"
-else
-    log_message "ERROR: Configuration validation failed"
-fi
-
-# Update file permissions
-chown -R bws:bws /opt/bws/static/
-chmod -R 644 /opt/bws/static/*
-
-# Clean temporary files
-find /tmp -name "bws-*" -mtime +7 -delete
-
-# Backup configuration
-/usr/local/bin/backup-bws-config.sh
-
-log_message "BWS maintenance completed"
-```
-
-### Update Procedures
-```bash
-#!/bin/bash
-# /usr/local/bin/update-bws.sh
-NEW_VERSION=$1
-
-if [ -z "$NEW_VERSION" ]; then
-    echo "Usage: $0 <version>"
-    exit 1
-fi
-
-echo "Updating BWS to version $NEW_VERSION"
-
-# Backup current version
-cp /usr/local/bin/bws /usr/local/bin/bws.backup
-
 # Download new version
-wget "https://github.com/yourusername/bws/releases/download/$NEW_VERSION/bws-linux-amd64" -O /tmp/bws-$NEW_VERSION
+cargo install bws-web-server --force
 
-# Verify checksum (if available)
-# wget "https://github.com/yourusername/bws/releases/download/$NEW_VERSION/checksums.txt" -O /tmp/checksums.txt
-# sha256sum -c /tmp/checksums.txt
+# Validate new binary
+bws --version
+bws --config /etc/bws/config.toml --dry-run
 
-# Test new version
-chmod +x /tmp/bws-$NEW_VERSION
-if /tmp/bws-$NEW_VERSION --version; then
-    echo "New version validated"
-else
-    echo "New version validation failed"
-    exit 1
-fi
+# Hot reload (zero downtime)
+sudo systemctl reload bws
 
-# Deploy using blue-green strategy
-/usr/local/bin/deploy-bws.sh $NEW_VERSION
-
-echo "BWS updated to version $NEW_VERSION"
+# Or restart if needed
+sudo systemctl restart bws
 ```
 
-## Best Practices Summary
+### Maintenance Window
+```bash
+# Graceful shutdown
+sudo systemctl stop bws
 
-### Configuration
-- Use environment-specific configuration files
-- Store sensitive data in environment variables or secret management systems
-- Regularly validate configuration syntax
-- Version control all configuration changes
+# Perform maintenance
+# - Update system packages
+# - Update BWS configuration
+# - Clean log files
 
-### Security
-- Run BWS behind a reverse proxy with SSL termination
-- Implement proper firewall rules
-- Regular security updates and patches
-- Monitor for security vulnerabilities
-- Use non-root user for BWS process
+# Start service
+sudo systemctl start bws
 
-### Performance
-- Tune system parameters for high-performance workloads
-- Monitor resource usage continuously
-- Implement proper caching strategies
-- Use CDN for static assets when possible
-
-### Reliability
-- Implement comprehensive health checks
-- Set up automated monitoring and alerting
-- Use deployment strategies that minimize downtime
-- Regular backups of configuration and data
-- Document incident response procedures
-
-### Monitoring
-- Monitor both technical and business metrics
-- Set up alerting with appropriate thresholds
-- Regular review of logs and metrics
-- Performance trend analysis
-- Capacity planning based on growth projections
-
-## Next Steps
-
-- Learn about [Performance Tuning](./performance.md) for optimization
-- Review [Configuration Schema](./config-schema.md) for advanced options
-- Check [Troubleshooting](./troubleshooting.md) for common issues
+# Verify operation
+curl -f http://localhost/api/health
+```
