@@ -45,6 +45,7 @@ jobs:
         # Create initial configuration
         cat > test-hot-reload.toml << 'EOF'
         [server]
+        name = "Hot Reload Test Server"
         host = "0.0.0.0"
         worker_threads = 2
         
@@ -89,6 +90,7 @@ jobs:
         echo "Modifying configuration..."
         cat > test-hot-reload.toml << 'EOF'
         [server]
+        name = "Hot Reload Test Server"
         host = "0.0.0.0"
         worker_threads = 2
         

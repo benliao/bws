@@ -10,7 +10,10 @@ use std::collections::HashMap;
 use std::process::{Child, Command};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{error, info, warn};
+use tracing::{error, info};
+
+#[cfg(not(unix))]
+use tracing::warn;
 
 #[cfg(unix)]
 use std::os::unix::io::RawFd;
