@@ -98,8 +98,7 @@ impl ManagementApiService {
 impl ProxyHttp for ManagementApiService {
     type CTX = ();
 
-    fn new_ctx(&self) -> Self::CTX {
-    }
+    fn new_ctx(&self) -> Self::CTX {}
 
     async fn upstream_peer(
         &self,
