@@ -145,3 +145,6 @@ proxy_test_*.log
 perf.data
 *.perf
 flamegraph.svg
+
+# build dist
+dist

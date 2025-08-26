@@ -98,8 +98,7 @@ impl WebServerService {
 
         if acme_managers_count > 0 {
             log::info!(
-                "Starting certificate renewal monitoring for {} ACME-enabled domains",
-                acme_managers_count
+                "Starting certificate renewal monitoring for {acme_managers_count} ACME-enabled domains"
             );
 
             // Start background certificate renewal monitoring
@@ -170,22 +169,21 @@ impl WebServerService {
 
         for (domain, ssl_manager) in ssl_managers.iter() {
             if ssl_manager.is_auto_cert_enabled() {
-                log::debug!("Checking certificate renewal for domain: {}", domain);
+                log::debug!("Checking certificate renewal for domain: {domain}");
 
                 match ssl_manager.check_and_renew_certificate(domain).await {
                     Ok(renewed) => {
                         if renewed {
-                            log::info!("Certificate renewed for domain: {}", domain);
+                            log::info!("Certificate renewed for domain: {domain}");
                             renewed_any = true;
                         } else {
                             log::debug!(
-                                "Certificate for {} is still valid, no renewal needed",
-                                domain
+                                "Certificate for {domain} is still valid, no renewal needed"
                             );
                         }
                     }
                     Err(e) => {
-                        log::error!("Failed to check/renew certificate for {}: {}", domain, e);
+                        log::error!("Failed to check/renew certificate for {domain}: {e}");
                     }
                 }
             }
@@ -255,10 +253,7 @@ impl WebServerService {
             }
 
             // If no exact hostname match, try to find any ACME-enabled site (for wildcard scenarios)
-            log::debug!(
-                "Looking for any ACME-enabled site for challenge request to '{}'",
-                hostname
-            );
+            log::debug!("Looking for any ACME-enabled site for challenge request to '{hostname}'");
             for site in &config.sites {
                 if site.ssl.enabled && site.ssl.auto_cert {
                     if let Some(acme_config) = &site.ssl.acme {
@@ -426,7 +421,7 @@ impl WebServerService {
                 .join("acme-challenge")
                 .join(token);
 
-            log::debug!("Trying to read challenge file from: {:?}", challenge_path);
+            log::debug!("Trying to read challenge file from: {challenge_path:?}");
 
             if let Ok(content) = tokio::fs::read_to_string(&challenge_path).await {
                 log::info!(
@@ -719,10 +714,7 @@ impl ProxyHttp for WebServerService {
                 );
             } else {
                 // ACME challenge request but no site found
-                log::warn!(
-                    "ACME challenge request but no site configuration found: {}",
-                    path
-                );
+                log::warn!("ACME challenge request but no site configuration found: {path}");
                 let mut header = ResponseHeader::build(404, Some(3))?;
                 header.insert_header("Content-Type", "application/json")?;
                 header.insert_header("X-ACME-Challenge-Status", "no-site-found")?;

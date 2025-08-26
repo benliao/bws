@@ -19,6 +19,83 @@ BWS has been significantly hardened for production use with comprehensive improv
 - **Resource Management**: Proper cleanup of connections and certificate operations
 - **Production-Grade Logging**: Structured logging with comprehensive error documentation
 
+## Master-Worker Process Architecture
+
+BWS uses a production-grade master-worker architecture for zero-downtime operations:
+
+### Process Model
+- **Master Process**: Manages configuration, handles signals, coordinates workers
+- **Worker Processes**: Handle HTTP traffic, SSL termination, proxy operations
+- **Hot Reload**: Zero-downtime configuration updates via worker replacement
+- **Graceful Operations**: No dropped connections during updates or restarts
+
+### Process Management
+```bash
+# Check BWS process tree
+pstree -p $(pgrep -f "bws.*master")
+
+# View all BWS processes
+ps aux | grep bws | grep -v grep
+
+# Master process operations
+kill -HUP $(pgrep -f "bws.*master")   # Hot reload
+kill -TERM $(pgrep -f "bws.*master")  # Graceful shutdown
+
+# Monitor process status
+watch "pgrep -a bws"
+```
+
+### Service Configuration
+```ini
+# /etc/systemd/system/bws.service
+[Unit]
+Description=BWS Multi-Site Web Server (Master-Worker)
+Documentation=https://github.com/benliao/bws
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=bws
+Group=bws
+WorkingDirectory=/opt/bws
+ExecStart=/usr/local/bin/bws --config /etc/bws/config.toml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=5
+TimeoutStartSec=60
+TimeoutStopSec=30
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/bws /var/lib/bws
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=4096
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Hot Reload in Production
+```bash
+# Validate configuration before reload
+bws --config-check /etc/bws/config.toml
+
+# Trigger hot reload
+systemctl reload bws
+
+# Monitor reload process
+journalctl -u bws -f | grep -E "(reload|worker|master)"
+
+# Verify new configuration
+curl -I http://localhost:8080/health
+```
+
 ## Production Architecture
 
 ### Recommended Infrastructure

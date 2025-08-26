@@ -25,11 +25,11 @@ impl CertificateWatcher {
             move |res: Result<Event, notify::Error>| match res {
                 Ok(event) => {
                     if let Err(e) = tx.send(event) {
-                        error!("Failed to send file watcher event: {}", e);
+                        error!("Failed to send file watcher event: {e}");
                     }
                 }
                 Err(e) => {
-                    error!("File watcher error: {}", e);
+                    error!("File watcher error: {e}");
                 }
             },
             notify::Config::default(),
@@ -57,22 +57,21 @@ impl CertificateWatcher {
                                 if let Some(filename_str) = filename.to_str() {
                                     // Check if this is a certificate file for one of our domains
                                     for domain in &domains {
-                                        let cert_file = format!("{}.crt", domain);
-                                        let key_file = format!("{}.key", domain);
+                                        let cert_file = format!("{domain}.crt");
+                                        let key_file = format!("{domain}.key");
 
                                         if filename_str == cert_file || filename_str == key_file {
-                                            info!("Certificate file changed: {:?}", path);
+                                            info!("Certificate file changed: {path:?}");
 
                                             // Check if both cert and key exist now
                                             let cert_path = Path::new(&cert_dir).join(&cert_file);
                                             let key_path = Path::new(&cert_dir).join(&key_file);
 
                                             if cert_path.exists() && key_path.exists() {
-                                                info!("Both certificate and key files exist for domain: {}", domain);
+                                                info!("Both certificate and key files exist for domain: {domain}");
                                                 warn!("🔄 HTTPS UPGRADE AVAILABLE!");
                                                 warn!(
-                                                    "To enable HTTPS for {}, restart the server:",
-                                                    domain
+                                                    "To enable HTTPS for {domain}, restart the server:"
                                                 );
                                                 warn!("   pkill -f bws");
                                                 warn!("   ./target/x86_64-unknown-linux-musl/release/bws --config config-auto-acme.toml");

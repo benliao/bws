@@ -2,14 +2,29 @@
 
 BWS can run as a system daemon (background service) for production deployments, providing automatic startup, monitoring, and management capabilities.
 
-## Daemon Overview
+## Master-Worker Architecture
 
-Running BWS as a daemon provides:
-- Automatic startup on system boot
-- Process monitoring and restart capabilities
-- Centralized logging and management
-- Integration with system monitoring tools
-- Proper signal handling and graceful shutdown
+BWS uses a master-worker process model for production deployments:
+
+### Process Model
+- **Master Process**: Manages configuration, handles signals, spawns workers
+- **Worker Processes**: Handle HTTP traffic, SSL termination, proxying
+- **Hot Reload**: Zero-downtime configuration updates via worker replacement
+- **Graceful Shutdown**: Coordinated shutdown with connection draining
+
+### Signal Handling
+BWS master process responds to standard Unix signals:
+
+```bash
+# Hot reload configuration (spawn new worker)
+sudo kill -HUP $(pgrep -f "bws.*master")
+
+# Graceful shutdown (stop all processes)
+sudo kill -TERM $(pgrep -f "bws.*master")
+
+# Check process tree
+pstree -p $(pgrep -f "bws.*master")
+```
 
 ## Systemd Configuration
 
@@ -190,20 +205,32 @@ RUST_BACKTRACE=1
 ## Process Management
 
 ### Signal Handling
-BWS responds to standard Unix signals:
+BWS master process responds to standard Unix signals:
 
 ```bash
-# Graceful shutdown
-sudo kill -TERM $(cat /var/run/bws.pid)
+# Hot reload configuration (spawn new worker)
+sudo kill -HUP $(pgrep -f "bws.*master")
 
-# Reload configuration
-sudo kill -HUP $(cat /var/run/bws.pid)
+# Graceful shutdown (stop all processes)
+sudo kill -TERM $(pgrep -f "bws.*master")
 
-# Force restart
-sudo kill -USR1 $(cat /var/run/bws.pid)
+# Check process tree  
+pstree -p $(pgrep -f "bws.*master")
+```
 
-# Force termination (last resort)
-sudo kill -KILL $(cat /var/run/bws.pid)
+### Master-Worker Operations
+```bash
+# View all BWS processes
+ps aux | grep bws
+
+# Check master process
+pgrep -f "bws.*master"
+
+# Monitor worker processes
+pgrep -f "bws.*worker"
+
+# Hot reload without downtime
+systemctl reload bws
 ```
 
 ### Process Monitoring

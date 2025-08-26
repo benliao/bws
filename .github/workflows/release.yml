@@ -97,7 +97,9 @@ jobs:
           export CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc
           export CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
         fi
+        # Build both bws and bws-ctl binaries
         cargo build --release --target ${{ matrix.target }} --bin bws
+        cargo build --release --target ${{ matrix.target }} --bin bws-ctl
         
     - name: Strip binary (Linux and macOS)
       if: matrix.os != 'windows-latest' && matrix.target != 'x86_64-pc-windows-gnu'
@@ -107,6 +109,12 @@ jobs:
       run: |
         mkdir -p release
         cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} release/
+        # Copy bws-ctl binary
+        if [ "${{ matrix.target }}" = "x86_64-pc-windows-gnu" ]; then
+          cp target/${{ matrix.target }}/release/bws-ctl.exe release/
+        else
+          cp target/${{ matrix.target }}/release/bws-ctl release/
+        fi
         cp README.md release/
         cp config.toml release/config.example.toml
         

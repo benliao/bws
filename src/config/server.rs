@@ -1,4 +1,4 @@
-use crate::config::SiteConfig;
+﻿use crate::config::SiteConfig;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -69,7 +69,7 @@ pub struct SecurityConfig {
     pub rate_limiting: Option<RateLimitConfig>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct RateLimitConfig {
     pub requests_per_minute: u32,
     pub burst_size: u32,
@@ -165,11 +165,11 @@ impl ServerConfig {
         let content = fs::read_to_string(path)?;
         let mut config: ServerConfig = toml::from_str(&content)?;
 
-        // Validate configuration
-        config.validate()?;
-
-        // Post-process configuration
+        // Post-process configuration first (to set automatic defaults)
         config.post_process()?;
+
+        // Then validate the processed configuration
+        config.validate()?;
 
         Ok(config)
     }
@@ -224,7 +224,16 @@ impl ServerConfig {
         }
 
         if default_sites == 0 {
-            return Err("At least one site must be marked as default".into());
+            // This should not happen after post_process, but let's be defensive
+            if self.sites.len() == 1 {
+                // Single site should have been auto-marked as default in post_process
+                return Err(
+                    "Internal error: single site was not marked as default during post-processing"
+                        .into(),
+                );
+            } else {
+                return Err("At least one site must be marked as default when multiple sites are configured".into());
+            }
         }
         if default_sites > 1 {
             return Err("Only one site can be marked as default".into());
@@ -269,6 +278,16 @@ impl ServerConfig {
     }
 
     fn post_process(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        // If there's only one site and no site is explicitly marked as default,
+        // automatically make the single site the default
+        if self.sites.len() == 1 && !self.sites[0].default {
+            log::info!(
+                "Automatically setting single site '{}' as default",
+                self.sites[0].name
+            );
+            self.sites[0].default = true;
+        }
+
         // Sort sites by priority (default site first, then by name)
         self.sites.sort_by(|a, b| match (a.default, b.default) {
             (true, false) => std::cmp::Ordering::Less,
@@ -433,6 +452,82 @@ mod tests {
 
         assert!(config.parse_buffer_size("invalid").is_err());
         assert!(config.parse_buffer_size("").is_err());
+    }
+
+    #[test]
+    fn test_automatic_default_site() {
+        use crate::config::SiteConfig;
+
+        // Test that a single site without explicit default=true gets auto-marked as default
+        let mut config = ServerConfig {
+            server: ServerInfo {
+                name: "test-server".to_string(),
+                version: "1.0.0".to_string(),
+                description: "Test server".to_string(),
+            },
+            sites: vec![SiteConfig {
+                name: "single-site".to_string(),
+                hostname: "localhost".to_string(),
+                hostnames: vec![],
+                port: 8080,
+                static_dir: "/tmp/static".to_string(),
+                default: false, // Explicitly NOT marked as default
+                api_only: false,
+                headers: HashMap::new(),
+                redirect_to_https: false,
+                index_files: vec!["index.html".to_string()],
+                error_pages: HashMap::new(),
+                compression: Default::default(),
+                cache: Default::default(),
+                access_control: Default::default(),
+                ssl: Default::default(),
+                proxy: Default::default(),
+            }],
+            logging: LoggingConfig::default(),
+            performance: PerformanceConfig::default(),
+            security: SecurityConfig::default(),
+        };
+
+        // Before post_process, the site should not be marked as default
+        assert!(!config.sites[0].default);
+
+        // After post_process, the single site should be automatically marked as default
+        config.post_process().unwrap();
+        assert!(config.sites[0].default);
+
+        // Validation should pass
+        assert!(config.validate().is_ok());
+
+        // Test with multiple sites - auto-default should not apply
+        config.sites.push(SiteConfig {
+            name: "second-site".to_string(),
+            hostname: "example.com".to_string(),
+            hostnames: vec![],
+            port: 8081,
+            static_dir: "/tmp/static2".to_string(),
+            default: false,
+            api_only: false,
+            headers: HashMap::new(),
+            redirect_to_https: false,
+            index_files: vec!["index.html".to_string()],
+            error_pages: HashMap::new(),
+            compression: Default::default(),
+            cache: Default::default(),
+            access_control: Default::default(),
+            ssl: Default::default(),
+            proxy: Default::default(),
+        });
+
+        // Reset first site's default flag
+        config.sites[0].default = false;
+
+        // Post-process should not auto-mark any site as default when there are multiple
+        config.post_process().unwrap();
+        assert!(!config.sites[0].default);
+        assert!(!config.sites[1].default);
+
+        // Validation should fail because no site is marked as default
+        assert!(config.validate().is_err());
     }
 
     #[test]

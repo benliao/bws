@@ -131,7 +131,7 @@ impl Certificate {
         let mut reader = BufReader::new(cert_data);
         let certs = certs(&mut reader)
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| format!("Failed to parse certificate: {}", e))?;
+            .map_err(|e| format!("Failed to parse certificate: {e}"))?;
 
         if certs.is_empty() {
             return Err("No certificates found in file".into());
@@ -139,7 +139,7 @@ impl Certificate {
 
         let cert = &certs[0];
         let (_, parsed_cert) = X509Certificate::from_der(cert.as_ref())
-            .map_err(|e| format!("Failed to parse X509 certificate: {}", e))?;
+            .map_err(|e| format!("Failed to parse X509 certificate: {e}"))?;
 
         let issued_at = DateTime::from_timestamp(parsed_cert.validity().not_before.timestamp(), 0)
             .unwrap_or_else(Utc::now);
@@ -201,20 +201,20 @@ impl Certificate {
         let mut cert_reader = BufReader::new(cert_data.as_slice());
         let cert_chain = certs(&mut cert_reader)
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| format!("Failed to load certificate: {}", e))?;
+            .map_err(|e| format!("Failed to load certificate: {e}"))?;
 
         // Load private key
         let key_data = fs::read(&self.key_path).await?;
         let mut key_reader = BufReader::new(key_data.as_slice());
         let private_key = private_key(&mut key_reader)
-            .map_err(|e| format!("Failed to load private key: {}", e))?
+            .map_err(|e| format!("Failed to load private key: {e}"))?
             .ok_or("No private key found")?;
 
         // Create rustls config
         let config = rustls::ServerConfig::builder()
             .with_no_client_auth()
             .with_single_cert(cert_chain, private_key)
-            .map_err(|e| format!("Invalid certificate/key: {}", e))?;
+            .map_err(|e| format!("Invalid certificate/key: {e}"))?;
 
         Ok(config)
     }
@@ -336,11 +336,11 @@ struct CertificateInfo {
 
 // Helper functions for certificate management
 pub fn get_certificate_path(domain: &str, cert_dir: &str) -> PathBuf {
-    PathBuf::from(cert_dir).join(format!("{}.crt", domain))
+    PathBuf::from(cert_dir).join(format!("{domain}.crt"))
 }
 
 pub fn get_key_path(domain: &str, cert_dir: &str) -> PathBuf {
-    PathBuf::from(cert_dir).join(format!("{}.key", domain))
+    PathBuf::from(cert_dir).join(format!("{domain}.key"))
 }
 
 pub async fn ensure_certificate_directory(

@@ -1,8 +1,57 @@
 # Static File Serving
 
-BWS provides efficient static file serving with automatic MIME type detection, caching headers, and subdirectory support.
+BWS provides efficient static file serving with automatic MIME type detection, caching headers, and subdirectory support. BWS offers two ways to serve static files: instant directory serving and configuration-based serving.
 
-## How Static File Serving Works
+## Instant Directory Serving
+
+The fastest way to serve static files is using BWS's built-in directory serving mode:
+
+```bash
+# Serve current directory
+bws .
+
+# Serve specific directory on custom port
+bws /path/to/website --port 8080
+
+# Windows example  
+bws.exe C:\websites\mysite --port 8080
+```
+
+### Features
+
+- **No Configuration Required**: Just point to a directory
+- **Automatic Site Setup**: Creates temporary configuration with sensible defaults
+- **Cross-Platform**: Handles Windows and Unix paths correctly
+- **Default Index Files**: Automatically serves `index.html`, `index.htm`, or `default.html`
+- **Clean Paths**: User-friendly path display on all platforms
+
+### Example
+
+```bash
+# Create test directory
+mkdir my-site
+echo "<h1>Hello BWS!</h1>" > my-site/index.html
+
+# Start serving
+bws my-site --port 8080
+```
+
+**Output:**
+```
+🚀 Creating temporary web server:
+   📁 Directory: /path/to/my-site
+   🌐 Port: 8080
+   🔗 URL: http://localhost:8080
+
+🌐 Temporary web server ready!
+📁 BWS Temporary Directory Server
+```
+
+## Configuration-Based Static Serving
+
+For production deployments and advanced features, use configuration files.
+
+## How Configuration-Based Static File Serving Works
 
 BWS serves files from the `static_dir` configured for each site:
 

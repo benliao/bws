@@ -1,6 +1,61 @@
 # Quick Start
 
-Get BWS up and running in just a few minutes with both HTTP and HTTPS sites!
+Get BWS up and running in just a few minutes! BWS offers two ways to get started quickly.
+
+## Option 1: Instant Directory Server (Fastest)
+
+The quickest way to start serving files with BWS is to use the built-in directory serving mode:
+
+```bash
+# Serve current directory on port 80
+bws .
+
+# Serve specific directory on custom port  
+bws /path/to/website --port 8080
+
+# Windows example
+bws.exe C:\websites\mysite --port 8080
+```
+
+**Example:**
+```bash
+# Create a test directory with content
+mkdir my-website
+echo "<h1>Welcome to BWS!</h1>" > my-website/index.html
+
+# Start serving immediately
+bws my-website --port 8080
+```
+
+**Output:**
+```
+🚀 Creating temporary web server:
+   📁 Directory: /path/to/my-website
+   🌐 Port: 8080
+   🔗 URL: http://localhost:8080
+
+🌐 Temporary web server ready!
+   Serving: /path/to/my-website on http://localhost:8080
+
+📁 BWS Temporary Directory Server
+📋 Quick Start Server:
+  • main - http://localhost:8080
+
+🚀 TEMPORARY SERVER MODE:
+   • Press `Ctrl+C` to stop the server
+   • Files are served directly from: my-website
+   • Simple static file server (no configuration file)
+```
+
+**Features:**
+- ✅ **No configuration file needed**
+- ✅ **Automatic single site as default**  
+- ✅ **Cross-platform path handling**
+- ✅ **Perfect for development and testing**
+
+## Option 2: Configuration-Based Setup (Production)
+
+For production deployments and advanced features, create a configuration file.
 
 ## 1. Create Configuration
 
@@ -301,6 +356,59 @@ bws --daemon
 bws --daemon \
   --pid-file /var/run/bws.pid \
   --log-file /var/log/bws.log
+```
+
+## 6. Test Hot Reload (Zero-Downtime Updates)
+
+BWS supports true hot reload for configuration changes without dropping connections:
+
+### Basic Hot Reload Test
+
+```bash
+# Start BWS in one terminal
+bws --config config.toml
+
+# In another terminal, make configuration changes
+echo '
+[[sites]]
+name = "new-site"
+hostname = "new.localhost"
+port = 8080
+static_dir = "static"
+
+[sites.headers]
+"X-Site-Name" = "BWS New Site"
+' >> config.toml
+
+# Trigger hot reload (Linux/macOS)
+kill -HUP $(pgrep -f "bws.*master")
+
+# Or use systemctl if running as service
+systemctl reload bws
+
+# Test the new configuration
+curl -H "Host: new.localhost" http://localhost:8080/
+```
+
+### What Happens During Hot Reload
+
+1. **Master Process**: Receives SIGHUP signal
+2. **Configuration Loading**: Loads and validates new config
+3. **Worker Spawning**: Starts new worker process with updated config  
+4. **Traffic Transition**: New worker begins accepting connections
+5. **Graceful Shutdown**: Old worker finishes existing requests and exits
+
+### Hot Reload Monitoring
+
+```bash
+# Watch process tree during reload
+watch "pstree -p \$(pgrep -f 'bws.*master')"
+
+# Monitor logs for reload events
+tail -f /var/log/bws/bws.log | grep -E "(reload|worker|master)"
+
+# Check health after reload
+curl http://localhost:8080/health
 ```
 
 ## Testing Multi-Site Virtual Hosting

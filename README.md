@@ -18,9 +18,25 @@ A high-performance, memory-safe web server and reverse proxy built with Rust and
 - 🗜️ **HTTP Compression** - Gzip, Brotli, and Deflate compression support
 - 📊 **Health Monitoring** - Built-in health checks and metrics
 - 🛡️ **Memory Safety** - Rust eliminates buffer overflows and memory leaks
-- 🔧 **Hot Reload** - Update configuration without downtime
+- 🔧 **True Hot Reload** - Master-worker architecture for zero-downtime configuration updates
+- 🚀 **Zero-Downtime Operations** - Configuration and binary updates without dropping connections
+- 🛠️ **Enterprise-Grade Management** - Production-ready process management and monitoring
 
 ## 🚀 Quick Start
+
+### Instant Directory Server
+Start serving any directory immediately:
+```bash
+# Serve current directory on port 80
+bws .
+
+# Serve specific directory on custom port
+bws /path/to/website --port 8080
+
+# Windows example
+bws.exe C:\websites\mysite --port 8080
+```
+No configuration file needed! Perfect for development and quick file sharing.
 
 ### Installation
 ```bash
@@ -35,8 +51,8 @@ git clone https://github.com/benliao/bws.git && cd bws
 cargo build --release
 ```
 
-### Basic Configuration
-Create `config.toml`:
+### Configuration-Based Setup
+For production deployments, create `config.toml`:
 ```toml
 [server]
 name = "BWS Server"
@@ -90,12 +106,17 @@ email = "admin@example.com"
 
 ### Run
 ```bash
+# Quick start - serve directory directly
+bws static --port 8080
+
+# Or with configuration file
 mkdir static && echo "<h1>Hello BWS!</h1>" > static/index.html
-bws
+bws -c config.toml
 ```
 
 ## 📖 Documentation
 
+- **[Hot Reload Guide](docs/src/hot-reload.md)** - Zero-downtime configuration updates
 - **[Architecture Guide](docs/architecture/README.md)** - System design and modules
 - **[Configuration Examples](examples/)** - Ready-to-use configs
 - **[Security Guide](SECURITY.md)** - Security features and best practices
@@ -123,6 +144,83 @@ bws --config custom.toml         # Custom config
 bws --verbose                    # Debug logging
 bws --daemon                     # Background process (Unix)
 ```
+
+## 🔄 True Hot Reload & Process Management
+
+BWS implements a production-grade master-worker architecture for true hot reloading without service interruption, inspired by enterprise proxies like HAProxy and nginx.
+
+### Master-Worker Architecture
+
+BWS operates with a master process that spawns and manages worker processes:
+
+- **Master Process**: Monitors configuration changes and manages worker lifecycle
+- **Worker Processes**: Handle actual HTTP traffic and serve requests
+- **Zero-Downtime Reloads**: New workers serve requests while old workers gracefully finish existing connections
+
+### Hot Configuration Reload
+
+Update configuration without restarting or dropping connections:
+
+```bash
+# Send reload signal to master process
+kill -HUP $(pgrep -f "bws.*master")
+
+# Or using process management
+systemctl reload bws
+```
+
+**Hot Reload Process:**
+1. Master process receives SIGHUP signal
+2. Loads and validates new configuration
+3. Spawns new worker process with updated config
+4. New worker starts serving requests
+5. Old worker gracefully finishes existing connections
+6. Old worker process terminates
+
+**What can be hot reloaded:**
+- ✅ Site configurations and hostnames
+- ✅ SSL certificates and ACME settings  
+- ✅ Proxy routes and upstreams
+- ✅ Static file directories
+- ✅ Security headers and middleware
+- ✅ Logging configuration
+- ✅ Multi-hostname configurations
+- ❌ Server ports (requires restart)
+- ❌ Worker count (requires restart)
+
+### Process Management
+
+```bash
+# Check BWS processes
+ps aux | grep bws
+
+# View master and worker processes
+pgrep -a bws
+
+# Monitor process tree
+pstree -p $(pgrep -f "bws.*master")
+
+# Graceful shutdown (stops all workers)
+kill -TERM $(pgrep -f "bws.*master")
+```
+
+### Production Example
+
+```bash
+# Start BWS with hot reload capability
+bws --config /etc/bws/config.toml
+
+# Edit configuration
+vim /etc/bws/config.toml
+
+# Hot reload configuration
+kill -HUP $(pgrep -f "bws.*master")
+
+# Verify new configuration is active
+curl -I http://localhost:8080/ | grep "X-Config-Version"
+```
+
+See [Hot Reload Guide](docs/src/hot-reload.md) for detailed documentation.
 
 ## 📊 API Endpoints
 

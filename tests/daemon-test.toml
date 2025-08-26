@@ -1,0 +1,19 @@
+# BWS Test Configuration for Hot Reload Testing
+[server]
+name = "BWS Hot Reload Test Server"
+
+[[sites]]
+name = "test-site"
+hostname = "localhost"
+port = 8080
+static_dir = "/app/static"
+default = true
+api_only = false
+
+[sites.headers]
+"X-Test-Server" = "BWS-HotReload-Initial"
+"X-Config-Version" = "1.0"
+
+[sites.compression]
+enabled = true
+level = 6

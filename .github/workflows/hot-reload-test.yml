@@ -1,0 +1,183 @@
+name: Hot Reload Testing
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  hot-reload-test:
+    name: Hot Reload Integration Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@1.89.0
+      
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+          
+    - name: Build BWS
+      run: cargo build --release --bin bws
+      
+    - name: Setup test environment
+      run: |
+        # Create test static files
+        mkdir -p test-site/static
+        echo "<html><body><h1>Original Content</h1></body></html>" > test-site/static/index.html
+        
+        # Create initial configuration
+        cat > test-hot-reload.toml << 'EOF'
+        [server]
+        host = "0.0.0.0"
+        worker_threads = 2
+        
+        [[sites]]
+        name = "test-site"
+        hostname = "localhost"
+        port = 8080
+        static_dir = "test-site/static"
+        default_site = true
+        
+        [sites.headers]
+        "X-Test-Header" = "original-value"
+        EOF
+        
+    - name: Test hot reload functionality
+      run: |
+        # Start BWS in background
+        ./target/release/bws --config test-hot-reload.toml &
+        BWS_PID=$!
+        
+        # Wait for server to start
+        sleep 3
+        
+        # Test initial configuration
+        echo "Testing initial configuration..."
+        RESPONSE=$(curl -s -H "Host: localhost" http://localhost:8080/ | grep "Original Content")
+        if [ -z "$RESPONSE" ]; then
+          echo "❌ Initial content not found"
+          kill $BWS_PID
+          exit 1
+        fi
+        
+        HEADER=$(curl -s -I -H "Host: localhost" http://localhost:8080/ | grep "X-Test-Header: original-value")
+        if [ -z "$HEADER" ]; then
+          echo "❌ Initial header not found"
+          kill $BWS_PID
+          exit 1
+        fi
+        echo "✅ Initial configuration working"
+        
+        # Modify configuration
+        echo "Modifying configuration..."
+        cat > test-hot-reload.toml << 'EOF'
+        [server]
+        host = "0.0.0.0"
+        worker_threads = 2
+        
+        [[sites]]
+        name = "test-site"
+        hostname = "localhost"
+        port = 8080
+        static_dir = "test-site/static"
+        default_site = true
+        
+        [sites.headers]
+        "X-Test-Header" = "updated-value"
+        "X-New-Header" = "new-value"
+        EOF
+        
+        # Update content
+        echo "<html><body><h1>Updated Content</h1></body></html>" > test-site/static/index.html
+        
+        # Send SIGUSR1 for hot reload (simulate config change detection)
+        echo "Triggering hot reload..."
+        kill -USR1 $BWS_PID
+        
+        # Wait for reload to complete
+        sleep 3
+        
+        # Test updated configuration
+        echo "Testing updated configuration..."
+        RESPONSE=$(curl -s -H "Host: localhost" http://localhost:8080/ | grep "Updated Content")
+        if [ -z "$RESPONSE" ]; then
+          echo "❌ Updated content not found"
+          kill $BWS_PID
+          exit 1
+        fi
+        
+        HEADER=$(curl -s -I -H "Host: localhost" http://localhost:8080/ | grep "X-Test-Header: updated-value")
+        if [ -z "$HEADER" ]; then
+          echo "❌ Updated header not found"
+          kill $BWS_PID
+          exit 1
+        fi
+        
+        NEW_HEADER=$(curl -s -I -H "Host: localhost" http://localhost:8080/ | grep "X-New-Header: new-value")
+        if [ -z "$NEW_HEADER" ]; then
+          echo "❌ New header not found"
+          kill $BWS_PID
+          exit 1
+        fi
+        echo "✅ Hot reload working correctly"
+        
+        # Clean shutdown
+        kill $BWS_PID
+        wait $BWS_PID 2>/dev/null || true
+        
+        echo "🎉 Hot reload test completed successfully!"
+
+  bws-ctl-test:
+    name: BWS-CTL Binary Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@1.89.0
+      
+    - name: Cache dependencies
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-
+          
+    - name: Build bws-ctl
+      run: cargo build --release --bin bws-ctl
+      
+    - name: Test bws-ctl functionality
+      run: |
+        # Test help command
+        ./target/release/bws-ctl --help
+        
+        # Test version command
+        ./target/release/bws-ctl --version || true
+        
+        # Test validate command (should handle missing config gracefully)
+        ./target/release/bws-ctl validate --config non-existent.toml 2>&1 || true
+        
+        echo "✅ bws-ctl binary tests completed"

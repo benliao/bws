@@ -34,7 +34,7 @@ pub struct SiteConfig {
     pub proxy: ProxyConfig,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq)]
 pub struct SiteSslConfig {
     #[serde(default)]
     pub enabled: bool,
@@ -50,7 +50,7 @@ pub struct SiteSslConfig {
     pub acme: Option<SiteAcmeConfig>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct SiteAcmeConfig {
     #[serde(default)]
     pub enabled: bool,
@@ -62,7 +62,7 @@ pub struct SiteAcmeConfig {
     pub challenge_dir: Option<String>, // Make optional for automatic management
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone, Default)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default, PartialEq)]
 pub struct ProxyConfig {
     #[serde(default)]
     pub enabled: bool,
@@ -80,7 +80,7 @@ pub struct ProxyConfig {
     pub headers: ProxyHeadersConfig,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct UpstreamConfig {
     pub name: String,
     pub url: String,
@@ -90,7 +90,7 @@ pub struct UpstreamConfig {
     pub max_conns: Option<u32>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct ProxyRoute {
     pub path: String,
     pub upstream: String, // References upstream name
@@ -102,7 +102,7 @@ pub struct ProxyRoute {
     pub websocket: bool, // Enable WebSocket proxying for this route
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct HealthCheckConfig {
     #[serde(default)]
     pub enabled: bool,
@@ -116,7 +116,7 @@ pub struct HealthCheckConfig {
     pub retries: u32,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct LoadBalancingConfig {
     #[serde(default = "default_lb_method")]
     pub method: String, // "round_robin", "least_conn", "weighted"
@@ -124,7 +124,7 @@ pub struct LoadBalancingConfig {
     pub sticky_sessions: bool,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct TimeoutConfig {
     #[serde(default = "default_connect_timeout")]
     pub connect: u64, // seconds
@@ -134,7 +134,7 @@ pub struct TimeoutConfig {
     pub write: u64, // seconds
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct ProxyHeadersConfig {
     #[serde(default)]
     pub preserve_host: bool,

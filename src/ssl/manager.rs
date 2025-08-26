@@ -132,9 +132,9 @@ impl SslManager {
                 terms_agreed: !site_acme.email.is_empty(), // Auto-agree if email is provided
                 challenge_dir: site_acme.challenge_dir.clone().unwrap_or_else(|| {
                     // Auto-generate challenge directory based on cert_dir
-                    format!("{}/challenges", cert_dir)
+                    format!("{cert_dir}/challenges")
                 }),
-                account_key_file: format!("{}/acme-account.key", cert_dir),
+                account_key_file: format!("{cert_dir}/acme-account.key"),
                 enabled: site_acme.enabled,
                 staging: site_acme.staging,
             }),
@@ -175,7 +175,7 @@ impl SslManager {
             let store = self.certificate_store.read().await;
             if let Some(cert) = store.get_certificate(domain) {
                 if !cert.is_expired() && cert.validate_certificate_files().await.unwrap_or(false) {
-                    log::info!("Valid certificate already exists for {}", domain);
+                    log::info!("Valid certificate already exists for {domain}");
                     return Ok(true);
                 }
             }
@@ -189,7 +189,7 @@ impl SslManager {
             if let Some(manual_config) = self.config.manual_certs.get(domain) {
                 self.load_manual_certificate(domain, manual_config).await
             } else {
-                log::warn!("No certificate configuration found for domain: {}", domain);
+                log::warn!("No certificate configuration found for domain: {domain}");
                 Ok(false)
             }
         }
@@ -200,11 +200,11 @@ impl SslManager {
         domain: &str,
     ) -> Result<bool, Box<dyn std::error::Error>> {
         if !is_valid_domain(domain) {
-            return Err(format!("Invalid domain name: {}", domain).into());
+            return Err(format!("Invalid domain name: {domain}").into());
         }
 
-        log::info!("Obtaining certificate via ACME for domain: {}", domain);
-        log::info!("Domain passed to ACME client: '{}'", domain);
+        log::info!("Obtaining certificate via ACME for domain: {domain}");
+        log::info!("Domain passed to ACME client: '{domain}'");
 
         if let Some(acme_client) = &self.acme_client {
             let client = acme_client.write().await;
@@ -216,7 +216,7 @@ impl SslManager {
                 .obtain_certificate(&[domain.to_string()])
                 .await
                 .map_err(|e| {
-                    log::error!("ACME obtain_certificate failed: {}", e);
+                    log::error!("ACME obtain_certificate failed: {e}");
                     Box::new(std::io::Error::other(e.to_string())) as Box<dyn std::error::Error>
                 })?;
 
@@ -230,11 +230,11 @@ impl SslManager {
             let cert_path = get_certificate_path(domain, &self.config.cert_dir);
             let key_path = get_key_path(domain, &self.config.cert_dir);
 
-            log::info!("Certificate will be saved to: {:?}", cert_path);
-            log::info!("Private key will be saved to: {:?}", key_path);
+            log::info!("Certificate will be saved to: {cert_path:?}");
+            log::info!("Private key will be saved to: {key_path:?}");
 
             // Create certificate object
-            log::info!("Creating certificate object for domain: {}", domain);
+            log::info!("Creating certificate object for domain: {domain}");
             let certificate = Certificate::from_pem_data(
                 domain.to_string(),
                 cert_path.clone(),
@@ -277,7 +277,7 @@ impl SslManager {
         domain: &str,
         manual_config: &ManualCertConfig,
     ) -> Result<bool, Box<dyn std::error::Error>> {
-        log::info!("Loading manual certificate for domain: {}", domain);
+        log::info!("Loading manual certificate for domain: {domain}");
 
         let cert_path = PathBuf::from(&manual_config.cert_file);
         let key_path = PathBuf::from(&manual_config.key_file);
@@ -301,7 +301,7 @@ impl SslManager {
 
         // Validate certificate files
         if !certificate.validate_certificate_files().await? {
-            return Err(format!("Invalid certificate files for domain: {}", domain).into());
+            return Err(format!("Invalid certificate files for domain: {domain}").into());
         }
 
         // Add to store
@@ -314,7 +314,7 @@ impl SslManager {
         // Update TLS config
         self.update_tls_config(domain).await?;
 
-        log::info!("Successfully loaded manual certificate for {}", domain);
+        log::info!("Successfully loaded manual certificate for {domain}");
         Ok(true)
     }
 
@@ -324,7 +324,7 @@ impl SslManager {
             let tls_config = certificate.get_rustls_config().await?;
             let mut configs = self.tls_configs.write().await;
             configs.insert(domain.to_string(), tls_config);
-            log::info!("Updated TLS configuration for {}", domain);
+            log::info!("Updated TLS configuration for {domain}");
         }
         Ok(())
     }
@@ -356,7 +356,7 @@ impl SslManager {
         let cert_count = store.list_certificates().len();
         drop(store);
 
-        log::info!("Loaded certificates for {} domains", cert_count);
+        log::info!("Loaded certificates for {cert_count} domains");
         Ok(())
     }
 
@@ -372,7 +372,7 @@ impl SslManager {
         loop {
             interval_timer.tick().await;
             if let Err(e) = self.check_and_renew_certificates().await {
-                log::error!("Error during certificate renewal check: {}", e);
+                log::error!("Error during certificate renewal check: {e}");
             }
         }
     }
@@ -400,7 +400,7 @@ impl SslManager {
         );
 
         for domain in certificates_to_renew {
-            log::info!("Renewing certificate for domain: {}", domain);
+            log::info!("Renewing certificate for domain: {domain}");
 
             // Update renewal check timestamp
             {
@@ -411,10 +411,10 @@ impl SslManager {
 
             match self.renew_certificate(&domain).await {
                 Ok(()) => {
-                    log::info!("Successfully renewed certificate for {}", domain);
+                    log::info!("Successfully renewed certificate for {domain}");
                 }
                 Err(e) => {
-                    log::error!("Failed to renew certificate for {}: {}", domain, e);
+                    log::error!("Failed to renew certificate for {domain}: {e}");
                     // Continue with other certificates even if one fails
                 }
             }
@@ -432,7 +432,7 @@ impl SslManager {
             if let Some(manual_config) = self.config.manual_certs.get(domain) {
                 self.load_manual_certificate(domain, manual_config).await?;
             } else {
-                return Err(format!("No renewal method available for domain: {}", domain).into());
+                return Err(format!("No renewal method available for domain: {domain}").into());
             }
         }
 
@@ -456,7 +456,7 @@ impl SslManager {
             // Remove from TLS configs
             let mut configs = self.tls_configs.write().await;
             configs.remove(domain);
-            log::info!("Removed certificate for domain: {}", domain);
+            log::info!("Removed certificate for domain: {domain}");
         }
 
         Ok(removed)
@@ -609,19 +609,19 @@ impl SslManager {
         };
 
         if needs_renewal {
-            log::info!("Certificate for {} needs renewal", domain);
+            log::info!("Certificate for {domain} needs renewal");
             match self.renew_certificate(domain).await {
                 Ok(()) => {
-                    log::info!("Successfully renewed certificate for {}", domain);
+                    log::info!("Successfully renewed certificate for {domain}");
                     Ok(true)
                 }
                 Err(e) => {
-                    log::error!("Failed to renew certificate for {}: {}", domain, e);
-                    Err(format!("Certificate renewal failed: {}", e).into())
+                    log::error!("Failed to renew certificate for {domain}: {e}");
+                    Err(format!("Certificate renewal failed: {e}").into())
                 }
             }
         } else {
-            log::debug!("Certificate for {} is still valid", domain);
+            log::debug!("Certificate for {domain} is still valid");
             Ok(false)
         }
     }

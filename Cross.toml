@@ -1,0 +1,32 @@
+# Cross-compilation configuration for BWS
+[build]
+# Default options
+default-target = "x86_64-unknown-linux-musl"
+
+[target.x86_64-unknown-linux-musl]
+# Static linking for maximum compatibility
+image = "ghcr.io/cross-rs/x86_64-unknown-linux-musl:edge"
+
+[target.aarch64-unknown-linux-musl]
+# ARM64 static linking
+image = "ghcr.io/cross-rs/aarch64-unknown-linux-musl:edge"
+
+[target.x86_64-unknown-linux-gnu]
+# Standard Linux build
+image = "ghcr.io/cross-rs/x86_64-unknown-linux-gnu:edge"
+
+[target.aarch64-unknown-linux-gnu]
+# ARM64 Linux build
+image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:edge"
+
+[target.armv7-unknown-linux-musleabihf]
+# ARMv7 static linking (for older ARM devices)
+image = "ghcr.io/cross-rs/armv7-unknown-linux-musleabihf:edge"
+
+# Build environment variables
+[build.env]
+passthrough = [
+    "BWS_VERSION",
+    "BUILD_DATE",
+    "GIT_COMMIT",
+]

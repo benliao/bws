@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # Hot reload testing service
+  bws-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: bws-hot-reload-test
+    ports:
+      - "8080:8080"
+    volumes:
+      # Mount test directory for live editing
+      - ./tests:/app/tests
+      - ./test-configs:/app/test-configs
+      # Mount logs for debugging
+      - ./docker-test-logs:/app/logs
+      - ./docker-test-run:/app/run
+    environment:
+      - RUST_LOG=debug
+      - BWS_TEST_MODE=true
+    # Override to run interactive testing
+    command: bash
+    stdin_open: true
+    tty: true
+    networks:
+      - bws-test
+
+  # Manual testing service (daemon mode)
+  bws-daemon-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: bws-daemon-test
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./tests:/app/tests
+      - ./test-configs:/app/test-configs
+      - ./docker-daemon-logs:/app/logs
+      - ./docker-daemon-run:/app/run
+    environment:
+      - RUST_LOG=info
+      - BWS_CONFIG=/app/test-configs/daemon-test.toml
+    # Start in daemon mode for manual testing
+    command: ["./bws", "--config", "/app/test-configs/daemon-test.toml"]
+    networks:
+      - bws-test
+
+networks:
+  bws-test:
+    driver: bridge
+
+volumes:
+  test-configs:
+  test-logs:
+  test-run:

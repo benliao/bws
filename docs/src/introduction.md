@@ -1,4 +1,17 @@
-# <img src="../assets/logo.svg" alt="BWS Logo" width="48" height="48" style="vertical-align: middle;"> Introduction
+# <img src="../asse## Key Features
+
+- **🚀 Instant Directory Server**: Serve any directory immediately with `bws [path]` - no configuration needed
+- **🌐 Multi-Site Support**: Host multiple websites on different ports with individual configurations
+- **🔄 True Hot Reload**: Master-worker architecture for zero-downtime configuration updates
+- **⚡ High Performance**: Built on Pingora for enterprise-grade performance and reliability  
+- **🔒 SSL/TLS Support**: Per-site SSL configuration with automatic and manual certificates
+- **⚖️ Advanced Load Balancing**: Round-robin, weighted, and least-connections algorithms
+- **🔧 Configurable Headers**: Set custom HTTP headers per site via TOML configuration
+- **📊 Health Monitoring**: Built-in health check endpoints for monitoring
+- **🛡️ Security Focused**: Comprehensive security auditing and dependency management
+- **🐳 Container Ready**: Docker images with multi-architecture support
+- **📁 Static File Serving**: Efficient serving of static files with proper MIME types
+- **🚀 Easy Deployment**: Simple configuration and deployment optionsalt="BWS Logo" width="48" height="48" style="vertical-align: middle;"> Introduction
 
 Welcome to **BWS (Blazing Web Server)** - a production-ready, high-performance, multi-site web server built with [Pingora](https://github.com/cloudflare/pingora), Cloudflare's battle-tested proxy framework.
 

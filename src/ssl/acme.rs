@@ -64,14 +64,14 @@ impl AcmeClient {
             return Err("ACME is disabled".into());
         }
 
-        info!("Creating ACME account for domains: {:?}", domains);
+        info!("Creating ACME account for domains: {domains:?}");
 
         let le_url = if self.config.staging {
             LetsEncrypt::Staging.url()
         } else {
             LetsEncrypt::Production.url()
         };
-        info!("Using Let's Encrypt URL: {}", le_url);
+        info!("Using Let's Encrypt URL: {le_url}");
 
         // Create account
         let (account, _credentials) = Account::create(
@@ -91,11 +91,8 @@ impl AcmeClient {
             .map(|domain| Identifier::Dns(domain.clone()))
             .collect();
 
-        info!("Requesting certificate for domains: {:?}", domains);
-        info!(
-            "ACME identifiers being sent to Let's Encrypt: {:?}",
-            identifiers
-        );
+        info!("Requesting certificate for domains: {domains:?}");
+        info!("ACME identifiers being sent to Let's Encrypt: {identifiers:?}");
 
         // Create a new order
         let mut order = account
@@ -117,7 +114,7 @@ impl AcmeClient {
 
             let Identifier::Dns(domain) = &authz.identifier;
 
-            info!("Processing HTTP-01 challenge for domain: {}", domain);
+            info!("Processing HTTP-01 challenge for domain: {domain}");
 
             // Get the key authorization
             let key_auth = order.key_authorization(challenge);
@@ -147,24 +144,21 @@ impl AcmeClient {
             // Verify the file was written correctly
             match fs::read_to_string(&challenge_file).await {
                 Ok(content) => {
-                    info!("Verified challenge file content: {}", content);
+                    info!("Verified challenge file content: {content}");
                 }
                 Err(e) => {
-                    error!("Failed to verify challenge file: {}", e);
+                    error!("Failed to verify challenge file: {e}");
                 }
             }
 
             // Give the challenge a moment to propagate and be available
             sleep(Duration::from_millis(500)).await;
-            info!(
-                "Challenge file ready, signaling to Let's Encrypt for domain: {}",
-                domain
-            );
+            info!("Challenge file ready, signaling to Let's Encrypt for domain: {domain}");
 
             // Tell the server we're ready
             order.set_challenge_ready(&challenge.url).await?;
 
-            info!("Challenge ready signal sent for domain: {}", domain);
+            info!("Challenge ready signal sent for domain: {domain}");
         }
 
         // Wait for all challenges to be validated
@@ -178,7 +172,7 @@ impl AcmeClient {
         self.wait_for_order_ready(&account, &mut order).await?;
 
         // Generate a CSR with properly configured subject
-        info!("Generating CSR for domains: {:?}", domains);
+        info!("Generating CSR for domains: {domains:?}");
         for (i, domain) in domains.iter().enumerate() {
             info!(
                 "Domain {}: '{}' (length: {}, chars: {:?})",
@@ -197,7 +191,7 @@ impl AcmeClient {
             params
                 .distinguished_name
                 .push(DnType::CommonName, primary_domain.clone());
-            info!("Set CSR subject CN to: {}", primary_domain);
+            info!("Set CSR subject CN to: {primary_domain}");
         }
 
         // Generate the certificate with proper subject
@@ -220,10 +214,7 @@ impl AcmeClient {
         // Convert to the format expected by rustls
         let private_key = cert.serialize_private_key_pem();
 
-        info!(
-            "Successfully obtained certificate for domains: {:?}",
-            domains
-        );
+        info!("Successfully obtained certificate for domains: {domains:?}");
         Ok((cert_chain, private_key))
     }
 
@@ -233,7 +224,7 @@ impl AcmeClient {
         order: &mut instant_acme::Order,
         domain: &str,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        info!("Waiting for challenge validation for: {}", domain);
+        info!("Waiting for challenge validation for: {domain}");
 
         for attempt in 0..30 {
             // Wait up to 5 minutes
@@ -255,14 +246,13 @@ impl AcmeClient {
                     info!("Authorization status for {}: {:?}", domain, authz.status);
                     match authz.status {
                         AuthorizationStatus::Valid => {
-                            info!("Challenge validated for: {}", domain);
+                            info!("Challenge validated for: {domain}");
                             return Ok(());
                         }
                         AuthorizationStatus::Invalid => {
                             // Log more details about why it failed
                             error!(
-                                "Challenge validation failed for: {}. Authorization details: {:?}",
-                                domain, authz
+                                "Challenge validation failed for: {domain}. Authorization details: {authz:?}"
                             );
                             for challenge in &authz.challenges {
                                 if challenge.r#type == ChallengeType::Http01 {
@@ -270,9 +260,7 @@ impl AcmeClient {
                                            domain, challenge.status, challenge.error, challenge.url);
                                 }
                             }
-                            return Err(
-                                format!("Challenge validation failed for: {}", domain).into()
-                            );
+                            return Err(format!("Challenge validation failed for: {domain}").into());
                         }
                         _ => {
                             info!(
@@ -285,7 +273,7 @@ impl AcmeClient {
             }
         }
 
-        Err(format!("Timeout waiting for challenge validation for: {}", domain).into())
+        Err(format!("Timeout waiting for challenge validation for: {domain}").into())
     }
 
     async fn wait_for_order_ready(
@@ -373,7 +361,7 @@ impl AcmeClient {
         );
 
         if let Ok(content) = fs::read_to_string(&challenge_path).await {
-            info!("Found challenge content for token '{}': {}", token, content);
+            info!("Found challenge content for token '{token}': {content}");
             Some(content)
         } else {
             warn!(

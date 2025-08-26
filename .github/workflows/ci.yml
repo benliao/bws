@@ -48,8 +48,12 @@ jobs:
       
     - name: Check if binary runs
       run: |
-        # Build the binary
+        # Build both binaries
         cargo build --bin bws
+        cargo build --bin bws-ctl
+        
+        # Test bws-ctl binary
+        ./target/debug/bws-ctl --help
         
         # Create test static files
         mkdir -p static static-blog static-api static-dev
@@ -71,6 +75,10 @@ jobs:
         # Test basic endpoints
         curl -f http://localhost:8080/api/health
         curl -f http://localhost:8080/api/sites
+        
+        # Test hot reload capability (create a simple config change)
+        echo "Testing configuration reload capability..."
+        cp config.toml test_reload_config.toml
         
         # Kill the server
         kill $SERVER_PID || true

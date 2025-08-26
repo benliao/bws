@@ -1,12 +1,27 @@
-use bws_web_server::config::ServerConfig;
+use bws_web_server::config::{
+    LoggingConfig, PerformanceConfig, SecurityConfig, ServerConfig, ServerInfo, SiteConfig,
+};
+use bws_web_server::core::{HotReloadManager, SignalHandler};
 use bws_web_server::server::WebServerService;
 use clap::Parser;
 #[cfg(unix)]
 use daemonize::Daemonize;
 use pingora::listeners::tls::TlsSettings;
 use pingora::prelude::*;
+use std::collections::HashMap;
 #[cfg(unix)]
 use std::fs::File;
+use std::path::Path;
+use std::sync::Arc;
+
+/// Clean Windows extended path format for display
+fn clean_path_for_display(path: &str) -> String {
+    if path.starts_with("\\\\?\\") {
+        path.strip_prefix("\\\\?\\").unwrap_or(path).to_string()
+    } else {
+        path.to_string()
+    }
+}
 
 #[derive(Parser)]
 #[command(name = "bws-web-server")]
@@ -17,9 +32,16 @@ use std::fs::File;
 #[command(
     long_about = "BWS is a high-performance, multi-site web server that can host multiple websites \
 on different ports with individual configurations. It supports configurable headers, static file serving, \
-and health monitoring endpoints."
+and health monitoring endpoints.
+
+Quick start: bws [path]        - Serve directory on port 80
+With config: bws -c config.toml - Use configuration file"
 )]
 struct Cli {
+    /// Directory path to serve (creates temporary server on port 80)
+    #[arg(help = "Directory to serve as static files")]
+    directory: Option<String>,
+
     /// Configuration file path
     #[arg(short, long, default_value = "config.toml")]
     config: String,
@@ -27,6 +49,10 @@ struct Cli {
     /// Enable verbose logging
     #[arg(short, long)]
     verbose: bool,
+
+    /// Port to use when serving directory (default: 80)
+    #[arg(short, long, default_value = "80")]
+    port: u16,
 
     /// Run as daemon (background process) - Unix only
     #[cfg(unix)]
@@ -42,6 +68,72 @@ struct Cli {
     #[cfg(unix)]
     #[arg(long, default_value = "/tmp/bws-web-server.log")]
     log_file: String,
+}
+
+/// Create a temporary configuration for serving a single directory
+fn create_temporary_config(directory: &str, port: u16) -> ServerConfig {
+    // Validate that the directory exists
+    if !Path::new(directory).exists() {
+        eprintln!("Error: Directory '{}' does not exist", directory);
+        std::process::exit(1);
+    }
+
+    if !Path::new(directory).is_dir() {
+        eprintln!("Error: '{}' is not a directory", directory);
+        std::process::exit(1);
+    }
+
+    // Convert to absolute path, but clean it for Windows compatibility
+    let absolute_dir = match std::fs::canonicalize(directory) {
+        Ok(path) => {
+            let path_str = path.to_string_lossy().to_string();
+            clean_path_for_display(&path_str)
+        }
+        Err(_) => directory.to_string(),
+    };
+
+    println!("馃殌 Creating temporary web server:");
+    println!("   馃搧 Directory: {}", absolute_dir);
+    println!("   馃寪 Port: {}", port);
+    println!("   馃敆 URL: http://localhost:{}", port);
+    println!();
+
+    // Create a simple site configuration
+    let site = SiteConfig {
+        name: "main".to_string(),
+        hostname: "localhost".to_string(),
+        hostnames: vec![],
+        port,
+        static_dir: absolute_dir,
+        default: true,
+        api_only: false,
+        headers: HashMap::new(),
+        redirect_to_https: false,
+        index_files: vec![
+            "index.html".to_string(),
+            "index.htm".to_string(),
+            "default.html".to_string(),
+        ],
+        error_pages: HashMap::new(),
+        compression: Default::default(),
+        cache: Default::default(),
+        access_control: Default::default(),
+        ssl: Default::default(),
+        proxy: Default::default(),
+    };
+
+    // Create server configuration
+    ServerConfig {
+        server: ServerInfo {
+            name: "BWS Temporary Server".to_string(),
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            description: format!("Temporary server for directory: {}", directory),
+        },
+        sites: vec![site],
+        logging: LoggingConfig::default(),
+        performance: PerformanceConfig::default(),
+        security: SecurityConfig::default(),
+    }
 }
 
 fn main() {
@@ -107,22 +199,45 @@ fn main() {
         env_logger::init();
     }
 
-    // Load configuration from specified file
-    let config = ServerConfig::load_from_file(&cli.config).unwrap_or_else(|e| {
-        eprintln!("Failed to load configuration from '{}': {e}", cli.config);
-        std::process::exit(1);
-    });
+    // Load configuration from specified file or create temporary config
+    let config = if let Some(directory) = &cli.directory {
+        // Create temporary configuration for serving a directory
+        create_temporary_config(directory, cli.port)
+    } else {
+        // Load configuration from file
+        ServerConfig::load_from_file(&cli.config).unwrap_or_else(|e| {
+            eprintln!("Failed to load configuration from '{}': {e}", cli.config);
+            std::process::exit(1);
+        })
+    };
 
-    println!(
-        "Loaded configuration from '{}' for {} sites:",
-        cli.config,
-        config.sites.len()
-    );
-    for site in &config.sites {
+    if cli.directory.is_some() {
+        println!("馃寪 Temporary web server ready!");
+    } else {
         println!(
-            "  - {} ({}:{}) -> {}",
-            site.name, site.hostname, site.port, site.static_dir
+            "Loaded configuration from '{}' for {} sites:",
+            cli.config,
+            config.sites.len()
         );
+    }
+
+    for site in &config.sites {
+        if cli.directory.is_some() {
+            println!(
+                "   Serving: {} on http://{}:{}",
+                clean_path_for_display(&site.static_dir),
+                site.hostname,
+                site.port
+            );
+        } else {
+            println!(
+                "  - {} ({}:{}) -> {}",
+                site.name,
+                site.hostname,
+                site.port,
+                clean_path_for_display(&site.static_dir)
+            );
+        }
         if cli.verbose && !site.headers.is_empty() {
             println!("    Headers: {:?}", site.headers);
         }
@@ -239,8 +354,13 @@ fn main() {
     let is_daemon = false;
 
     if !is_daemon {
-        println!("\n🚀 BWS Multi-Site Server is running!");
-        println!("📋 Available websites:");
+        if cli.directory.is_some() {
+            println!("\n馃搧 BWS Temporary Directory Server");
+            println!("馃搵 Quick Start Server:");
+        } else {
+            println!("\n馃殌 BWS Multi-Site Server is running!");
+            println!("馃搵 Available websites:");
+        }
 
         for site in &config.sites {
             let protocol = if site.ssl.enabled {
@@ -267,31 +387,41 @@ fn main() {
             );
 
             // Display clickable URL with site description
-            println!("  • {} - {}", site.name, url);
+            println!("  鈥?{} - {}", site.name, url);
 
             // Show certificate status for SSL sites
             if site.ssl.enabled {
                 let cert_path = format!("./certs/{}.crt", site.hostname);
                 if std::path::Path::new(&cert_path).exists() {
-                    println!("    └─ ✅ HTTPS enabled (certificates found)");
+                    println!("    鈹斺攢 鉁?HTTPS enabled (certificates found)");
                 } else {
-                    println!("    └─ ⚠️  HTTP only (certificates not found)");
+                    println!("    鈹斺攢 鈿狅笍  HTTP only (certificates not found)");
                     if site.ssl.auto_cert {
-                        println!("    └─ 🔄 ACME auto-renewal enabled");
+                        println!("    鈹斺攢 馃攧 ACME auto-renewal enabled");
                     }
                 }
             }
 
             // Show common endpoints for each site
             if cli.verbose {
-                println!("    └─ Health: {}/api/health", url);
-                println!("    └─ Sites: {}/api/sites", url);
+                println!("    鈹斺攢 Health: {}/api/health", url);
+                println!("    鈹斺攢 Sites: {}/api/sites", url);
             }
         }
 
-        println!("\n💡 Tip: Use Ctrl+C to stop the server");
-        if !cli.verbose {
-            println!("💡 Use --verbose to see health check URLs");
+        if cli.directory.is_some() {
+            println!("\n馃殌 TEMPORARY SERVER MODE:");
+            println!("   鈥?Press `Ctrl+C` to stop the server");
+            println!(
+                "   鈥?Files are served directly from: {}",
+                cli.directory.as_ref().unwrap()
+            );
+            println!("   鈥?Simple static file server (no configuration file)");
+        } else {
+            println!("\n馃挕 Tip: Use Ctrl+C to stop the server");
+            if !cli.verbose {
+                println!("馃挕 Use --verbose to see health check URLs");
+            }
         }
         println!();
     } else {
@@ -334,6 +464,31 @@ fn main() {
                 }
             }
         });
+    }
+
+    // Initialize hot reload functionality if not in temporary directory mode
+    if cli.directory.is_none() {
+        log::info!("🔄 Initializing hot reload manager...");
+        let config_path = cli.config;
+        let signal_handler = Arc::new(SignalHandler::new());
+
+        // Start hot reload manager
+        let reload_manager = HotReloadManager::new(
+            config_path.clone(),
+            config.clone(),
+            Arc::clone(&signal_handler),
+        );
+
+        // Start as master process (this will handle the hot reload monitoring)
+        tokio::spawn(async move {
+            if let Err(e) = reload_manager.start_as_master().await {
+                log::error!("Hot reload manager failed: {}", e);
+            }
+        });
+
+        log::info!("✅ Hot reload manager started - send SIGUSR1 or modify config to reload");
+    } else {
+        log::info!("🔄 Hot reload disabled (temporary directory mode)");
     }
 
     my_server.run_forever();

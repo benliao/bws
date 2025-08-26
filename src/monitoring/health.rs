@@ -140,13 +140,13 @@ impl HealthHandler {
         let seconds = total_seconds % 60;
 
         if days > 0 {
-            format!("{}d {}h {}m {}s", days, hours, minutes, seconds)
+            format!("{days}d {hours}h {minutes}m {seconds}s")
         } else if hours > 0 {
-            format!("{}h {}m {}s", hours, minutes, seconds)
+            format!("{hours}h {minutes}m {seconds}s")
         } else if minutes > 0 {
-            format!("{}m {}s", minutes, seconds)
+            format!("{minutes}m {seconds}s")
         } else {
-            format!("{}s", seconds)
+            format!("{seconds}s")
         }
     }
 

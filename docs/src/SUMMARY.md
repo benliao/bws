@@ -15,6 +15,7 @@
 - [Static File Serving](./static-files.md)
 - [Reverse Proxy](./reverse-proxy.md)
 - [Load Balancing](./load-balancing.md)
+- [Hot Reload & Zero-Downtime Updates](./hot-reload.md)
 - [Custom Headers](./headers.md)
 - [Health Monitoring](./health.md)
 

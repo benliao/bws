@@ -264,6 +264,142 @@ sudo iptables -L
 curl -v http://127.0.0.1:8080/
 ```
 
+### Hot Reload Issues
+
+#### Hot Reload Not Working
+
+**Problem**: Configuration changes not applied after SIGHUP
+```bash
+kill -HUP $(pgrep -f "bws.*master")
+# No new worker spawned, configuration not updated
+```
+
+**Solution**:
+```bash
+# Check if master process exists
+pgrep -f "bws.*master"
+
+# Verify BWS is running in master-worker mode
+ps aux | grep bws | grep -v grep
+
+# Check logs for errors
+tail -f /var/log/bws/bws.log | grep -E "(reload|error|worker|master)"
+
+# Validate configuration before reload
+bws --config-check /etc/bws/config.toml
+
+# If master process not found, restart BWS
+systemctl restart bws
+```
+
+#### Configuration Validation Failed
+
+**Problem**: Invalid configuration preventing hot reload
+```bash
+tail -f /var/log/bws/bws.log
+# ERROR: Configuration validation failed: ...
+```
+
+**Solution**:
+```bash
+# Test configuration syntax
+bws --config-check /etc/bws/config.toml
+
+# Common validation issues:
+# - Invalid port numbers
+# - Missing static directories
+# - Invalid SSL certificate paths
+# - Malformed TOML syntax
+
+# Fix configuration and retry
+vim /etc/bws/config.toml
+bws --config-check /etc/bws/config.toml
+systemctl reload bws
+```
+
+#### Worker Process Issues
+
+**Problem**: New worker fails to start during reload
+```bash
+# Master spawns worker but worker exits immediately
+```
+
+**Solution**:
+```bash
+# Check worker process logs
+journalctl -u bws -f | grep worker
+
+# Common causes:
+# 1. Port already in use by another process
+netstat -tulpn | grep :8080
+
+# 2. Permission issues
+# Check file permissions for static directories
+ls -la /var/www/html/
+
+# 3. SSL certificate issues
+# Verify certificate files exist and are readable
+ls -la /etc/ssl/certs/example.com.crt
+ls -la /etc/ssl/private/example.com.key
+
+# 4. Resource limits
+ulimit -n  # Check file descriptor limit
+```
+
+#### Master Process Not Responding
+
+**Problem**: Master process exists but doesn't respond to signals
+```bash
+pgrep -f "bws.*master"  # Shows PID
+kill -HUP <PID>         # No response
+```
+
+**Solution**:
+```bash
+# Check if process is stuck
+ps aux | grep bws
+top -p $(pgrep -f "bws.*master")
+
+# Check system resources
+free -h
+df -h
+
+# Force restart if unresponsive
+systemctl stop bws
+sleep 5
+systemctl start bws
+
+# Check process tree after restart
+pstree -p $(pgrep -f "bws.*master")
+```
+
+#### Configuration Not Updating
+
+**Problem**: Hot reload succeeds but changes not visible
+```bash
+# No errors in logs, new worker spawned, but config unchanged
+```
+
+**Solution**:
+```bash
+# Verify configuration file is correct
+cat /etc/bws/config.toml
+
+# Check if BWS is reading the right config file
+ps aux | grep bws | grep -o -- '--config [^ ]*'
+
+# Test specific changes
+curl -I http://localhost:8080/ | grep "X-Custom-Header"
+
+# Check if browser is caching
+curl -H "Cache-Control: no-cache" http://localhost:8080/
+
+# Verify worker process PID changed
+# Before reload: note worker PID
+ps aux | grep bws
+# After reload: verify PID is different
+```
+
 ### Performance Issues
 
 #### Slow Response Times

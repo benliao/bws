@@ -1,0 +1,230 @@
+# BWS Production Configuration Example
+# This configuration demonstrates hot reload and upgrade capabilities
+# Most settings in this file can be changed and reloaded without restart
+
+[server]
+name = "BWS Production Server"
+version = "0.3.3"
+description = "High-performance web server with hot reload and zero-downtime upgrades"
+
+# Core server settings - some require restart
+bind = "0.0.0.0"         # ❌ Requires restart to change
+port = 443               # ❌ Requires restart to change
+daemon = true            # ❌ Requires restart to change
+
+# Performance settings - mixed hot reload support
+[performance]
+worker_threads = 8              # ❌ Requires restart
+max_connections = 10000         # ✅ Hot reloadable
+connection_timeout = 30         # ✅ Hot reloadable
+keep_alive_timeout = 60         # ✅ Hot reloadable
+request_timeout = 120           # ✅ Hot reloadable
+send_buffer_size = 8192         # ✅ Hot reloadable
+receive_buffer_size = 8192      # ✅ Hot reloadable
+
+# Logging configuration - fully hot reloadable
+[logging]
+level = "info"                     # ✅ Hot reloadable
+log_requests = true                # ✅ Hot reloadable
+log_file = "/var/log/bws/bws.log"  # ✅ Hot reloadable
+access_log = "/var/log/bws/access.log"  # ✅ Hot reloadable
+error_log = "/var/log/bws/error.log"    # ✅ Hot reloadable
+log_rotation = true                # ✅ Hot reloadable
+max_log_files = 10                 # ✅ Hot reloadable
+
+# Security configuration - fully hot reloadable
+[security]
+hide_server_header = true          # ✅ Hot reloadable
+hide_version = true                # ✅ Hot reloadable
+max_request_size = "10MB"          # ✅ Hot reloadable
+
+# Security headers - fully hot reloadable
+[security.security_headers]
+"X-Frame-Options" = "SAMEORIGIN"
+"X-Content-Type-Options" = "nosniff"
+"X-XSS-Protection" = "1; mode=block"
+"Strict-Transport-Security" = "max-age=31536000; includeSubDomains"
+"Content-Security-Policy" = "default-src 'self'"
+"Referrer-Policy" = "strict-origin-when-cross-origin"
+
+# Rate limiting - fully hot reloadable
+[security.rate_limiting]
+enabled = true                     # ✅ Hot reloadable
+requests_per_minute = 1000         # ✅ Hot reloadable
+burst_size = 100                   # ✅ Hot reloadable
+
+# Main production site
+[[sites]]
+name = "main-site"
+hostname = "example.com"
+hostnames = ["www.example.com", "example.org"]  # ✅ Hot reloadable
+port = 443
+static_dir = "/var/www/main"                    # ✅ Hot reloadable
+index_files = ["index.html", "index.htm"]      # ✅ Hot reloadable
+default = true
+enabled = true                                  # ✅ Hot reloadable
+
+# SSL configuration - mostly hot reloadable
+[sites.ssl]
+enabled = true
+cert_file = "/etc/ssl/certs/example.com.pem"   # ✅ Hot reloadable
+key_file = "/etc/ssl/private/example.com.key"  # ✅ Hot reloadable
+auto_cert = true                               # ✅ Hot reloadable
+
+# ACME/Let's Encrypt - fully hot reloadable
+[sites.ssl.acme]
+enabled = true                    # ✅ Hot reloadable
+email = "admin@example.com"       # ✅ Hot reloadable
+directory_url = "https://acme-v02.api.letsencrypt.org/directory"  # ✅ Hot reloadable
+
+# Site-specific headers - fully hot reloadable
+[sites.headers]
+"X-Custom-Header" = "Production-v1.0"      # ✅ Hot reloadable
+"X-Environment" = "production"              # ✅ Hot reloadable
+"Cache-Control" = "public, max-age=3600"   # ✅ Hot reloadable
+
+# Proxy configuration - fully hot reloadable
+[sites.proxy]
+enabled = true                              # ✅ Hot reloadable
+preserve_host = true                        # ✅ Hot reloadable
+timeout = 30                                # ✅ Hot reloadable
+
+# Proxy routes - fully hot reloadable
+[[sites.proxy.routes]]
+path = "/api/"                              # ✅ Hot reloadable
+upstream = "backend-api"                    # ✅ Hot reloadable
+strip_path = false                          # ✅ Hot reloadable
+
+[[sites.proxy.routes]]
+path = "/auth/"                             # ✅ Hot reloadable
+upstream = "auth-service"                   # ✅ Hot reloadable
+
+[[sites.proxy.routes]]
+path = "/metrics"                           # ✅ Hot reloadable
+upstream = "monitoring"                     # ✅ Hot reloadable
+
+# Upstream servers - fully hot reloadable
+[[sites.proxy.upstreams]]
+name = "backend-api"                        # ✅ Hot reloadable
+url = "http://127.0.0.1:3001"              # ✅ Hot reloadable
+weight = 100                                # ✅ Hot reloadable
+health_check = true                         # ✅ Hot reloadable
+health_check_path = "/health"               # ✅ Hot reloadable
+
+[[sites.proxy.upstreams]]
+name = "auth-service"                       # ✅ Hot reloadable
+url = "http://127.0.0.1:3002"              # ✅ Hot reloadable
+weight = 100                                # ✅ Hot reloadable
+
+[[sites.proxy.upstreams]]
+name = "monitoring"                         # ✅ Hot reloadable
+url = "http://127.0.0.1:9090"              # ✅ Hot reloadable
+weight = 100                                # ✅ Hot reloadable
+
+# API site
+[[sites]]
+name = "api-site"
+hostname = "api.example.com"
+hostnames = ["api-v1.example.com"]          # ✅ Hot reloadable
+port = 443
+enabled = true                              # ✅ Hot reloadable
+
+# API site SSL
+[sites.ssl]
+enabled = true
+auto_cert = true                            # ✅ Hot reloadable
+
+[sites.ssl.acme]
+enabled = true                              # ✅ Hot reloadable
+email = "api-admin@example.com"             # ✅ Hot reloadable
+
+# API-specific headers
+[sites.headers]
+"Access-Control-Allow-Origin" = "*"         # ✅ Hot reloadable
+"Access-Control-Allow-Methods" = "GET, POST, PUT, DELETE, OPTIONS"  # ✅ Hot reloadable
+"Access-Control-Allow-Headers" = "Content-Type, Authorization"      # ✅ Hot reloadable
+"X-API-Version" = "v1.0"                    # ✅ Hot reloadable
+
+# API proxy
+[sites.proxy]
+enabled = true                              # ✅ Hot reloadable
+
+[[sites.proxy.routes]]
+path = "/"                                  # ✅ Hot reloadable
+upstream = "api-backend"                    # ✅ Hot reloadable
+
+[[sites.proxy.upstreams]]
+name = "api-backend"                        # ✅ Hot reloadable
+url = "http://127.0.0.1:4000"              # ✅ Hot reloadable
+
+# Static assets site
+[[sites]]
+name = "static-site"
+hostname = "static.example.com"
+hostnames = ["cdn.example.com"]             # ✅ Hot reloadable
+port = 443
+static_dir = "/var/www/static"              # ✅ Hot reloadable
+enabled = true                              # ✅ Hot reloadable
+
+# Static site SSL
+[sites.ssl]
+enabled = true
+auto_cert = true                            # ✅ Hot reloadable
+
+# Static site headers with caching
+[sites.headers]
+"Cache-Control" = "public, max-age=86400"  # ✅ Hot reloadable (1 day)
+"X-Content-Type-Options" = "nosniff"       # ✅ Hot reloadable
+"Vary" = "Accept-Encoding"                  # ✅ Hot reloadable
+
+# Compression settings - hot reloadable
+[compression]
+enabled = true                              # ✅ Hot reloadable
+level = 6                                   # ✅ Hot reloadable
+types = [                                   # ✅ Hot reloadable
+    "text/html",
+    "text/css",
+    "text/javascript",
+    "application/javascript",
+    "application/json",
+    "text/xml",
+    "application/xml"
+]
+
+# Health check configuration - hot reloadable
+[health]
+enabled = true                              # ✅ Hot reloadable
+path = "/health"                            # ✅ Hot reloadable
+detailed_path = "/health/detailed"          # ✅ Hot reloadable
+
+# Metrics configuration - hot reloadable
+[metrics]
+enabled = true                              # ✅ Hot reloadable
+path = "/metrics"                           # ✅ Hot reloadable
+prometheus_format = true                    # ✅ Hot reloadable
+
+# Example hot reload commands:
+#
+# 1. Add a new site:
+#    - Edit this config file to add a new [[sites]] section
+#    - Run: bws-ctl reload
+#
+# 2. Update security headers:
+#    - Modify [security.security_headers] section
+#    - Run: bws-ctl reload
+#
+# 3. Change upstream servers:
+#    - Update [[sites.proxy.upstreams]] URLs
+#    - Run: bws-ctl reload
+#
+# 4. Update SSL certificates:
+#    - Replace cert files on disk
+#    - Run: bws-ctl reload
+#
+# 5. Change logging level:
+#    - Update [logging] level = "debug"
+#    - Run: bws-ctl reload
+#
+# 6. Zero-downtime upgrade:
+#    - Replace BWS binary
+#    - Run: bws-ctl upgrade

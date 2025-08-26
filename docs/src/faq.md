@@ -18,6 +18,23 @@ BWS (Basic Web Server) is a high-performance, multi-site web server built with R
 
 **Modern Features**: Built-in support for WASM, comprehensive MIME types, and modern web standards.
 
+### Can I quickly serve a directory without configuration?
+
+Yes! BWS supports instant directory serving. Simply run:
+
+```bash
+# Serve current directory
+bws .
+
+# Serve a specific directory
+bws /path/to/your/files
+
+# On Windows
+bws C:\MyWebsite
+```
+
+This bypasses the need for configuration files and instantly starts serving static files on `http://localhost:8080`.
+
 ### What are the system requirements?
 
 **Minimum Requirements**:
@@ -156,6 +173,52 @@ protocols = ["TLSv1.2", "TLSv1.3"]
 ```
 
 See [SSL/TLS Configuration](./configuration.md#ssl-tls-configuration) for details.
+
+### How does hot reload work?
+
+BWS uses a master-worker architecture for true hot reload:
+
+1. **Master Process**: Monitors configuration and manages workers
+2. **Worker Processes**: Handle HTTP requests and connections
+3. **Hot Reload**: Master spawns new workers with updated config
+4. **Zero Downtime**: Old workers finish existing requests gracefully
+
+Trigger hot reload with:
+```bash
+# Send SIGHUP to master process
+kill -HUP $(pgrep -f "bws.*master")
+
+# Or using systemctl
+systemctl reload bws
+```
+
+### What can be hot reloaded?
+
+✅ **Supported**:
+- Site configurations and hostnames
+- SSL certificate paths
+- Proxy upstream configurations
+- Static file directories
+- Security headers
+- Load balancing settings
+
+❌ **Requires restart**:
+- Server listen ports
+- Core server settings
+
+### How do I check if hot reload succeeded?
+
+Monitor the process:
+```bash
+# Check process tree
+pstree -p $(pgrep -f "bws.*master")
+
+# Watch logs
+tail -f /var/log/bws/bws.log | grep -E "(reload|worker|master)"
+
+# Test configuration
+curl http://localhost:8080/health
+```
 
 ### What's the difference between hostname and domain?
 
@@ -465,6 +528,36 @@ Use a load balancer to distribute traffic across instances.
 Deploy separate BWS instances on different servers for horizontal scaling.
 
 ## Troubleshooting
+
+### BWS directory serving doesn't work - what to check?
+
+When using `bws [path]` for instant directory serving:
+
+1. **Directory doesn't exist**:
+```bash
+# Verify the path exists
+ls -la /path/to/directory  # Linux/macOS
+dir C:\path\to\directory   # Windows
+```
+
+2. **Permission issues**:
+```bash
+# Check read permissions
+ls -la /path/to/directory
+# Ensure BWS can read the directory contents
+```
+
+3. **Port already in use**:
+```bash
+# Default port 8080 might be occupied
+netstat -an | grep :8080     # Linux/macOS  
+netstat -an | findstr :8080  # Windows
+```
+
+4. **Windows path issues**:
+- Use forward slashes: `bws C:/MyWebsite`
+- Or escape backslashes: `bws "C:\\MyWebsite"`
+- BWS automatically handles Windows extended paths
 
 ### BWS won't start - what should I check?
 

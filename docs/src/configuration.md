@@ -134,7 +134,7 @@ Sites are defined using `[[sites]]` array tables. Each site represents a separat
 
 | Field | Type | Description | Default |
 |-------|------|-------------|---------|
-| `default` | Boolean | Whether this is the default site | `false` |
+| `default` | Boolean | Whether this is the default site (automatically set for single sites) | `false` |
 | `api_only` | Boolean | Only serve API endpoints, no static files | `false` |
 
 ### SSL Configuration

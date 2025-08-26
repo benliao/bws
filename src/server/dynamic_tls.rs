@@ -41,15 +41,15 @@ impl DynamicTlsHandler {
         if let Some(ssl_manager) = ssl_managers.get(domain) {
             // Try to get the certificate for this domain
             if ssl_manager.has_certificate(domain).await {
-                log::info!("Certificate available for {}, creating TLS config", domain);
+                log::info!("Certificate available for {domain}, creating TLS config");
 
                 // Get the certificate and create Rustls config
                 if let Ok(rustls_config) = ssl_manager.get_rustls_config(domain).await {
                     let mut tls_configs = self.tls_configs.write().await;
                     tls_configs.insert(domain.to_string(), Arc::new(rustls_config));
 
-                    log::info!("✅ TLS configuration updated for domain: {}", domain);
-                    log::info!("🔒 HTTPS is now available for https://{}", domain);
+                    log::info!("✅ TLS configuration updated for domain: {domain}");
+                    log::info!("🔒 HTTPS is now available for https://{domain}");
                     return Ok(true);
                 }
             }
@@ -88,7 +88,7 @@ impl DynamicTlsHandler {
                     if !handler.has_tls_config(domain).await {
                         match handler.update_tls_config(domain).await {
                             Ok(true) => {
-                                log::info!("🎉 Dynamic HTTPS upgrade successful for {}", domain);
+                                log::info!("🎉 Dynamic HTTPS upgrade successful for {domain}");
                                 log::warn!("Note: Existing HTTP connections on port 443 will continue as HTTP");
                                 log::warn!("New connections will automatically use HTTPS");
                             }
@@ -96,7 +96,7 @@ impl DynamicTlsHandler {
                                 // Certificate not ready yet, continue monitoring
                             }
                             Err(e) => {
-                                log::error!("Failed to update TLS config for {}: {}", domain, e);
+                                log::error!("Failed to update TLS config for {domain}: {e}");
                             }
                         }
                     }
