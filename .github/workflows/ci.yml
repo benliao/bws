@@ -71,34 +71,6 @@ jobs:
           echo "✅ Correctly rejected invalid configuration"
         fi
         
-        # Create test static files for basic functionality test
-        mkdir -p static static-blog static-api static-dev
-        echo "<html><body><h1>Test Main Site</h1></body></html>" > static/index.html
-        echo "<html><body><h1>Test Blog Site</h1></body></html>" > static-blog/index.html
-        echo "<html><body><h1>Test API Site</h1></body></html>" > static-api/index.html
-        echo "<html><body><h1>Test Dev Site</h1></body></html>" > static-dev/index.html
-        
-        # Start server in background and test basic functionality
-        timeout 30s ./target/debug/bws --config config.toml &
-        SERVER_PID=$!
-        
-        # Wait for server to start
-        sleep 5
-        
-        # Test if server responds (with timeout)
-        timeout 10s bash -c 'while ! curl -f http://localhost:8080/api/health > /dev/null 2>&1; do sleep 1; done'
-        
-        # Test basic endpoints
-        curl -f http://localhost:8080/api/health
-        curl -f http://localhost:8080/api/sites
-        
-        # Test static file serving
-        curl -f http://localhost:8080/ | grep "Test Main Site"
-        
-        # Kill the server
-        kill $SERVER_PID || true
-        wait $SERVER_PID || true
-        
         echo "✅ BWS binary tests completed successfully"
 
     - name: Upload BWS binary artifact

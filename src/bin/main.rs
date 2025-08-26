@@ -603,11 +603,11 @@ fn main() {
 
     if !is_daemon {
         if cli.directory.is_some() {
-            println!("\n馃搧 BWS Temporary Directory Server");
-            println!("馃搵 Quick Start Server:");
+            println!("\n BWS Temporary Directory Server");
+            println!("\n Quick Start Server:");
         } else {
-            println!("\n馃殌 BWS Multi-Site Server is running!");
-            println!("馃搵 Available websites:");
+            println!("\n BWS Multi-Site Server is running!");
+            println!("Available websites:");
         }
 
         for site in &config.sites {
@@ -641,49 +641,49 @@ fn main() {
             if site.ssl.enabled {
                 let cert_path = format!("./certs/{}.crt", site.hostname);
                 if std::path::Path::new(&cert_path).exists() {
-                    println!("    鈹斺攢 鉁?HTTPS enabled (certificates found)");
+                    println!("    HTTPS enabled (certificates found)");
                 } else {
-                    println!("    鈹斺攢 鈿狅笍  HTTP only (certificates not found)");
+                    println!("    HTTP only (certificates not found)");
                     if site.ssl.auto_cert {
-                        println!("    鈹斺攢 馃攧 ACME auto-renewal enabled");
+                        println!("    ACME auto-renewal enabled");
                     }
                 }
             }
 
             // Show common endpoints for each site
             if cli.verbose {
-                println!("    鈹斺攢 Health: {}/api/health", url);
-                println!("    鈹斺攢 Sites: {}/api/sites", url);
+                println!("Health: {}/api/health", url);
+                println!("Sites: {}/api/sites", url);
             }
         }
 
         // Show management API information
         if config.management.enabled {
-            println!("\n馃洜锔?Management API:");
+            println!("\nManagement API:");
             let mgmt_url = format!(
                 "http://{}:{}",
                 config.management.host, config.management.port
             );
-            println!("  鈥?Config Reload: {}/api/config/reload", mgmt_url);
+            println!("  Config Reload: {}/api/config/reload", mgmt_url);
             if config.management.api_key.is_some() {
-                println!("    鈹斺攢 馃敁 API key required (use X-API-Key header)");
+                println!("    🔑 API key required (use X-API-Key header)");
             } else {
-                println!("    鈹斺攢 鈿狅笍  No authentication (localhost only)");
+                println!("    🔑 No authentication (localhost only)");
             }
         }
 
         if cli.directory.is_some() {
-            println!("\n馃殌 TEMPORARY SERVER MODE:");
-            println!("   鈥?Press `Ctrl+C` to stop the server");
+            println!("\n🗂️ TEMPORARY SERVER MODE:");
+            println!("   Press `Ctrl+C` to stop the server");
             println!(
-                "   鈥?Files are served directly from: {}",
+                "   Files are served directly from: {}",
                 cli.directory.as_ref().unwrap()
             );
-            println!("   鈥?Simple static file server (no configuration file)");
+            println!("   🗂️ Simple static file server (no configuration file)");
         } else {
-            println!("\n馃挕 Tip: Use Ctrl+C to stop the server");
+            println!("\n💡 Tip: Use Ctrl+C to stop the server");
             if !cli.verbose {
-                println!("馃挕 Use --verbose to see health check URLs");
+                println!("💡 Use --verbose to see health check URLs");
             }
         }
         println!();
