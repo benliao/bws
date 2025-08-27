@@ -116,7 +116,7 @@ method = "round_robin"                 # round_robin, weighted, least_connection
 
 ```toml
 [management]
-enabled = true
+enabled = true                         # Disabled by default - must enable explicitly
 host = "127.0.0.1"                     # Always localhost for security
 port = 7654
 api_key = "your-secure-key"            # Optional but recommended

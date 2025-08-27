@@ -22,6 +22,11 @@ fn clean_path_for_display(path: &str) -> String {
     }
 }
 
+/// Generate a random port between 7000 and 9000 (inclusive)
+fn generate_random_port() -> u16 {
+    fastrand::u16(7000..=9000)
+}
+
 #[derive(Parser)]
 #[command(name = "bws")]
 #[command(about = "BWS - High-performance multi-site web server")]
@@ -29,7 +34,7 @@ fn clean_path_for_display(path: &str) -> String {
 #[command(
     long_about = "BWS is a high-performance multi-site web server with SSL/TLS, load balancing, and health monitoring.
 
-Quick start: bws [path]        - Serve directory on port 80
+Quick start: bws [path]        - Serve directory on random port (7000-9000)
 With config: bws -c config.toml - Use configuration file"
 )]
 struct Cli {
@@ -38,16 +43,16 @@ struct Cli {
     directory: Option<String>,
 
     /// Configuration file path
-    #[arg(short, long, default_value = "config.toml")]
-    config: String,
+    #[arg(short, long)]
+    config: Option<String>,
 
     /// Enable verbose logging
     #[arg(short, long)]
     verbose: bool,
 
-    /// Port to use when serving directory (default: 80)
-    #[arg(short, long, default_value = "80")]
-    port: u16,
+    /// Port to use when serving directory (default: random between 7000-9000)
+    #[arg(short, long)]
+    port: Option<u16>,
 
     /// Run as daemon (background process) - Unix only
     #[cfg(unix)]
@@ -143,9 +148,12 @@ fn handle_dry_run(config: &ServerConfig, cli: &Cli) {
     if cli.directory.is_some() {
         println!(" Temporary directory configuration created successfully");
         println!("    Directory: {}", cli.directory.as_ref().unwrap());
-        println!("    Port: {}", cli.port);
+        // Extract port from the first site in the config
+        let port = config.sites.first().map(|s| s.port).unwrap_or(8080);
+        println!("    Port: {}", port);
     } else {
-        println!(" Configuration file '{}' loaded successfully", cli.config);
+        let config_path = cli.config.as_deref().unwrap_or("config.toml");
+        println!(" Configuration file '{}' loaded successfully", config_path);
     }
 
     println!("\n Configuration Summary:");
@@ -410,13 +418,46 @@ fn main() {
     // Load configuration from specified file or create temporary config
     let config = if let Some(directory) = &cli.directory {
         // Create temporary configuration for serving a directory
-        create_temporary_config(directory, cli.port)
-    } else {
-        // Load configuration from file
-        ServerConfig::load_from_file(&cli.config).unwrap_or_else(|e| {
-            eprintln!("Failed to load configuration from '{}': {e}", cli.config);
+        let port = cli.port.unwrap_or_else(generate_random_port);
+        create_temporary_config(directory, port)
+    } else if let Some(config_path) = &cli.config {
+        // Load configuration from explicitly specified file
+        ServerConfig::load_from_file(config_path).unwrap_or_else(|e| {
+            eprintln!("Failed to load configuration from '{}': {e}", config_path);
             std::process::exit(1);
         })
+    } else {
+        // No directory and no config file specified - check if default exists
+        let default_config = "config.toml";
+        if Path::new(default_config).exists() {
+            ServerConfig::load_from_file(default_config).unwrap_or_else(|e| {
+                eprintln!(
+                    "Failed to load configuration from '{}': {e}",
+                    default_config
+                );
+                std::process::exit(1);
+            })
+        } else {
+            // No config file found - show usage information
+            let default_port = generate_random_port();
+            eprintln!("Usage:");
+            eprintln!(
+                "  bws [directory]                  - Serve directory on random port (7000-9000)"
+            );
+            eprintln!("  bws --config config.toml         - Use configuration file");
+            eprintln!(
+                "  bws . --port 8080               - Serve current directory on specific port"
+            );
+            eprintln!();
+            eprintln!("Examples:");
+            eprintln!(
+                "  bws /path/to/website            - Serve website files on port {}",
+                default_port
+            );
+            eprintln!("  bws . --port 3000               - Serve current dir on port 3000");
+            eprintln!("  bws --config my-config.toml     - Use custom config");
+            std::process::exit(1);
+        }
     };
 
     // Handle dry-run mode: validate configuration and exit
@@ -427,9 +468,10 @@ fn main() {
     if cli.directory.is_some() {
         println!(" Temporary web server ready!");
     } else {
+        let config_path = cli.config.as_deref().unwrap_or("config.toml");
         println!(
             "Loaded configuration from '{}' for {} sites:",
-            cli.config,
+            config_path,
             config.sites.len()
         );
     }
@@ -465,12 +507,12 @@ fn main() {
     let web_service = WebServerService::new(config.clone());
 
     // Set the config path for hot reload (only if not in temporary directory mode)
-    if cli.directory.is_none() {
+    if cli.directory.is_none() && cli.config.is_some() {
         let rt = tokio::runtime::Runtime::new().unwrap_or_else(|e| {
             log::error!("Failed to create runtime for config path setup: {e}");
             std::process::exit(1);
         });
-        rt.block_on(web_service.set_config_path(cli.config.clone()));
+        rt.block_on(web_service.set_config_path(cli.config.clone().unwrap()));
         log::info!(" Config hot reload enabled via API at POST /api/config/reload");
     }
 

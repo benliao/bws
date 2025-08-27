@@ -109,8 +109,17 @@ curl -k https://secure.localhost:8443/
 
 ## Management API
 
-BWS includes a secure management API for configuration reloads:
+BWS includes an optional secure management API for configuration reloads. To enable it, add to your config:
 
+```toml
+[management]
+enabled = true
+host = "127.0.0.1"
+port = 7654
+api_key = "your-secure-key"  # Optional but recommended
+```
+
+Usage:
 ```bash
 # Hot reload configuration
 curl -X POST http://127.0.0.1:7654/api/config/reload

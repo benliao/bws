@@ -1,12 +1,13 @@
 [server]
 name = "BWS Multi-Site Server"
 
-# Management API configuration - localhost only for security
-[management]
-enabled = true
-host = "127.0.0.1"
-port = 7654
-# api_key = "your-secure-api-key-here"  # Uncomment and set for production
+# Management API configuration - disabled by default for security
+# Uncomment to enable the management API (localhost only)
+# [management]
+# enabled = true
+# host = "127.0.0.1"
+# port = 7654
+# api_key = "your-secure-api-key-here"  # Optional but recommended
 
 # Default site configuration
 [[sites]]

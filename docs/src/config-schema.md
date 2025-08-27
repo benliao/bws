@@ -63,7 +63,7 @@ api_key = "your-secure-api-key"       # API key for authentication (string)
 ```
 
 **Parameters:**
-- `enabled` (boolean, optional): Enable the Management API service. Default: `true`
+- `enabled` (boolean, optional): Enable the Management API service. Default: `false`
 - `host` (string, optional): Host address to bind to. Always `127.0.0.1` for security. Default: `"127.0.0.1"`
 - `port` (integer, optional): Port number for the Management API. Default: `7654`
 - `api_key` (string, optional): API key for authentication. If not set, no authentication required. Default: `null`

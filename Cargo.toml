@@ -1,6 +1,6 @@
 [package]
 name = "bws-web-server"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 license = "MIT"
 description = "BWS - High-performance multi-site web server built with Pingora"

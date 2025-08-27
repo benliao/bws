@@ -129,7 +129,7 @@ fn default_max_request_size() -> String {
 }
 
 fn default_management_enabled() -> bool {
-    true
+    false
 }
 
 fn default_management_host() -> String {
