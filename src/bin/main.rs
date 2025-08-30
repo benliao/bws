@@ -22,6 +22,34 @@ fn clean_path_for_display(path: &str) -> String {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn test_clean_path_for_display_windows() {
+        let input = r"\\\\?\\C:\\Users\\test";
+        let cleaned = clean_path_for_display(input);
+        assert_eq!(cleaned, "C:\\Users\\test");
+    }
+
+    #[test]
+    fn test_clean_path_for_display_normal() {
+        let input = "/usr/local/bin";
+        let cleaned = clean_path_for_display(input);
+        assert_eq!(cleaned, "/usr/local/bin");
+    }
+
+    #[test]
+    fn test_generate_random_port_range() {
+        for _ in 0..100 {
+            let port = generate_random_port();
+            assert!(port >= 7000 && port <= 9000);
+        }
+    }
+}
+
 /// Generate a random port between 7000 and 9000 (inclusive)
 fn generate_random_port() -> u16 {
     fastrand::u16(7000..=9000)
