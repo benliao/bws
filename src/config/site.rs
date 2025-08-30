@@ -2,34 +2,51 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
 
+/// Configuration for a single site (virtual host)
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SiteConfig {
+    /// Site name (for identification)
     pub name: String,
+    /// Primary hostname for the site
     pub hostname: String,
+    /// Additional hostnames that share the same port and config
     #[serde(default)]
-    pub hostnames: Vec<String>, // Additional hostnames that share the same port and config
+    pub hostnames: Vec<String>,
+    /// Port to listen on
     pub port: u16,
+    /// Directory for static files
     pub static_dir: String,
+    /// Whether this site is the default for its port
     #[serde(default)]
     pub default: bool,
+    /// If true, only API endpoints are served (no static files)
     #[serde(default)]
     pub api_only: bool,
+    /// Custom headers to add to responses
     #[serde(default)]
     pub headers: HashMap<String, String>,
+    /// Whether to redirect HTTP to HTTPS
     #[serde(default)]
     pub redirect_to_https: bool,
+    /// List of index files to try for directories
     #[serde(default)]
     pub index_files: Vec<String>,
+    /// Custom error pages by status code
     #[serde(default)]
     pub error_pages: HashMap<u16, String>,
+    /// Compression configuration
     #[serde(default)]
     pub compression: CompressionConfig,
+    /// Caching configuration
     #[serde(default)]
     pub cache: CacheConfig,
+    /// CORS and access control configuration
     #[serde(default)]
     pub access_control: AccessControlConfig,
+    /// SSL configuration for the site
     #[serde(default)]
     pub ssl: SiteSslConfig,
+    /// Proxy configuration for the site
     #[serde(default)]
     pub proxy: ProxyConfig,
 }

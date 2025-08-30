@@ -4,89 +4,129 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
+/// Top-level server configuration for BWS.
+/// Contains global server info, site definitions, and all major subsystems.
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ServerConfig {
+    /// General server info (name, version, description)
     pub server: ServerInfo,
+    /// List of all configured sites (virtual hosts)
     pub sites: Vec<SiteConfig>,
+    /// Logging configuration
     #[serde(default)]
     pub logging: LoggingConfig,
+    /// Performance tuning configuration
     #[serde(default)]
     pub performance: PerformanceConfig,
+    /// Security-related configuration
     #[serde(default)]
     pub security: SecurityConfig,
+    /// Management API configuration
     #[serde(default)]
     pub management: ManagementConfig,
 }
 
+/// Information about the server (name, version, description)
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ServerInfo {
+    /// Server name
     pub name: String,
+    /// Server version
     #[serde(default = "default_version")]
     pub version: String,
+    /// Server description
     #[serde(default)]
     pub description: String,
 }
 
+/// Logging configuration for the server
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct LoggingConfig {
+    /// Log level (e.g., info, debug, warn)
     #[serde(default = "default_log_level")]
     pub level: String,
+    /// Path to access log file (optional)
     #[serde(default)]
     pub access_log: Option<String>,
+    /// Path to error log file (optional)
     #[serde(default)]
     pub error_log: Option<String>,
+    /// Log format (e.g., combined, json)
     #[serde(default = "default_log_format")]
     pub format: String,
+    /// Whether to log all requests
     #[serde(default)]
     pub log_requests: bool,
 }
 
+/// Performance tuning configuration for the server
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct PerformanceConfig {
+    /// Number of worker threads
     #[serde(default = "default_worker_threads")]
     pub worker_threads: usize,
+    /// Maximum concurrent connections
     #[serde(default = "default_max_connections")]
     pub max_connections: usize,
+    /// Keep-alive timeout in seconds
     #[serde(default = "default_keep_alive_timeout")]
     pub keep_alive_timeout: u64,
+    /// Request timeout in seconds
     #[serde(default = "default_request_timeout")]
     pub request_timeout: u64,
+    /// Read buffer size (e.g., "32KB")
     #[serde(default = "default_buffer_size")]
     pub read_buffer_size: String,
+    /// Write buffer size (e.g., "32KB")
     #[serde(default = "default_buffer_size")]
     pub write_buffer_size: String,
 }
 
+/// Security-related configuration for the server
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct SecurityConfig {
+    /// Whether to hide the server header in responses
     #[serde(default)]
     pub hide_server_header: bool,
+    /// Maximum allowed request size (e.g., "10MB")
     #[serde(default = "default_max_request_size")]
     pub max_request_size: String,
+    /// List of allowed CORS origins
     #[serde(default)]
     pub allowed_origins: Vec<String>,
+    /// Custom security headers to add to responses
     #[serde(default)]
     pub security_headers: HashMap<String, String>,
+    /// Optional rate limiting configuration
     #[serde(default)]
     pub rate_limiting: Option<RateLimitConfig>,
 }
 
+/// Rate limiting configuration
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
 pub struct RateLimitConfig {
+    /// Allowed requests per minute
     pub requests_per_minute: u32,
+    /// Allowed burst size
     pub burst_size: u32,
+    /// Whitelisted IPs or CIDRs
     #[serde(default)]
     pub whitelist: Vec<String>,
 }
 
+/// Management API configuration
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ManagementConfig {
+    /// Whether the management API is enabled
     #[serde(default = "default_management_enabled")]
     pub enabled: bool,
+    /// Host for the management API
     #[serde(default = "default_management_host")]
     pub host: String,
+    /// Port for the management API
     #[serde(default = "default_management_port")]
     pub port: u16,
+    /// Optional API key for authentication
     #[serde(default)]
     pub api_key: Option<String>,
 }
