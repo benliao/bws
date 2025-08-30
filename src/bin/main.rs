@@ -30,7 +30,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn test_clean_path_for_display_windows() {
-    let input = r"\\?\C:\Users\test";
+        let input = r"\\?\C:\Users\test";
         let cleaned = clean_path_for_display(input);
         assert_eq!(cleaned, "C:\\Users\\test");
     }
