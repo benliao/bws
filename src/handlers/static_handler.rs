@@ -5,15 +5,19 @@ use pingora::prelude::*;
 use std::path::Path;
 use tokio::fs;
 
+/// Handler for serving static files from disk.
 pub struct StaticFileHandler {
     // Future: Add caching, compression, etc.
 }
 
 impl StaticFileHandler {
+    /// Create a new StaticFileHandler
     pub fn new() -> Self {
         Self {}
     }
 
+    /// Handle a static file request for the given session, site, and path.
+    /// Resolves the file path, checks security, and serves the file or a 404 page.
     pub async fn handle(&self, session: &mut Session, site: &SiteConfig, path: &str) -> Result<()> {
         let file_path = self.resolve_file_path(site, path).await;
 
@@ -23,6 +27,7 @@ impl StaticFileHandler {
         }
     }
 
+    /// Resolve the requested path to a file on disk, checking for index files and path safety.
     async fn resolve_file_path(&self, site: &SiteConfig, request_path: &str) -> Option<String> {
         let clean_path = self.clean_path(request_path);
 
@@ -59,6 +64,7 @@ impl StaticFileHandler {
         None
     }
 
+    /// Clean and normalize a request path, removing dangerous components and normalizing separators.
     fn clean_path(&self, path: &str) -> String {
         // Remove query parameters and fragments
         let path = path.split('?').next().unwrap_or(path);
@@ -90,6 +96,7 @@ impl StaticFileHandler {
         components.join("/")
     }
 
+    /// Check if a file exists, is a regular file, and is within the allowed size limit.
     async fn is_file_accessible(&self, file_path: &str) -> bool {
         let path = Path::new(file_path);
 
@@ -113,6 +120,7 @@ impl StaticFileHandler {
         false
     }
 
+    /// Serve the given file to the client, applying headers and compression as needed.
     async fn serve_file(
         &self,
         session: &mut Session,

@@ -12,14 +12,20 @@ use std::sync::Arc;
 use url::Url;
 
 pub struct ProxyHandler {
+    /// Proxy configuration for the site, including routes and upstreams
     proxy_config: ProxyConfig,
+    /// Map of upstream name to list of upstream server configs
     upstreams: HashMap<String, Vec<UpstreamConfig>>,
+    /// Round-robin counters for each upstream
     round_robin_counters: HashMap<String, Arc<AtomicUsize>>,
+    /// Connection counts for each upstream server (for least-connections balancing)
     connection_counts: HashMap<String, Arc<AtomicUsize>>,
+    /// Handler for WebSocket proxying
     websocket_handler: WebSocketProxyHandler,
 }
 
 impl ProxyHandler {
+    /// Create a new ProxyHandler from the given proxy configuration
     pub fn new(proxy_config: ProxyConfig) -> Self {
         let mut upstreams = HashMap::new();
         let mut round_robin_counters = HashMap::new();
@@ -47,6 +53,8 @@ impl ProxyHandler {
     }
 
     /// Find the appropriate proxy route for a given path
+    /// Find the most specific proxy route for a given request path
+    /// Returns None if proxying is disabled or no route matches.
     pub fn find_proxy_route(&self, path: &str) -> Option<&ProxyRoute> {
         if !self.proxy_config.enabled {
             return None;
@@ -61,6 +69,8 @@ impl ProxyHandler {
     }
 
     /// Select an upstream server for a given upstream name
+    /// Select an upstream server for a given upstream name using the configured load balancing method.
+    /// Returns an error if no upstreams are available.
     pub fn select_upstream(&self, upstream_name: &str) -> Result<&UpstreamConfig> {
         let upstream_servers = self
             .upstreams
@@ -82,6 +92,7 @@ impl ProxyHandler {
     }
 
     /// Round-robin load balancing
+    /// Select an upstream server using round-robin load balancing.
     fn select_round_robin<'a>(
         &self,
         upstream_name: &str,
@@ -97,6 +108,7 @@ impl ProxyHandler {
     }
 
     /// Weighted load balancing
+    /// Select an upstream server using weighted random selection.
     fn select_weighted<'a>(&self, servers: &'a [UpstreamConfig]) -> Result<&'a UpstreamConfig> {
         let total_weight: u32 = servers.iter().map(|s| s.weight).sum();
         if total_weight == 0 {
@@ -117,6 +129,7 @@ impl ProxyHandler {
     }
 
     /// Least connections load balancing (uses actual connection tracking)
+    /// Select an upstream server with the least number of active connections.
     fn select_least_connections<'a>(
         &self,
         servers: &'a [UpstreamConfig],

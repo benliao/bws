@@ -13,7 +13,8 @@ use std::fs::File;
 use std::path::Path;
 use std::sync::Arc;
 
-/// Clean Windows extended path format for display
+/// Clean a Windows extended path format for display purposes.
+/// On Windows, strips the \\?\ prefix; on other platforms, returns the path unchanged.
 fn clean_path_for_display(path: &str) -> String {
     if path.starts_with("\\\\?\\") {
         path.strip_prefix("\\\\?\\").unwrap_or(path).to_string()
@@ -45,12 +46,13 @@ mod tests {
     fn test_generate_random_port_range() {
         for _ in 0..100 {
             let port = generate_random_port();
-            assert!(port >= 7000 && port <= 9000);
+            assert!((7000..=9000).contains(&port));
         }
     }
 }
 
-/// Generate a random port between 7000 and 9000 (inclusive)
+/// Generate a random port between 7000 and 9000 (inclusive).
+/// Used for temporary server instances when no port is specified.
 fn generate_random_port() -> u16 {
     fastrand::u16(7000..=9000)
 }
@@ -102,7 +104,8 @@ struct Cli {
     dry_run: bool,
 }
 
-/// Create a temporary configuration for serving a single directory
+/// Create a temporary server configuration for serving a single directory.
+/// Validates the directory and returns a ServerConfig with a single site.
 fn create_temporary_config(directory: &str, port: u16) -> ServerConfig {
     // Validate that the directory exists
     if !Path::new(directory).exists() {
